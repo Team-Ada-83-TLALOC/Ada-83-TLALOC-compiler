@@ -73,7 +73,7 @@ is
     GENERIC_BASE_LEVEL		: LEVEL_NUM		:= 0;
     MAX_GENERIC_FORMALS		: constant		:= 8;
 
-    IN_SPEC_UNIT			: BOOLEAN;
+    IN_SPEC_UNIT			: BOOLEAN			:= FALSE;
 
     CUR_LEVEL			: LEVEL_NUM;							--| NIVEAU D'IMBRICATION COURANT
     GFP_LEVEL			: LEVEL_NUM		:= 0;					--| NIVEAU DU PRO (ou corps de package generique) ENGLOBANT :
@@ -663,8 +663,7 @@ FIND_DOT_IF_ANY_AND_UPCASE:
 	PUT_LINE( "end namespace" );
 	CLOSE( F );
 	SET_OUTPUT( STANDARD_OUTPUT );
-	PUT_LINE( "TLALOC/Ada 83 - " & IDL.LIB_PATH( 1 .. IDL.LIB_PATH_LENGTH )
-		& NOM_FAS & '.' & CPU_NAME & "FAS created" );
+	PUT_LINE( "TLALOC/Ada 83 - " & PATH_NAME & " created" );
       end;
     end		CREATE_FAS_MAIN_FILE;
 		--------------------

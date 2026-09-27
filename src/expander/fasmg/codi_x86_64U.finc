@@ -809,6 +809,39 @@ macro			BFI					; bit field insert in stacked value
 
 end macro
 
+;	CHAMPS DE BITS A POSITION ET LARGEUR IMMEDIATES
+;	UBFXI lsb, w : ( v -- champ )   SBFXI lsb, w : ( v -- champ signe )
+;	BFII  lsb, w : ( old ins -- new )    lsb 0..63, w 1..64, lsb + w <= 64
+;	En x86 chaque macro redonne exactement LI lsb / LI w / UBFX (SBFX, BFI).
+
+;			----------------------------
+macro			BF_IMM_CTRL	lsb*, w*
+  assert lsb >= 0 & lsb <= 63
+  assert w >= 1 & w <= 64
+  assert lsb + w <= 64
+end macro
+;			------------------
+macro			UBFXI	lsb*, w*
+  BF_IMM_CTRL lsb, w
+  LI lsb
+  LI w
+  UBFX
+end macro
+;			------------------
+macro			SBFXI	lsb*, w*
+  BF_IMM_CTRL lsb, w
+  LI lsb
+  LI w
+  SBFX
+end macro
+;			------------------
+macro			BFII	lsb*, w*
+  BF_IMM_CTRL lsb, w
+  LI lsb
+  LI w
+  BFI
+end macro
+
 
 ;-----------------------------------------------------------------------------------------------------------------------
 ;		O P E R A T I O N S	  A R I T H M E T I Q U E   E N T I E R E
@@ -1098,6 +1131,85 @@ macro			CLE					; A <= B	 A empile puis B
   db 0x0F, 0x9E, 0x45, 0x00						; setle [rbp]
 end macro
 
+;-----------------------------------------------------------------------------------------------------------------------
+;				C O N T R O L E S   D ' I N T E R V A L L E
+;-----------------------------------------------------------------------------------------------------------------------
+;	CHKt lvl, disp : bornes FST et LST consecutives en DISPLAY[lvl]+disp (forme B)
+;	CHKIt lvl, disp, ofs : bornes en [DISPLAY[lvl]+disp]+ofs (forme C)
+;	t = B W D Q (bornes signees) ou UB UW UD (non signees), comme la charge qui les lirait.
+;	Echec : CONSTRAINT_ERROR par STANDARD.ce_raise_.
+;	En x86 chaque macro redonne exactement la sequence de 8 instructions LLIR d'avant.
+
+;			-------------------------------------------------
+macro			CHK_SEQ_B		charge*, taille*, lvl*, disp*
+;			-------------------------------------------------
+  DUP
+  charge lvl, disp
+  CLT
+  BT STANDARD.ce_raise_
+  DUP
+  charge lvl, disp+taille
+  CGT
+  BT STANDARD.ce_raise_
+end macro
+;			-------------------------------------------------------
+macro			CHK_SEQ_C		charge*, taille*, lvl*, disp*, ofs*
+;			-------------------------------------------------------
+  DUP
+  charge lvl, disp, ofs
+  CLT
+  BT STANDARD.ce_raise_
+  DUP
+  charge lvl, disp, ofs+taille
+  CGT
+  BT STANDARD.ce_raise_
+end macro
+;			---------------------
+macro			CHKB	lvl*, disp*
+  CHK_SEQ_B LB, 1, lvl, disp
+end macro
+macro			CHKW	lvl*, disp*
+  CHK_SEQ_B LW, 2, lvl, disp
+end macro
+macro			CHKD	lvl*, disp*
+  CHK_SEQ_B LD, 4, lvl, disp
+end macro
+macro			CHKQ	lvl*, disp*
+  CHK_SEQ_B LQ, 8, lvl, disp
+end macro
+;			---------------------
+macro			CHKUB	lvl*, disp*
+  CHK_SEQ_B ULB, 1, lvl, disp
+end macro
+macro			CHKUW	lvl*, disp*
+  CHK_SEQ_B ULW, 2, lvl, disp
+end macro
+macro			CHKUD	lvl*, disp*
+  CHK_SEQ_B ULD, 4, lvl, disp
+end macro
+;			---------------------------
+macro			CHKIB	lvl*, disp*, ofs*
+  CHK_SEQ_C LIB, 1, lvl, disp, ofs
+end macro
+macro			CHKIW lvl*, disp*, ofs*
+  CHK_SEQ_C LIW, 2, lvl, disp, ofs
+end macro
+macro			CHKID lvl*, disp*, ofs*
+  CHK_SEQ_C LID, 4, lvl, disp, ofs
+end macro
+macro			CHKIQ lvl*, disp*, ofs*
+  CHK_SEQ_C LIQ, 8, lvl, disp, ofs
+end macro
+;			---------------------------
+macro			CHKUIB	lvl*, disp*, ofs*
+  CHK_SEQ_C ULIB, 1, lvl, disp, ofs
+end macro
+macro			CHKUIW	lvl*, disp*, ofs*
+  CHK_SEQ_C ULIW, 2, lvl, disp, ofs
+end macro
+macro			CHKUID	lvl*, disp*, ofs*
+  CHK_SEQ_C ULID, 4, lvl, disp, ofs
+end macro
 
 ;-----------------------------------------------------------------------------------------------------------------------
 ;		C O M P A R A I S O N S   F L O T T A N T E S   ( S S E 2	d o u b l e )

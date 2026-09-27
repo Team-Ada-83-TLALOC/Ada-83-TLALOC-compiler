@@ -1,0 +1,40 @@
+	include '../../src/expander/fasmg/codi_riscv64.finc'
+STANDARD = 'STANDARD'
+namespace STANDARD
+  virtual at 8
+    VARzone::
+  end virtual
+	LINK	0, loc_siz
+include '_STANDRD.FINC'
+	EXC_MACH	0, EXC_CTX0__dat
+	LCA	exc_uncaught_
+	SA	0, EXC_CTX0__dat + _EXCEPTION_CONTEXT.DISPATCH
+	LVA	0, EXC_CTX0__dat
+	SA	0, EXCEPTIONS_TOP_CTX_disp
+include 'DIS_BONJOUR.FINC'
+	CALL	STANDARD., DIS_BONJOUR_L1
+	SYS_EXIT
+exc_raise_:
+	EXC_RAISE	EXCEPTIONS_TOP_CTX_disp
+exc_uncaught_:
+	STR	EXC_MSG__, 'EXCEPTION NON RATTRAPEE : '
+	STR	EXC_NL__, 10
+	LCA	EXC_MSG__.data_ptr
+	SYS_PUT_STR
+	LA	0, EXCEPTIONS_CURRENT_disp
+	SYS_PUT_STR
+	LCA	EXC_NL__.data_ptr
+	SYS_PUT_STR
+	SYS_EXIT	1
+ce_raise_:
+	LCA	CONSTRAINT_ERROR__exc.data_ptr
+	SA	0, EXCEPTIONS_CURRENT_disp
+	BRA	exc_raise_
+ne_raise_:
+	LCA	NUMERIC_ERROR__exc.data_ptr
+	SA	0, EXCEPTIONS_CURRENT_disp
+	BRA	exc_raise_
+ virtual VARzone
+   loc_siz = $
+  end virtual
+end namespace

@@ -215,11 +215,9 @@ begin:
 	LI	1
 	MUL
 	ADD
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.LST_1
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -230,16 +228,13 @@ begin:
 	CLAMP0
 	LI	1
 	MUL
-	LA  1,	-NAME_ofs
-	LA
+	LIA	1, -NAME_ofs, 0
 	BLKMOV
 	LA 1, -FILE_ofs
 	LIVA 	, 0, STANDARD.DIRECT_IO._FILE_TYPE.NAME_LEN
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.LST_1
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -331,11 +326,9 @@ begin:
 	LI	1
 	MUL
 	ADD
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.LST_1
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -346,16 +339,13 @@ begin:
 	CLAMP0
 	LI	1
 	MUL
-	LA  1,	-NAME_ofs
-	LA
+	LIA	1, -NAME_ofs, 0
 	BLKMOV
 	LA 1, -FILE_ofs
 	LIVA 	, 0, STANDARD.DIRECT_IO._FILE_TYPE.NAME_LEN
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.LST_1
-	LVA	1, -NAME_ofs
-	LIA	, , 8
+	LIA	1, -NAME_ofs, 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -740,8 +730,7 @@ VAR	RET_INFO_L44, Q
 	LA  ,  8
 	SA   1, RET_INFO_L44
 	DROP
-	LA   1, -result__ofs
-	LA  ,  8
+	LIA	1, -result__ofs, 8
 	LI	16
 	LA   1, RET_INFO_L44
 	BLKMOV
@@ -786,8 +775,7 @@ VAR	RET_INFO_L50, Q
 	LA  ,  8
 	SA   1, RET_INFO_L50
 	DROP
-	LA   1, -result__ofs
-	LA  ,  8
+	LIA	1, -result__ofs, 8
 	LI	16
 	LA   1, RET_INFO_L50
 	BLKMOV
@@ -951,8 +939,7 @@ L65:
 	LI	0
 	LA  1,	-GFP_ofs
 	LVA	1, -ITEM_ofs
-	LA  1,	-GFP_ofs
-	LA	, -ELEMENT_TYPE__outadr_ofs
+	LIA	1, -GFP_ofs, -ELEMENT_TYPE__outadr_ofs
 	CALLI
 	LD 1,	SIZE_BYTES_disp
 	LA 1, -FILE_ofs
@@ -1057,8 +1044,7 @@ L76:
 	LI	0
 	LA  1,	-GFP_ofs
 	LVA	1, -ITEM_ofs
-	LA  1,	-GFP_ofs
-	LA	, -ELEMENT_TYPE__outadr_ofs
+	LIA	1, -GFP_ofs, -ELEMENT_TYPE__outadr_ofs
 	CALLI
 	LD 1,	SIZE_BYTES_disp
 	LA 1, -FILE_ofs
@@ -1213,8 +1199,7 @@ L92:
 	LI	0
 	LA  1,	-GFP_ofs
 	LVA	1, -ITEM_ofs
-	LA  1,	-GFP_ofs
-	LA	, -ELEMENT_TYPE__inadr_ofs
+	LIA	1, -GFP_ofs, -ELEMENT_TYPE__inadr_ofs
 	CALLI
 	LD 1,	SIZE_BYTES_disp
 	LA 1, -FILE_ofs
@@ -1308,8 +1293,7 @@ L101:
 	LI	0
 	LA  1,	-GFP_ofs
 	LVA	1, -ITEM_ofs
-	LA  1,	-GFP_ofs
-	LA	, -ELEMENT_TYPE__inadr_ofs
+	LIA	1, -GFP_ofs, -ELEMENT_TYPE__inadr_ofs
 	CALLI
 	LD 1,	SIZE_BYTES_disp
 	LA 1, -FILE_ofs
@@ -1491,22 +1475,8 @@ L117:
 	DIV
 	LI	1
 	ADD
-	DUP
-	ULD	0, STANDARD.DIRECT_IO._POSITIVE_COUNT.FST
-	CLT
-	BT	STANDARD.ce_raise_
-	DUP
-	ULD	0, STANDARD.DIRECT_IO._POSITIVE_COUNT.LST
-	CGT
-	BT	STANDARD.ce_raise_
-	DUP
-	ULD	0, STANDARD.DIRECT_IO._POSITIVE_COUNT.FST
-	CLT
-	BT	STANDARD.ce_raise_
-	DUP
-	ULD	0, STANDARD.DIRECT_IO._POSITIVE_COUNT.LST
-	CGT
-	BT	STANDARD.ce_raise_
+	CHKUD	0, STANDARD.DIRECT_IO._POSITIVE_COUNT.FST
+	CHKUD	0, STANDARD.DIRECT_IO._POSITIVE_COUNT.FST
 	SQ  1,	-result__ofs
 	BRA ret_lbl
 ret_lbl:

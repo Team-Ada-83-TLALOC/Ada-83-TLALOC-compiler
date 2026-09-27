@@ -208,8 +208,7 @@ begin:
 	LVA  2,	STANDARD.IDL.SEM_PHASE_L11.UARITH.U_VAL_L21.A_SPREAD_disp
 	LD  2,	-A_ofs
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,SPREAD_L8
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_33_13_disp, Q
 VAR	ANON_33_13__u,    Q
@@ -242,8 +241,7 @@ endPRMS
 ELB 2
 
 begin:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_43_13_disp, Q
 VAR	ANON_43_13__u,    Q
@@ -277,59 +275,40 @@ ELB 2
 
 begin:
 
-	LA 2, -A_ofs
-	LA	-1, 0
+	LIA	2, -A_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
-	LA 2, -A_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -A_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 	ET
 	BF	L15
 
-	LA 2, -A_ofs
-	LA	-1, 0
+	LIA	2, -A_ofs, 0
 	LD
-	LI	2
-	LI	7
-	UBFX
+	UBFXI	2, 7
 	LI	0
 	CEQ
 	BF	L17
-	LA 2, -A_ofs
-	LA	-1, 0
+	LIA	2, -A_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	SQ  2,	-result__ofs
 	BRA ret_lbl
 	BRA	L16
 L17:
-	LA 2, -A_ofs
-	LA	-1, 0
+	LIA	2, -A_ofs, 0
 	LD
-	LI	2
-	LI	7
-	UBFX
+	UBFXI	2, 7
 	LI	1
 	CEQ
 	BF	L18
-	LA 2, -A_ofs
-	LA	-1, 0
+	LIA	2, -A_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	NEG
 	LI	1
 	SUB
@@ -366,60 +345,41 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L23
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L22
 L23:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L26
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L26:
 	DUP
 	BT	L25
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L25:
@@ -467,8 +427,7 @@ begin:
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_EQUAL_L18
 L31:
 	BF	L30
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_80_10_disp, Q
 VAR	ANON_80_10__u,    Q
@@ -487,8 +446,7 @@ VAR	ANON_80_10__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L29
 L30:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_82_10_disp, Q
 VAR	ANON_82_10__u,    Q
@@ -510,8 +468,7 @@ L29:
 endPRO
 	BRA	L22
 L24:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_86_15_disp, Q
 VAR	ANON_86_15__u,    Q
@@ -613,8 +570,7 @@ endPRMS
 ELB 2
 
 begin:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_97_13_L36_disp, Q
 VAR	ANON_97_13_L36__u,    Q
@@ -660,95 +616,65 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L40
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L39
 L40:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L44
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L44:
 	DUP
 	BT	L43
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L43:
 	DUP
 	BF	L42
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L46
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L46:
 	DUP
 	BT	L45
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L45:
@@ -802,8 +728,7 @@ begin:
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_LESS_L19
 L53:
 	BF	L52
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_120_12_disp, Q
 VAR	ANON_120_12__u,    Q
@@ -838,8 +763,7 @@ L50:
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_LESS_L19
 L56:
 	BF	L55
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_124_12_disp, Q
 VAR	ANON_124_12__u,    Q
@@ -860,8 +784,7 @@ VAR	ANON_124_12__dat, STANDARD.IDL._TREE.size
 L55:
 L54:
 L49:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_127_17_disp, Q
 VAR	ANON_127_17__u,    Q
@@ -882,8 +805,7 @@ VAR	ANON_127_17__dat, STANDARD.IDL._TREE.size
 endPRO
 	BRA	L39
 L41:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_131_15_L57_disp, Q
 VAR	ANON_131_15_L57__u,    Q
@@ -985,8 +907,7 @@ endPRMS
 ELB 2
 
 begin:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_144_13_L62_disp, Q
 VAR	ANON_144_13_L62__u,    Q
@@ -1031,8 +952,7 @@ endPRMS
 ELB 2
 
 begin:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_154_14_L66_disp, Q
 VAR	ANON_154_14_L66__u,    Q
@@ -1067,8 +987,7 @@ endPRMS
 ELB 2
 
 begin:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_163_13_L69_disp, Q
 VAR	ANON_163_13_L69__u,    Q
@@ -1114,36 +1033,26 @@ ELB 2
 
 begin:
 
-	LA  2,	-VALUE_ofs
-	LA
+	LIA	2, -VALUE_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	BF	L74
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L73
 L74:
 L73:
 
-	LA 2, -DISCRETE_RANGE_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -DISCRETE_RANGE_ofs, 0
+	ULB	, 3
 	LI	154
 	CEQ
 	BF	L76
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_178_15_L77_disp, Q
 VAR	ANON_178_15_L77__u,    Q
@@ -1226,33 +1135,23 @@ VAR	ANON_178_51__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L75
 L76:
-	LA 2, -DISCRETE_RANGE_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -DISCRETE_RANGE_ofs, 0
+	ULB	, 3
 	LI	155
 	CEQ
 	BF	L80
 STR STR_L81, "!! $$$$ RANGE ATTR DISCR SUBT"
 	LCA	STR_L81.data_ptr
 	CALL	STANDARD.TEXT_IO. ,PUT_LINE_L60
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L75
 L80:
-	LA 2, -DISCRETE_RANGE_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -DISCRETE_RANGE_ofs, 0
+	ULB	, 3
 	LI	156
 	CEQ
 	BF	L82
@@ -1339,24 +1238,15 @@ VAR	ANON_189_40__dat, STANDARD.IDL._TREE.size
 
 begin:
 
-	LA	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp
-	LD
-	LI	24
-	LI	8
-	UBFX
+	ULIB	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp, 0+3
 	ULB	0, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._CLASS_RANGE.FST
 	CGE
 	ULB	0, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._CLASS_RANGE.LST
-	LA	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp
-	LD
-	LI	24
-	LI	8
-	UBFX
+	ULIB	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp, 0+3
 	CGE
 	ET
 	BF	L86
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_192_10_disp, Q
 VAR	ANON_192_10__u,    Q
@@ -1376,19 +1266,11 @@ VAR	ANON_192_10__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L85
 L86:
-	LA	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp
-	LD
-	LI	24
-	LI	8
-	UBFX
+	ULIB	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp, 0+3
 	ULB	0, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._CLASS_REAL_CONSTRAINT.FST
 	CGE
 	ULB	0, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._CLASS_REAL_CONSTRAINT.LST
-	LA	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp
-	LD
-	LI	24
-	LI	8
-	UBFX
+	ULIB	3, STANDARD.IDL.SEM_PHASE_L11.UARITH.U_MEMBER_L30.BLOCK__3.CONSTRAINT_disp, 0+3
 	CGE
 	ET
 	DUP
@@ -1408,16 +1290,13 @@ VAR	ANON_193_66__dat, STANDARD.IDL._TREE.size
 	CALL	STANDARD.IDL. ,D_L17
 	LA
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	LI	1
 	OUX
 L88:
 	BF	L87
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_194_10_disp, Q
 VAR	ANON_194_10__u,    Q
@@ -1448,12 +1327,8 @@ VAR	ANON_194_27__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L85
 L87:
-	LVA 3,	CONSTRAINT_disp
-	LA
-	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	3, CONSTRAINT_disp, 0
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	LI	1
 	OUX
@@ -1482,24 +1357,19 @@ VAR	ANON_200_13__dat, STANDARD.IDL._TREE.size
 	CALL	STANDARD.IDL. ,D_L17
 	LA
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	BF	L92
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	UNLINK 3
 	BRA ret_lbl
 	BRA	L91
 L92:
 L91:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_204_16_disp, Q
 VAR	ANON_204_16__u,    Q
@@ -1555,11 +1425,9 @@ endPRO
 	BRA	L75
 L82:
 L75:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1773,51 +1641,36 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L106
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L105
 L106:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	LI	0
 	CGT
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	LI	0
 	CGT
 	ET
 	BF	L107
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_259_15_disp, Q
 VAR	ANON_259_15__u,    Q
@@ -1835,8 +1688,7 @@ VAR	ANON_259_15__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L105
 L107:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_261_15_disp, Q
 VAR	ANON_261_15__u,    Q
@@ -1872,51 +1724,36 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L111
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L110
 L111:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	LI	0
 	CGT
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	LI	0
 	CGT
 	OU
 	BF	L112
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_275_15_disp, Q
 VAR	ANON_275_15__u,    Q
@@ -1934,8 +1771,7 @@ VAR	ANON_275_15__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L110
 L112:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_277_15_disp, Q
 VAR	ANON_277_15__u,    Q
@@ -1971,47 +1807,32 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L116
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L115
 L116:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	UBFXI	9, 15
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	CNE
 	BF	L117
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_291_15_disp, Q
 VAR	ANON_291_15__u,    Q
@@ -2029,8 +1850,7 @@ VAR	ANON_291_15__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L115
 L117:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_293_15_disp, Q
 VAR	ANON_293_15__u,    Q
@@ -2065,25 +1885,19 @@ ELB 2
 
 begin:
 
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	BF	L121
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L120
 L121:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_308_12_disp, Q
 VAR	ANON_308_12__u,    Q
@@ -2095,12 +1909,9 @@ VAR	ANON_308_12__dat, STANDARD.IDL._TREE.size
 	LVA 2, ANON_308_12_disp
 
 	LI	1
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	9
-	LI	15
-	UBFX
+	UBFXI	9, 15
 	LI	2
 	DUP
 	LI	0
@@ -2131,52 +1942,36 @@ ELB 2
 
 begin:
 
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	BF	L125
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L124
 L125:
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L128
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L128:
 	DUP
 	BT	L127
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L127:
@@ -2202,8 +1997,7 @@ begin:
 	LIW	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._MINUS__L39.BLOCK__4.R_SPREAD_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
 	NEG
 	SW
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_323_14_disp, Q
 VAR	ANON_323_14__u,    Q
@@ -2224,8 +2018,7 @@ VAR	ANON_323_14__dat, STANDARD.IDL._TREE.size
 endPRO
 	BRA	L124
 L126:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_326_12_disp, Q
 VAR	ANON_326_12__u,    Q
@@ -2293,52 +2086,36 @@ ELB 2
 
 begin:
 
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	BF	L135
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L134
 L135:
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L138
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L138:
 	DUP
 	BT	L137
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L137:
@@ -2365,11 +2142,9 @@ begin:
 	LI	0
 	CGT
 	BF	L142
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	BLKMOV
 	UNLINK 3
 	BRA ret_lbl
@@ -2378,8 +2153,7 @@ L142:
 	LIVA 	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._ABS__L40.BLOCK__5.R_SPREAD_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
 	LI	1
 	SW
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_345_16_disp, Q
 VAR	ANON_345_16__u,    Q
@@ -2401,8 +2175,7 @@ L141:
 endPRO
 	BRA	L134
 L136:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_349_12_disp, Q
 VAR	ANON_349_12__u,    Q
@@ -2471,60 +2244,41 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L147
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L146
 L147:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L150
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L150:
 	DUP
 	BT	L149
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L149:
@@ -2567,8 +2321,7 @@ begin:
 	LVA  3,	STANDARD.IDL.SEM_PHASE_L11.UARITH._PLUS__L41.BLOCK__6.R_SPREAD_disp
 	LVA 3,	L_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_ADD_L10
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_368_16_disp, Q
 VAR	ANON_368_16__u,    Q
@@ -2592,8 +2345,7 @@ L154:
 	LVA 3,	L_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_EQUAL_L18
 	BF	L155
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_371_16_disp, Q
 VAR	ANON_371_16__u,    Q
@@ -2620,8 +2372,7 @@ L155:
 	LVA  3,	STANDARD.IDL.SEM_PHASE_L11.UARITH._PLUS__L41.BLOCK__6.R_SPREAD_disp
 	LVA 3,	L_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_SUB_L11
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_375_16_disp, Q
 VAR	ANON_375_16__u,    Q
@@ -2643,8 +2394,7 @@ L156:
 	LVA  3,	STANDARD.IDL.SEM_PHASE_L11.UARITH._PLUS__L41.BLOCK__6.L_SPREAD_disp
 	LVA 3,	R_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_SUB_L11
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_379_16_disp, Q
 VAR	ANON_379_16__u,    Q
@@ -2666,8 +2416,7 @@ L153:
 endPRO
 	BRA	L146
 L148:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_383_12_disp, Q
 VAR	ANON_383_12__u,    Q
@@ -2814,60 +2563,41 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L164
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L163
 L164:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L167
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L167:
 	DUP
 	BT	L166
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L166:
@@ -2914,8 +2644,7 @@ begin:
 	LVA  3,	STANDARD.IDL.SEM_PHASE_L11.UARITH._MINUS__L42.BLOCK__7.R_SPREAD_disp
 	LVA 3,	L_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_ADD_L10
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_406_16_disp, Q
 VAR	ANON_406_16__u,    Q
@@ -2939,8 +2668,7 @@ L171:
 	LVA 3,	L_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_EQUAL_L18
 	BF	L172
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_409_16_disp, Q
 VAR	ANON_409_16__u,    Q
@@ -2967,8 +2695,7 @@ L172:
 	LVA  3,	STANDARD.IDL.SEM_PHASE_L11.UARITH._MINUS__L42.BLOCK__7.R_SPREAD_disp
 	LVA 3,	L_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_SUB_L11
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_413_16_disp, Q
 VAR	ANON_413_16__u,    Q
@@ -2990,8 +2717,7 @@ L173:
 	LVA  3,	STANDARD.IDL.SEM_PHASE_L11.UARITH._MINUS__L42.BLOCK__7.L_SPREAD_disp
 	LVA 3,	R_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_SUB_L11
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_416_16_disp, Q
 VAR	ANON_416_16__u,    Q
@@ -3013,8 +2739,7 @@ L170:
 endPRO
 	BRA	L163
 L165:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_420_12_disp, Q
 VAR	ANON_420_12__u,    Q
@@ -3160,35 +2885,24 @@ endPRMS
 ELB 2
  hexa_show 'var elab LEFT_IS_INT ', $
 VAR LEFT_IS_INT_disp, B
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L179
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L179:
 	DUP
 	BT	L178
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L178:
@@ -3197,35 +2911,24 @@ L178:
  hexa_show ' disp ', LEFT_IS_INT_disp
  hexa_show 'var elab RIGHT_IS_INT ', $
 VAR RIGHT_IS_INT_disp, B
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L181
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L181:
 	DUP
 	BT	L180
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L180:
@@ -3235,27 +2938,19 @@ L180:
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L185
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L184
@@ -3313,8 +3008,7 @@ begin:
 	LIW	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._MUL__L43.BLOCK__8.R_SPREAD_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
 	MUL
 	SW
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_445_14_disp, Q
 VAR	ANON_445_14__u,    Q
@@ -3337,8 +3031,7 @@ endPRO
 L186:
 	ULB 2,	RIGHT_IS_INT_disp
 	BF	L189
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_448_12_disp, Q
 VAR	ANON_448_12__u,    Q
@@ -3392,8 +3085,7 @@ VAR	ANON_448_20__dat, STANDARD.IDL._TREE.size
 L189:
 	ULB 2,	LEFT_IS_INT_disp
 	BF	L191
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_450_12_L192_disp, Q
 VAR	ANON_450_12_L192__u,    Q
@@ -3412,8 +3104,7 @@ VAR	ANON_450_12_L192__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L184
 L191:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_452_12_disp, Q
 VAR	ANON_452_12__u,    Q
@@ -3515,35 +3206,24 @@ endPRMS
 ELB 2
  hexa_show 'var elab LEFT_IS_INT ', $
 VAR LEFT_IS_INT_disp, B
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L196
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L196:
 	DUP
 	BT	L195
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L195:
@@ -3552,35 +3232,24 @@ L195:
  hexa_show ' disp ', LEFT_IS_INT_disp
  hexa_show 'var elab RIGHT_IS_INT ', $
 VAR RIGHT_IS_INT_disp, B
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L198
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L198:
 	DUP
 	BT	L197
 	DROP
-	LA 2, -RIGHT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -RIGHT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L197:
@@ -3590,27 +3259,19 @@ L197:
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L202
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L201
@@ -3661,11 +3322,9 @@ begin:
 	LVA 3,	R_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UARITH. ,IS_ZERO_L1
 	BF	L207
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	UNLINK 3
 	BRA ret_lbl
@@ -3684,8 +3343,7 @@ L206:
 	LIW	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._DIV__L44.BLOCK__9.R_SPREAD_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
 	MUL
 	SW
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_477_14_disp, Q
 VAR	ANON_477_14__u,    Q
@@ -3709,8 +3367,7 @@ L203:
 	ULB 2,	RIGHT_IS_INT_disp
 	BF	L208
 
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
 VAR	ANON_480_16_disp, Q
 VAR	ANON_480_16__u,    Q
@@ -3727,18 +3384,15 @@ VAR	ANON_480_16__dat, STANDARD.IDL._TREE.size
 	LD
 	CEQ
 	BF	L210
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L209
 L210:
 L209:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_483_12_disp, Q
 VAR	ANON_483_12__u,    Q
@@ -3820,18 +3474,15 @@ VAR	ANON_485_31__dat, STANDARD.IDL._TREE.size
 	LD
 	CEQ
 	BF	L213
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L212
 L213:
 L212:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_488_12_disp, Q
 VAR	ANON_488_12__u,    Q
@@ -3934,27 +3585,19 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L219
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L218
@@ -4004,11 +3647,9 @@ begin:
 	LVA 3,	R_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UARITH. ,IS_ZERO_L1
 	BF	L223
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	UNLINK 3
 	BRA ret_lbl
@@ -4072,8 +3713,7 @@ L224:
 	LIVA 	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._MOD__L45.BLOCK__10.L_SPREAD_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
 	LIW	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._MOD__L45.BLOCK__10.R_SPREAD_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
 	SW
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_516_14_disp, Q
 VAR	ANON_516_14__u,    Q
@@ -4112,27 +3752,19 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L230
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L229
@@ -4182,11 +3814,9 @@ begin:
 	LVA 3,	R_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UARITH. ,IS_ZERO_L1
 	BF	L234
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	UNLINK 3
 	BRA ret_lbl
@@ -4197,8 +3827,7 @@ L233:
 	LVA  3,	STANDARD.IDL.SEM_PHASE_L11.UARITH._REM__L46.BLOCK__11.L_SPREAD_disp
 	LVA 3,	R_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_DIV_L14
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_540_14_disp, Q
 VAR	ANON_540_14__u,    Q
@@ -4237,60 +3866,41 @@ ELB 2
 
 begin:
 
-	LA  2,	-LEFT_ofs
-	LA
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
-	LA  2,	-RIGHT_ofs
-	LA
+	LIA	2, -RIGHT_ofs, 0
 	LD
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
-	LD
+	LID	0, STANDARD.IDL.TREE_VOID_disp, 0
 	CEQ
 	OU
 	BF	L238
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	BRA ret_lbl
 	BRA	L237
 L238:
-	LA 2, -LEFT_ofs
-	LA	-1, 0
+	LIA	2, -LEFT_ofs, 0
 	LD
-	LI	0
-	LI	2
-	UBFX
+	UBFXI	0, 2
 	LI	3
 	CEQ
 	DUP
 	BF	L241
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L241:
 	DUP
 	BT	L240
 	DROP
-	LA 2, -LEFT_ofs
-	LA	-1, 0
-	LD
-	LI	24
-	LI	8
-	UBFX
+	LIA	2, -LEFT_ofs, 0
+	ULB	, 3
 	LI	2
 	CEQ
 L240:
@@ -4342,11 +3952,9 @@ begin:
 	LI	0
 	CLT
 	BF	L245
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
-	LVA 0,	STANDARD.IDL.TREE_VOID_disp
-	LA
+	LA	0, STANDARD.IDL.TREE_VOID_disp
 	BLKMOV
 	UNLINK 3
 	BRA ret_lbl
@@ -4368,11 +3976,9 @@ LOOP__13:
 	LVA 3,	RESULT_disp
 	LVA 3,	L_SPREAD_disp
 	CALL	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS. ,V_MUL_L12
-	LVA 3,	RESULT_disp
-	LA
+	LA	3, RESULT_disp
 	LI	STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.size
-	LVA 3,	TEMP_disp
-	LA
+	LA	3, TEMP_disp
 	BLKMOV
 	LIVA 	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._POW__L47.BLOCK__12.RESULT_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
 	LIW	3, STANDARD.IDL.SEM_PHASE_L11.UARITH._POW__L47.BLOCK__12.RESULT_disp, STANDARD.IDL.SEM_PHASE_L11.UNIV_OPS._VECTOR.S
@@ -4385,8 +3991,7 @@ LOOP__13:
 	SD  3,	COUNT_disp
 	BRA	LOOP__13
 L246:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_571_16_disp, Q
 VAR	ANON_571_16__u,    Q
@@ -4414,8 +4019,7 @@ L239:
 	LI	0
 	CGE
 	BF	L248
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_576_17_disp, Q
 VAR	ANON_576_17__u,    Q
@@ -4478,8 +4082,7 @@ VAR	ANON_576_25__dat, STANDARD.IDL._TREE.size
 	BRA ret_lbl
 	BRA	L247
 L248:
-	LA   2,	-result__ofs
-	LA  ,  0
+	LIA	2, -result__ofs, 0
 	LI	STANDARD.IDL._TREE.size
 VAR	ANON_578_17_disp, Q
 VAR	ANON_578_17__u,    Q

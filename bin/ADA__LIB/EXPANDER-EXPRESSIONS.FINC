@@ -74232,9 +74232,9 @@ VAR DEFAULT_EXP_disp, D
 
  hexa_show ' disp ', DEFAULT_EXP_disp
 
-if defined GET_L1432_
-PRO	GET_L1432
- hexa_show 'GET_L1432 ', $
+if defined GET_L67_
+PRO	GET_L67
+ hexa_show 'GET_L67 ', $
 PRMS
 	PRM FILE_ofs
 	PRM ITEM_ofs
@@ -74252,9 +74252,9 @@ begin:
 endPRO
 end if
 
-if defined GET_L1433_
-PRO	GET_L1433
- hexa_show 'GET_L1433 ', $
+if defined GET_L68_
+PRO	GET_L68
+ hexa_show 'GET_L68 ', $
 PRMS
 	PRM ITEM_ofs
 	PRM WIDTH_ofs
@@ -74270,9 +74270,9 @@ begin:
 endPRO
 end if
 
-if defined PUT_L1434_
-PRO	PUT_L1434
- hexa_show 'PUT_L1434 ', $
+if defined PUT_L69_
+PRO	PUT_L69
+ hexa_show 'PUT_L69 ', $
 PRMS
 	PRM FILE_ofs
 	PRM ITEM_ofs
@@ -74294,9 +74294,9 @@ begin:
 endPRO
 end if
 
-if defined PUT_L1435_
-PRO	PUT_L1435
- hexa_show 'PUT_L1435 ', $
+if defined PUT_L70_
+PRO	PUT_L70
+ hexa_show 'PUT_L70 ', $
 PRMS
 	PRM ITEM_ofs
 	PRM FORE_ofs
@@ -74316,9 +74316,9 @@ begin:
 endPRO
 end if
 
-if defined GET_L1436_
-PRO	GET_L1436
- hexa_show 'GET_L1436 ', $
+if defined GET_L71_
+PRO	GET_L71
+ hexa_show 'GET_L71 ', $
 PRMS
 	PRM FROM_ofs
 	PRM ITEM_ofs
@@ -74336,9 +74336,9 @@ begin:
 endPRO
 end if
 
-if defined PUT_L1437_
-PRO	PUT_L1437
- hexa_show 'PUT_L1437 ', $
+if defined PUT_L72_
+PRO	PUT_L72
+ hexa_show 'PUT_L72 ', $
 PRMS
 	PRM TO_ofs
 	PRM ITEM_ofs
@@ -74578,7 +74578,7 @@ end namespace
 	LQ 4,	NV_disp
 	LQ 4,	DV_disp
 	FDIV
-	CALL	STANDARD.EXPANDER_L1.EXPRESSIONS.CODE_ATTRIBUTE_L65.CODE_FOLDED_ATTRIBUTE_L1388.BLOCK__61.LF_IO. ,PUT_L1435
+	CALL	STANDARD.EXPANDER_L1.EXPRESSIONS.CODE_ATTRIBUTE_L65.CODE_FOLDED_ATTRIBUTE_L1388.BLOCK__61.LF_IO. ,PUT_L70
 	LI	1
 	DUP
 	ULD	0, STANDARD.TEXT_IO._POSITIVE_COUNT.FST
@@ -99810,9 +99810,9 @@ VAR DEFAULT_EXP_disp, D
 
  hexa_show ' disp ', DEFAULT_EXP_disp
 
-if defined GET_L1969_
-PRO	GET_L1969
- hexa_show 'GET_L1969 ', $
+if defined GET_L67_
+PRO	GET_L67
+ hexa_show 'GET_L67 ', $
 PRMS
 	PRM FILE_ofs
 	PRM ITEM_ofs
@@ -99830,9 +99830,9 @@ begin:
 endPRO
 end if
 
-if defined GET_L1970_
-PRO	GET_L1970
- hexa_show 'GET_L1970 ', $
+if defined GET_L68_
+PRO	GET_L68
+ hexa_show 'GET_L68 ', $
 PRMS
 	PRM ITEM_ofs
 	PRM WIDTH_ofs
@@ -99848,9 +99848,9 @@ begin:
 endPRO
 end if
 
-if defined PUT_L1971_
-PRO	PUT_L1971
- hexa_show 'PUT_L1971 ', $
+if defined PUT_L69_
+PRO	PUT_L69
+ hexa_show 'PUT_L69 ', $
 PRMS
 	PRM FILE_ofs
 	PRM ITEM_ofs
@@ -99872,9 +99872,9 @@ begin:
 endPRO
 end if
 
-if defined PUT_L1972_
-PRO	PUT_L1972
- hexa_show 'PUT_L1972 ', $
+if defined PUT_L70_
+PRO	PUT_L70
+ hexa_show 'PUT_L70 ', $
 PRMS
 	PRM ITEM_ofs
 	PRM FORE_ofs
@@ -99894,9 +99894,9 @@ begin:
 endPRO
 end if
 
-if defined GET_L1973_
-PRO	GET_L1973
- hexa_show 'GET_L1973 ', $
+if defined GET_L71_
+PRO	GET_L71
+ hexa_show 'GET_L71 ', $
 PRMS
 	PRM FROM_ofs
 	PRM ITEM_ofs
@@ -99914,9 +99914,9 @@ begin:
 endPRO
 end if
 
-if defined PUT_L1974_
-PRO	PUT_L1974
- hexa_show 'PUT_L1974 ', $
+if defined PUT_L72_
+PRO	PUT_L72
+ hexa_show 'PUT_L72 ', $
 PRMS
 	PRM TO_ofs
 	PRM ITEM_ofs
@@ -100154,7 +100154,7 @@ end namespace
 	CGT
 	BT	STANDARD.ce_raise_
 	LQ 4,	REAL_SMALL_disp
-	CALL	STANDARD.EXPANDER_L1.EXPRESSIONS.CODE_ATTRIBUTE_L65.CODE_SMALL_L1940.BLOCK__93.LF_IO. ,PUT_L1972
+	CALL	STANDARD.EXPANDER_L1.EXPRESSIONS.CODE_ATTRIBUTE_L65.CODE_SMALL_L1940.BLOCK__93.LF_IO. ,PUT_L70
 	LI	1
 	DUP
 	ULD	0, STANDARD.TEXT_IO._POSITIVE_COUNT.FST

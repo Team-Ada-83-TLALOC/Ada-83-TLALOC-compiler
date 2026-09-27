@@ -1,0 +1,1017 @@
+;-----------------------------------------------------------------------------------------------------------------------
+;- SPDX-FileCopyrightText: 2026 VINCENT MORIN, UBO
+;- SPDX-License-Identifier: GPL-3.0-or-later
+;-----------------------------------------------------------------------------------------------------------------------
+;		C O D I   T X  --  T L A L O C   E X E C U T O R
+;
+;	Codi d'EXECUTION PAR INTERPRETE. Derive de codi_x86_64L.finc : memes noms de macros, memes
+;	parametres, donc les .FINC et .FAS du front end s'assemblent sans modification.
+;
+;	Au lieu de code x86, chaque macro LLIR emet UN ENREGISTREMENT DE 16 OCTETS, interprete par
+;	tx_run (Ada). Ce format d'execution est volontairement independant de l'encodage binaire
+;	de LLIR_hardware_support : l'interprete connait tous les champs de chaque instruction et
+;	calcule lui-meme la taille qu'elle aurait dans les deux flux materiels.
+;
+;	ENREGISTREMENT (petit-boutiste)
+;	  octet  0       code operation TX (table TX_xxx ci-dessous)
+;	  octet  1       lvl, entier signe 8 bits (-1 = adresse sur la pile)
+;	  octets 2..3    reserve (0)
+;	  octets 4..7    ofs, entier signe 32 bits (LEXCMP : taille composant ; SYS_EXIT : code)
+;	  octets 8..15   val, 64 bits : disp, imm, taille, adresse ABSOLUE de cible, numero TRAP
+;
+;	IMAGE
+;	  0x400000       en-tete de 0x78 octets (voir fin de fichier)
+;	  0x400078       point d'entree, puis code et donnees statiques melanges comme en x86
+;	Les adresses absolues (LCA, STR, CST, cibles) sont celles de l'image, chargee a 0x400000.
+;	Les donnees en ligne (images d'enumeres) restent protegees par BRA : le PC est une adresse
+;	d'octet et n'a pas besoin d'alignement.
+;
+;	L'initialisation machine (piles, display, co-pile, tas) est faite par l'interprete.
+;
+;		fasmg PROG.TXFAS PROG.tx      puis      tx_run PROG.tx
+;-----------------------------------------------------------------------------------------------------------------------
+
+postpone						; sera fait en toute toute fin car c'est le premier postpone
+  ASM_SIZE = $-0x400078
+end postpone
+
+;	Table des enregistrements : adresse (relative a 0x400000) de chaque instruction,
+;	dans l'ordre du code. Elle permet a l'interprete de distinguer exactement les
+;	instructions des donnees en ligne. Ce postpone s'execute juste avant le precedent.
+virtual at 0
+  TX_TABLE::
+end virtual
+postpone
+  db ((8 - ($ and 7)) and 7) dup 0
+  TX_TABLE_ADR = $
+  virtual TX_TABLE
+    TX_TABLE_TAILLE = $ - $$
+  end virtual
+  TX_TABLE_NB = TX_TABLE_TAILLE / 4
+  repeat TX_TABLE_NB / 2, k:0
+    load TX_Mot_Table : 8 from TX_TABLE : k * 8
+    dq TX_Mot_Table
+  end repeat
+  if TX_TABLE_NB mod 2
+    load TX_Mot_Table : 4 from TX_TABLE : TX_TABLE_TAILLE - 4
+    dd TX_Mot_Table
+  end if
+end postpone
+
+macro show description, value				; pour debogage
+  repeat 1, d:value
+    display description,`d,13,10
+  end repeat
+end macro
+
+macro hexa_show description, value			; adresse hexa pour la carto de debogage
+  local x, digit
+  x = value
+  display description, '0', 'x'
+  repeat 16, n:0
+    digit = (x shr ((15 - n) shl 2)) and 0Fh
+    if digit < 10
+      display '0' + digit
+    else
+      display 'A' + digit - 10
+    end if
+  end repeat
+  display 13, 10
+end macro
+;			-------------------------------------------------------------------
+;			.......
+macro			align_b?
+;			.......
+end macro
+
+;			.......
+macro			align_w?
+;			.......
+  desalign = $ mod 2
+  if desalign <> 0
+    repeat 2-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+;			.......
+macro			align_d?
+;			.......
+  desalign = $ mod 4
+  if desalign <> 0
+    repeat 4-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+;			.......
+macro			align_q?
+;			.......
+  desalign = $ mod 8
+  if desalign <> 0
+    repeat 8-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+
+;			----------------------
+macro			PRO	sub_name_lbl			; Debut de procedure declaree
+;			----------------------
+  namespace sub_name_lbl						; definir son espace de noms
+  BRA post							; contournement de l'elaboration autour de la procedure
+end macro
+
+;			----
+macro			PRMS					; En tete de la definition des parametres
+;			----
+  virtual at 8							; La pile de travail croit vers les adresses hautes, les parametres sont au dessus du FP dynamique
+    PRMzone::							; donc 8 octets (adresses 64 bits) au dessus du FP
+  end virtual
+
+end macro
+
+;			------------------
+macro			PRM	name_ofs				; Definition d'un parametre
+;			------------------
+  virtual PRMzone
+    name_ofs = $
+    dq ?
+  end virtual
+
+end macro
+
+;			-------
+macro			endPRMS					; Fin de la definition des parametres adjust = 8 pour fonction
+;			-------
+  virtual PRMzone
+    prm_siz = $-8							; Calcul de la taille du parametrage
+  end virtual
+
+end macro
+
+;			-------------
+macro			ELB	lvl				; En tete de la partie elaboration de procedure
+;			-------------
+elab:
+  virtual at 8							; Commence 8 octets apres le FP dynamique
+    VARzone::
+  end virtual
+	LINK lvl, loc_siz
+
+end macro
+
+;			--------------
+macro			BEGIN_BLOC_DEF				; Debut du bloc d'images d'un enumere
+;			--------------
+;	Donnees inline protegees par BRA (pattern des thunks LD_/ST_, sain
+;	sous "if defined"). Macros ordinaires, noms FIXES : la paire vit dans
+;	le namespace _TYPE de l'enumere, unicite garantie par construction.
+;	Ni struc coupee, ni postpone, ni "!", ni local inter-macros.
+  BRA	IMAGES.skip
+IMAGES.data = $							; les db d'images suivent, inline
+end macro
+
+;			---------------------------------
+macro			END_BLOC_DEF	siz, fst, lst		; Fin : pose le ENUM_USE_INFO etendu
+;			---------------------------------
+;	CONTRAT (record ENUM_USE_INFO du prelude + doublet images) :
+;	  SIZ @0 (dd) | FST @+4 | LST @+8 | pad | data_ptr @+16 | info_ptr @+24
+;	  use__info pointe SIZ ; TEXT_IO (GET_ENUM_IMAGES) lit le doublet a __u+16.
+IMAGES.data_end = $							; fin des octets d'images (avant info/scalaires)
+  align_q
+IMAGES.info = $
+	dd 8*(IMAGES.data_end - IMAGES.data), 8, 1, IMAGES.data_end - IMAGES.data
+SIZ = $
+	dd siz
+FST = $
+	dd fst
+LST = $
+	dd lst
+	dd 0
+IMAGES.data_ptr = $
+	dq IMAGES.data
+IMAGES.info_ptr = $
+	dq IMAGES.info
+IMAGES.skip:
+end macro
+
+;	Une chaine Ada est un tableau d'octets caracteres, c'est a dire un descripteur [ PTR_TO CHARS qword | CAR_SIZE dword | FIRST dword | LAST dword ]
+; et des caracteres qui pointes par PTR_TO_CHARS peuvent etre detaches du descripteur. Ici, cas de constante, les caracteres sont juste apres le descripteur.
+;	On décompose en deux parties la constitution d'une chaîne pour pouvoir insérer tous les octets voulus.
+
+;			---------------------
+macro			STR	name, bytes			; Definition d'une constante chaine au format d'un tableau de caracteres (pour traitement homogene des chaines)
+;			---------------------
+;	Une chaine Ada est un tableau d'octets caracteres, c'est a dire un descripteur [ PTR_TO CHARS qword | CAR_SIZE dword | FIRST dword | LAST dword ]
+; et des caracteres qui pointes par PTR_TO_CHARS peuvent etre detaches du descripteur. Ici, cas de constante, les caracteres sont juste apres le descripteur.
+;
+  postpone
+    local data
+    local info
+    local str_bit_size
+    align_q							; aligner le descripteur sur un quadword
+
+  namespace name
+
+  data_ptr = $							; adresse de la constante STRING (en fait double pointeur)
+    dq	data							; offset 0 : adresse des caracteres (juste apres dans le cas present)
+  info_ptr = $							;
+    dq	info							; offset 8 : adresse des infos TOT_SIZ, COMP_SIZ, FST_1, LST_1
+  info = $							; use info
+    dd	str_bit_size, 8, 1, str_bit_size/8				; offset 16 : TOT_SIZ=str_bit_size ; offset 20 :  COMP_SIZ=8bits ; offset	24 : FST=1 ; offset 28 : LST=str_byte_size
+    virtual at 0							; definition des offsets sur le useinfo
+    SIZ = $
+    rd 1
+    COMP_SIZ = $
+    rd 1
+    FST_1 = $
+    rd 1
+    LST_1 = $
+    end virtual
+  data = $							; pour une constante les caracteres suivent (pour une chaine variable ce n'est pas le cas, les octets sont dans la co-pile)
+    db	bytes
+    str_bit_size =  8*($ - data)					; Calculer la longueur effective en bits
+  end namespace
+
+  end postpone
+end macro
+
+;			-----------------------------------------
+macro			CST	name_cst:_nil_, sizChar:b, val&	; Definition d'une constante
+;			-----------------------------------------
+  postpone
+    align_#sizChar							; aligner en fonction de l'unite de reservation
+    name_cst = $							;
+    d#sizChar val							; reservation
+  end postpone
+end macro
+
+;			----------------------------------------
+macro			USEINFO	lvl, field_name, load_instruc&	; Reference a un __u use info
+;			----------------------------------------
+  virtual VARzone
+    align_q							; aligner en fonction de l'unite de reservation
+    field_name#__u = $						; lieu ptr use info
+    rq 1
+  end virtual
+  load_instruc
+  SA lvl, field_name#__u
+end macro
+
+;			---------------------------
+macro			STATOFS	name, siz, algn:0			; Definition de l'offset statique (pour un record statique, dans une virtual at 0)
+;			---------------------------
+; algn = alignement du COMPOSANT elementaire en octets (1/2/4/8), passe par
+; l'expander. algn 0 : compatibilite, ancienne regle par taille totale.
+  if algn = 8
+    align_q
+  else if algn = 4
+    align_d
+  else if algn = 2
+    align_w
+  else if algn = 1
+								; octets : pas d'alignement
+  else								; algn 0 : ancienne regle
+    if siz > 4
+      align_q
+    else if siz > 2
+      align_d
+    else if siz > 1
+      align_w
+    end if
+  end if
+name = $								; nom offset du champ
+  rb siz								; reservation
+end macro
+
+;			-----------------------------------
+macro			VAR	name_disp, sizChar, siz:1		; Definition d'un lieu de variable
+;			-----------------------------------
+  virtual VARzone
+     if `sizChar = 'B'  |  `sizChar = 'b'
+      align_b
+      name_disp = $							; displacement des data de variable
+      rb siz							; reservation
+    else if `sizChar = 'W'  |  `sizChar = 'w'
+      align_w
+      name_disp = $
+      rw siz
+    else if `sizChar = 'D'  |  `sizChar = 'd'
+      align_d
+      name_disp = $
+      rd siz
+    else if `sizChar = 'Q'  |  `sizChar = 'q'
+      align_q
+      name_disp = $
+      rq siz
+    else
+      align_q							; assurer l'alignement de pile dans tous les cas possibles
+      name_disp = $							; displacement des data de variable
+      rb sizChar							; taille numerique en octets
+    end if
+  end virtual
+end macro
+
+
+;			------
+macro			endPRO					; Fin de procedure
+;			------
+post:
+  virtual VARzone
+    align_q
+    loc_siz = $							; Ce n'est que la que l'on calcule la taille des locales qui sera retropropagee au LINK du ELAB
+  end virtual
+  end namespace
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		C O D E S   D ' O P E R A T I O N   T X
+;	La numerotation doit rester identique a celle du paquetage TX_CODES de l'interprete.
+;	0 est illegal : un PC egare dans des zeros est detecte immediatement.
+;-----------------------------------------------------------------------------------------------------------------------
+
+TX_DROP	= 1
+TX_DUP	= 2
+TX_OVER	= 3
+TX_LI	= 4
+TX_LIF	= 5
+TX_LCA	= 6
+TX_LSPA	= 7
+TX_LVA	= 8
+TX_LIVA	= 9
+TX_LB	= 10
+TX_LW	= 11
+TX_LD	= 12
+TX_LQ	= 13
+TX_LA	= 14
+TX_ULB	= 15
+TX_ULW	= 16
+TX_ULD	= 17
+TX_LIB	= 18
+TX_LIW	= 19
+TX_LID	= 20
+TX_LIQ	= 21
+TX_LIA	= 22
+TX_ULIB	= 23
+TX_ULIW	= 24
+TX_ULID	= 25
+TX_SB	= 26
+TX_SW	= 27
+TX_SD	= 28
+TX_SQ	= 29
+TX_SA	= 30
+TX_SIB	= 31
+TX_SIW	= 32
+TX_SID	= 33
+TX_SIQ	= 34
+TX_SIA	= 35
+TX_ET	= 36
+TX_OU	= 37
+TX_OUX	= 38
+TX_NON	= 39
+TX_SHL	= 40
+TX_SHR	= 41
+TX_SAR	= 42
+TX_CLAMP0	= 43
+TX_NEG	= 44
+TX_ABS	= 45
+TX_ADD	= 46
+TX_SUB	= 47
+TX_INC	= 48
+TX_DEC	= 49
+TX_MUL	= 50
+TX_DIV	= 51
+TX_REMI	= 52
+TX_MODI	= 53
+TX_UBFX	= 54
+TX_SBFX	= 55
+TX_BFI	= 56
+TX_CVTIX	= 57
+TX_CVTXI	= 58
+TX_FADD	= 59
+TX_FSUB	= 60
+TX_FMUL	= 61
+TX_FDIV	= 62
+TX_FNEG	= 63
+TX_FABS	= 64
+TX_FEXP	= 65
+TX_CVTIF	= 66
+TX_CVTFI	= 67
+TX_CVTFIR	= 68
+TX_CEQ	= 69
+TX_CNE	= 70
+TX_CGT	= 71
+TX_CGE	= 72
+TX_CLT	= 73
+TX_CLE	= 74
+TX_FCEQ	= 75
+TX_FCNE	= 76
+TX_FCGT	= 77
+TX_FCGE	= 78
+TX_FCLT	= 79
+TX_FCLE	= 80
+TX_BRA	= 81
+TX_BT	= 82
+TX_BF	= 83
+TX_CALL	= 84
+TX_CALLI	= 85
+TX_RTD	= 86
+TX_LINK	= 87
+TX_UNLINK	= 88
+TX_UNLINKR	= 89
+TX_CO_VAR	= 90
+TX_HEAP_ALLOC	= 91
+TX_EXC_MACH	= 92
+TX_EXC_RAISE	= 93
+TX_BLKMOV	= 94
+TX_BLKCMP	= 95
+TX_BLKAND	= 96
+TX_BLKOU	= 97
+TX_BLKOUX	= 98
+TX_BLKNOT	= 99
+TX_LEXCMP	= 100
+TX_TRAP	= 101
+TX_CHKB	= 102
+TX_CHKW	= 103
+TX_CHKD	= 104
+TX_CHKQ	= 105
+TX_CHKUB	= 106
+TX_CHKUW	= 107
+TX_CHKUD	= 108
+TX_CHKIB	= 109
+TX_CHKIW	= 110
+TX_CHKID	= 111
+TX_CHKIQ	= 112
+TX_CHKUIB	= 113
+TX_CHKUIW	= 114
+TX_CHKUID	= 115
+TX_UBFXI	= 116
+TX_SBFXI	= 117
+TX_BFII	= 118
+
+;	Services TRAP (numerotation de LLIR_hardware_support)
+TX_SYS_EXIT		= 0
+TX_SYS_CLOCK_GETTIME	= 1
+TX_SYS_PUT_CHAR		= 2
+TX_SYS_PUT_STR		= 3
+TX_SYS_GET_CHAR		= 4
+TX_SYS_GET_STR		= 5
+TX_SYS_FILE_CREATE	= 6
+TX_SYS_FILE_OPEN	= 7
+TX_SYS_FILE_SET_POS	= 8
+TX_SYS_FILE_GET_POS	= 9
+TX_SYS_FILE_GET_SIZE	= 10
+TX_SYS_FILE_WRITE	= 11
+TX_SYS_FILE_READ	= 12
+TX_SYS_FILE_CLOSE	= 13
+TX_SYS_FILE_DELETE	= 14
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		E M I S S I O N   D ' U N   E N R E G I S T R E M E N T
+;-----------------------------------------------------------------------------------------------------------------------
+
+macro TX_REC op*, lvl:0, ofs:0, val:0
+  local adresse
+  adresse = $ - 0x400000
+  virtual TX_TABLE
+    dd adresse
+  end virtual
+  db op
+  db (lvl) and 0FFh
+  dw 0
+  dd (ofs) and 0FFFFFFFFh
+  dq (val) and 0FFFFFFFFFFFFFFFFh
+end macro
+
+macro TX_B op*, lvl, disp				; famille B : lvl, disp
+  assert lvl >= -1 & lvl <= 127
+  TX_REC op, lvl, 0, disp
+end macro
+
+macro TX_C op*, lvl, disp, ofs			; famille C : lvl, disp, ofs
+  assert lvl >= -1 & lvl <= 127
+  assert ofs >= -80000000h & ofs <= 7FFFFFFFh
+  TX_REC op, lvl, ofs, disp
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		A U X I L I A I R E S   x 8 6   N E U T R A L I S E E S   (au cas ou un .FINC les emploierait)
+;-----------------------------------------------------------------------------------------------------------------------
+
+macro PUSH_RAX
+  err 'PUSH_RAX : macro x86 sans equivalent TX'
+end macro
+macro POP_RAX
+  err 'POP_RAX : macro x86 sans equivalent TX'
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		I N S T R U C T I O N S   L L I R
+;-----------------------------------------------------------------------------------------------------------------------
+
+;	--- pile
+macro DROP
+  TX_REC TX_DROP
+end macro
+macro DUP
+  TX_REC TX_DUP
+end macro
+macro OVER
+  TX_REC TX_OVER
+end macro
+
+;	--- immediats et adresses constantes
+macro LI val
+  TX_REC TX_LI, 0, 0, val
+end macro
+macro LIF val					; le litteral flottant est converti par fasmg en IEEE 754 double
+  local adresse
+  adresse = $ - 0x400000
+  virtual TX_TABLE
+    dd adresse
+  end virtual
+  db TX_LIF, 0
+  dw 0
+  dd 0
+  dq val
+end macro
+macro LCA ptr, disp:0
+  TX_REC TX_LCA, 0, 0, ptr+disp
+end macro
+macro LSPA prefix, subname
+  if ~ definite prefix#subname#.__appel_postpone		; un seul postpone par procedure et par passe
+    prefix#subname#.__appel_postpone = 1			; (leur cout croit comme leur nombre au carre)
+    postpone
+      if ~definite prefix#subname#_
+        prefix#subname#_ = prefix#subname#.elab
+      end if
+    end postpone
+  end if
+  TX_REC TX_LSPA, 0, 0, prefix#subname#_
+end macro
+
+;	--- adresses de variables
+macro LVA lvl:-1, disp:0
+  TX_B TX_LVA, lvl, disp
+end macro
+macro LIVA lvl:-1, disp:0, ofs:0
+  TX_C TX_LIVA, lvl, disp, ofs
+end macro
+
+;	--- chargements directs
+macro ULB lvl:-1, disp:0
+  TX_B TX_ULB, lvl, disp
+end macro
+macro ULW lvl:-1, disp:0
+  TX_B TX_ULW, lvl, disp
+end macro
+macro ULD lvl:-1, disp:0
+  TX_B TX_ULD, lvl, disp
+end macro
+macro LB lvl:-1, disp:0
+  TX_B TX_LB, lvl, disp
+end macro
+macro LW lvl:-1, disp:0
+  TX_B TX_LW, lvl, disp
+end macro
+macro LD lvl:-1, disp:0
+  TX_B TX_LD, lvl, disp
+end macro
+macro LQ lvl:-1, disp:0
+  TX_B TX_LQ, lvl, disp
+end macro
+macro LA lvl:-1, disp:0
+  TX_B TX_LA, lvl, disp
+end macro
+
+;	--- chargements indirects
+macro ULIB lvl:-1, disp:0, ofs:0
+  TX_C TX_ULIB, lvl, disp, ofs
+end macro
+macro ULIW lvl:-1, disp:0, ofs:0
+  TX_C TX_ULIW, lvl, disp, ofs
+end macro
+macro ULID lvl:-1, disp:0, ofs:0
+  TX_C TX_ULID, lvl, disp, ofs
+end macro
+macro LIB lvl:-1, disp:0, ofs:0
+  TX_C TX_LIB, lvl, disp, ofs
+end macro
+macro LIW lvl:-1, disp:0, ofs:0
+  TX_C TX_LIW, lvl, disp, ofs
+end macro
+macro LID lvl:-1, disp:0, ofs:0
+  TX_C TX_LID, lvl, disp, ofs
+end macro
+macro LIQ lvl:-1, disp:0, ofs:0
+  TX_C TX_LIQ, lvl, disp, ofs
+end macro
+macro LIA lvl:-1, disp:0, ofs:0
+  TX_C TX_LIA, lvl, disp, ofs
+end macro
+
+;	--- rangements directs : pile [ ... | @ | donnee ] si lvl = -1
+macro SB lvl:-1, disp:0
+  TX_B TX_SB, lvl, disp
+end macro
+macro SW lvl:-1, disp:0
+  TX_B TX_SW, lvl, disp
+end macro
+macro SD lvl:-1, disp:0
+  TX_B TX_SD, lvl, disp
+end macro
+macro SQ lvl:-1, disp:0
+  TX_B TX_SQ, lvl, disp
+end macro
+macro SA lvl:-1, disp:0
+  TX_B TX_SA, lvl, disp
+end macro
+
+;	--- rangements indirects
+macro SIB lvl:-1, disp:0, ofs:0
+  TX_C TX_SIB, lvl, disp, ofs
+end macro
+macro SIW lvl:-1, disp:0, ofs:0
+  TX_C TX_SIW, lvl, disp, ofs
+end macro
+macro SID lvl:-1, disp:0, ofs:0
+  TX_C TX_SID, lvl, disp, ofs
+end macro
+macro SIQ lvl:-1, disp:0, ofs:0
+  TX_C TX_SIQ, lvl, disp, ofs
+end macro
+macro SIA lvl:-1, disp:0, ofs:0
+  TX_C TX_SIA, lvl, disp, ofs
+end macro
+
+;	--- logique et decalages
+macro ET
+  TX_REC TX_ET
+end macro
+macro OU
+  TX_REC TX_OU
+end macro
+macro OUX
+  TX_REC TX_OUX
+end macro
+macro NON
+  TX_REC TX_NON
+end macro
+macro SHL
+  TX_REC TX_SHL
+end macro
+macro SHR
+  TX_REC TX_SHR
+end macro
+macro SAR
+  TX_REC TX_SAR
+end macro
+macro CLAMP0
+  TX_REC TX_CLAMP0
+end macro
+
+;	--- arithmetique entiere
+macro NEG
+  TX_REC TX_NEG
+end macro
+macro ABS
+  TX_REC TX_ABS
+end macro
+macro ADD
+  TX_REC TX_ADD
+end macro
+macro SUB
+  TX_REC TX_SUB
+end macro
+macro INC
+  TX_REC TX_INC
+end macro
+macro DEC
+  TX_REC TX_DEC
+end macro
+macro MUL
+  TX_REC TX_MUL
+end macro
+macro DIV
+  TX_REC TX_DIV
+end macro
+macro REMI
+  TX_REC TX_REMI
+end macro
+macro MODI
+  TX_REC TX_MODI
+end macro
+
+;	--- champs de bits, virgule fixe
+macro UBFX
+  TX_REC TX_UBFX
+end macro
+macro SBFX
+  TX_REC TX_SBFX
+end macro
+macro BFI
+  TX_REC TX_BFI
+end macro
+macro CVTIX
+  TX_REC TX_CVTIX
+end macro
+macro CVTXI
+  TX_REC TX_CVTXI
+end macro
+
+;	--- flottants
+macro FADD
+  TX_REC TX_FADD
+end macro
+macro FSUB
+  TX_REC TX_FSUB
+end macro
+macro FMUL
+  TX_REC TX_FMUL
+end macro
+macro FDIV
+  TX_REC TX_FDIV
+end macro
+macro FNEG
+  TX_REC TX_FNEG
+end macro
+macro FABS
+  TX_REC TX_FABS
+end macro
+macro FEXP
+  TX_REC TX_FEXP
+end macro
+macro CVTIF
+  TX_REC TX_CVTIF
+end macro
+macro CVTFI
+  TX_REC TX_CVTFI
+end macro
+macro CVTFIR
+  TX_REC TX_CVTFIR
+end macro
+
+;	--- comparaisons
+macro CEQ
+  TX_REC TX_CEQ
+end macro
+macro CNE
+  TX_REC TX_CNE
+end macro
+macro CGT
+  TX_REC TX_CGT
+end macro
+macro CGE
+  TX_REC TX_CGE
+end macro
+macro CLT
+  TX_REC TX_CLT
+end macro
+macro CLE
+  TX_REC TX_CLE
+end macro
+macro FCEQ
+  TX_REC TX_FCEQ
+end macro
+macro FCNE
+  TX_REC TX_FCNE
+end macro
+macro FCGT
+  TX_REC TX_FCGT
+end macro
+macro FCGE
+  TX_REC TX_FCGE
+end macro
+macro FCLT
+  TX_REC TX_FCLT
+end macro
+macro FCLE
+  TX_REC TX_FCLE
+end macro
+
+;	--- controle de flot : les cibles sont des adresses absolues
+macro BRA lbl
+  TX_REC TX_BRA, 0, 0, lbl
+end macro
+macro BT lbl
+  TX_REC TX_BT, 0, 0, lbl
+end macro
+macro BF lbl
+  TX_REC TX_BF, 0, 0, lbl
+end macro
+macro CALL prefix, subname
+  if ~ definite prefix#subname#.__appel_postpone		; un seul postpone par procedure et par passe
+    prefix#subname#.__appel_postpone = 1			; (leur cout croit comme leur nombre au carre)
+    postpone
+      if ~definite prefix#subname#_
+        prefix#subname#_ = prefix#subname#.elab
+      end if
+    end postpone
+  end if
+  TX_REC TX_CALL, 0, 0, prefix#subname#_
+end macro
+macro CALLI
+  TX_REC TX_CALLI
+end macro
+macro RTD param_size:0
+  assert param_size >= 0
+  TX_REC TX_RTD, 0, 0, param_size
+end macro
+
+;	--- frames
+macro LINK lvl, alloc
+  assert alloc >= 0
+  TX_REC TX_LINK, lvl, 0, alloc
+end macro
+macro UNLINK lvl
+  TX_REC TX_UNLINK, lvl
+end macro
+macro UNLINKR lvl
+  TX_REC TX_UNLINKR, lvl
+end macro
+
+;	--- allocations
+macro CO_VAR
+  TX_REC TX_CO_VAR
+end macro
+macro HEAP_ALLOC
+  TX_REC TX_HEAP_ALLOC
+end macro
+
+;	--- exceptions
+macro EXC_MACH lvl, ctx
+  TX_REC TX_EXC_MACH, lvl, 0, ctx
+end macro
+macro EXC_RAISE top
+  TX_REC TX_EXC_RAISE, 0, 0, top
+end macro
+
+;	--- blocs
+macro BLKMOV
+  TX_REC TX_BLKMOV
+end macro
+macro BLKCMP
+  TX_REC TX_BLKCMP
+end macro
+macro BLKAND
+  TX_REC TX_BLKAND
+end macro
+macro BLKOU
+  TX_REC TX_BLKOU
+end macro
+macro BLKOUX
+  TX_REC TX_BLKOUX
+end macro
+macro BLKNOT
+  TX_REC TX_BLKNOT
+end macro
+macro LEXCMP siz*, sgn*
+  assert siz = 1 | siz = 2 | siz = 4 | siz = 8
+  TX_REC TX_LEXCMP, sgn, siz
+end macro
+
+;	--- controles d'intervalle ( v -- v ) : bornes FST, LST consecutives
+;	    forme B en DISPLAY[lvl]+disp, forme C en [DISPLAY[lvl]+disp]+ofs ; echec vers CEV
+macro TX_CHK_B op*, lvl*, disp*
+  assert lvl >= 0 & lvl <= 14
+  TX_REC op, lvl, 0, disp
+end macro
+macro TX_CHK_C op*, lvl*, disp*, ofs*
+  assert lvl >= 0 & lvl <= 14
+  assert ofs >= -80000000h & ofs <= 7FFFFFFFh
+  TX_REC op, lvl, ofs, disp
+end macro
+macro CHKB lvl*, disp*
+  TX_CHK_B TX_CHKB, lvl, disp
+end macro
+macro CHKW lvl*, disp*
+  TX_CHK_B TX_CHKW, lvl, disp
+end macro
+macro CHKD lvl*, disp*
+  TX_CHK_B TX_CHKD, lvl, disp
+end macro
+macro CHKQ lvl*, disp*
+  TX_CHK_B TX_CHKQ, lvl, disp
+end macro
+macro CHKUB lvl*, disp*
+  TX_CHK_B TX_CHKUB, lvl, disp
+end macro
+macro CHKUW lvl*, disp*
+  TX_CHK_B TX_CHKUW, lvl, disp
+end macro
+macro CHKUD lvl*, disp*
+  TX_CHK_B TX_CHKUD, lvl, disp
+end macro
+macro CHKIB lvl*, disp*, ofs*
+  TX_CHK_C TX_CHKIB, lvl, disp, ofs
+end macro
+macro CHKIW lvl*, disp*, ofs*
+  TX_CHK_C TX_CHKIW, lvl, disp, ofs
+end macro
+macro CHKID lvl*, disp*, ofs*
+  TX_CHK_C TX_CHKID, lvl, disp, ofs
+end macro
+macro CHKIQ lvl*, disp*, ofs*
+  TX_CHK_C TX_CHKIQ, lvl, disp, ofs
+end macro
+macro CHKUIB lvl*, disp*, ofs*
+  TX_CHK_C TX_CHKUIB, lvl, disp, ofs
+end macro
+macro CHKUIW lvl*, disp*, ofs*
+  TX_CHK_C TX_CHKUIW, lvl, disp, ofs
+end macro
+macro CHKUID lvl*, disp*, ofs*
+  TX_CHK_C TX_CHKUID, lvl, disp, ofs
+end macro
+
+;	--- champs de bits a position et largeur immediates : lsb dans val, w dans ofs
+macro TX_BF_IMM op*, lsb*, w*
+  assert lsb >= 0 & lsb <= 63
+  assert w >= 1 & w <= 64
+  assert lsb + w <= 64
+  TX_REC op, 0, w, lsb
+end macro
+macro UBFXI lsb*, w*
+  TX_BF_IMM TX_UBFXI, lsb, w
+end macro
+macro SBFXI lsb*, w*
+  TX_BF_IMM TX_SBFXI, lsb, w
+end macro
+macro BFII lsb*, w*
+  TX_BF_IMM TX_BFII, lsb, w
+end macro
+
+;	--- appels systeme : TRAP n
+macro SYS_CLOCK_GETTIME
+  TX_REC TX_TRAP, 0, 0, TX_SYS_CLOCK_GETTIME
+end macro
+macro SYS_PUT_CHAR
+  TX_REC TX_TRAP, 0, 0, TX_SYS_PUT_CHAR
+end macro
+macro SYS_PUT_STR
+  TX_REC TX_TRAP, 0, 0, TX_SYS_PUT_STR
+end macro
+macro SYS_GET_CHAR
+  TX_REC TX_TRAP, 0, 0, TX_SYS_GET_CHAR
+end macro
+macro SYS_GET_STR
+  TX_REC TX_TRAP, 0, 0, TX_SYS_GET_STR
+end macro
+macro SYS_FILE_CREATE
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_CREATE
+end macro
+macro SYS_FILE_OPEN
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_OPEN
+end macro
+macro SYS_FILE_SET_POS
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_SET_POS
+end macro
+macro SYS_FILE_GET_POS
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_GET_POS
+end macro
+macro SYS_FILE_GET_SIZE
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_GET_SIZE
+end macro
+macro SYS_FILE_WRITE
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_WRITE
+end macro
+macro SYS_FILE_READ
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_READ
+end macro
+macro SYS_FILE_CLOSE
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_CLOSE
+end macro
+macro SYS_FILE_DELETE
+  TX_REC TX_TRAP, 0, 0, TX_SYS_FILE_DELETE
+end macro
+macro SYS_EXIT code:0
+  TX_REC TX_TRAP, 0, code, TX_SYS_EXIT
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		E N - T E T E   D E   L ' I M A G E   T X
+;-----------------------------------------------------------------------------------------------------------------------
+
+org 0x400000
+
+TX_Header:
+	db	'TLALOCTX'				; +0  signature
+	dq	3					; +8  version du format (3 : table des instructions)
+	dq	0x400000				; +16 adresse de chargement de l'image
+	dq	0x400078				; +24 point d'entree
+	dq	ASM_SIZE				; +32 octets de code et donnees depuis 0x400078
+	dq	16					; +40 taille d'un enregistrement
+    if defined STANDARD.ce_raise_
+	dq	STANDARD.ce_raise_			; +48 vecteur CEV : echec des CHK
+    else
+	dq	0					; +48 pas de ce_raise_ : un CHK en echec est une faute
+    end if
+	dq	TX_TABLE_ADR				; +56 table des instructions (adresse)
+	dq	TX_TABLE_NB				; +64 nombre d'instructions
+	db	(0x400078 - $) dup 0			; completer jusqu'a 0x78
+
+;-----------------------------------------------------------------------------------------------------------------------

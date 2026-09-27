@@ -1,0 +1,57 @@
+	include '../../src/expander/fasmg/codi_arm64.finc'
+STANDARD = 'STANDARD'
+namespace STANDARD
+  virtual at 8
+    VARzone::
+  end virtual
+	LINK	0, loc_siz
+include '_STANDRD.FINC'
+	EXC_MACH	0, EXC_CTX0__dat
+	LCA	exc_uncaught_
+	SA	0, EXC_CTX0__dat + _EXCEPTION_CONTEXT.DISPATCH
+	LVA	0, EXC_CTX0__dat
+	SA	0, EXCEPTIONS_TOP_CTX_disp
+
+if ~ definite DIRECT_IO
+include 'DIRECT_IO.FINC'
+end if
+if ~ definite GRMR_TBL
+include 'GRMR_TBL.FINC'
+end if
+if ~ definite GRMR_OPS
+include 'GRMR_OPS.FINC'
+end if
+if ~ definite LEX
+include 'LEX.FINC'
+end if
+
+include 'ADA_COMP.FINC'
+	CALL	STANDARD., ADA_COMP_L1
+	SYS_EXIT
+
+exc_raise_:
+	EXC_RAISE	EXCEPTIONS_TOP_CTX_disp
+exc_uncaught_:
+	STR	EXC_MSG__, 'EXCEPTION NON RATTRAPEE : '
+	STR	EXC_NL__, 10
+	LCA	EXC_MSG__.data_ptr
+	SYS_PUT_STR
+	LA	0, EXCEPTIONS_CURRENT_disp
+	SYS_PUT_STR
+	LCA	EXC_NL__.data_ptr
+	SYS_PUT_STR
+	SYS_EXIT	1
+
+ce_raise_:
+	LCA	CONSTRAINT_ERROR__exc.data_ptr
+	SA	0, EXCEPTIONS_CURRENT_disp
+	BRA	exc_raise_
+
+ne_raise_:
+	LCA	NUMERIC_ERROR__exc.data_ptr
+	SA	0, EXCEPTIONS_CURRENT_disp
+	BRA	exc_raise_
+ virtual VARzone
+   loc_siz = $
+  end virtual
+end namespace

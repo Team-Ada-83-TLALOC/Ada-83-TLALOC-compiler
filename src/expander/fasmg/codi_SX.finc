@@ -1,0 +1,1711 @@
+;----------------------------------------------------------------------------------------------------------------------
+;- SPDX-FileCopyrightText: 2026 VINCENT MORIN, UBO
+;- SPDX-License-Identifier: GPL-3.0-or-later
+;----------------------------------------------------------------------------------------------------------------------
+;		C O D I   S X 3 --   S U P P O R T   E X P E R I M E N T A L
+;
+;	Codi de MESURE, pas d'execution. Derive de codi_x86_64L.finc : memes noms de
+;	macros, memes parametres, donc les .FINC et .FAS du front end s'assemblent sans
+;	modification. Aucune instruction machine n'est emise : chaque macro de la LLIR
+;	incremente des compteurs. Le fichier de sortie de fasmg n'est pas un binaire,
+;	c'est le RAPPORT en texte lisible.
+;
+;		fasmg PROG.SXFAS rapport.txt   puis   cat rapport.txt
+;
+;	MODELE MESURE  (d'apres LLIR_hardware_support.txt)
+;	  format A : [OP]                            0 mot d'operande
+;	  format B : [OP] [lvl, disp]                1 mot
+;	  format C : [OP] [lvl, disp, offset]        1 mot
+;	  format D : [OP] [imm64]                    1 mot
+;	B, C et D consomment TOUS exactement un mot de 64 bits, le couple (niveau,
+;	deplacement) etant empaquete. Le flux des operandes contient donc 0 ou 1 mot
+;	par instruction, jamais davantage.
+;
+;	CHOIX A vs B/C pour les acces variables : convention du codi d'origine,
+;	lvl = -1 signifie que l'adresse est deja sur la pile, donc rien a prelever
+;	(format A) ; lvl >= 0 preleve le couple (format B ou C). RTD suit la meme
+;	logique sur param_size.
+;
+;	TROIS FAMILLES COMPTEES SEPAREMENT
+;	  materiel : le repertoire candidat
+;	  systeme  : les 15 SYS_*, qui ne sont pas des instructions
+;	  hors     : operations de bloc (LRM 4.5.1), CO_VAR, HEAP_ALLOC, SIA
+;
+;	PIEGE RENCONTRE A L'ECRITURE : les compteurs ne peuvent pas etre de simples
+;	symboles. Le front end emet son code dans namespace STANDARD, et dans fasmg une
+;	definition va TOUJOURS dans l'espace de noms courant : SX_N = SX_N + 1 y
+;	definirait STANDARD.SX_N. D'ou la table dans un espace virtuel etiquete ::,
+;	global par construction, manipulee par load et store.
+;----------------------------------------------------------------------------------------------------------------------
+
+format binary
+
+SX_NB = 132						; mnemoniques suivies (115..131 : CHK et champs de bits immediats)
+SX_MAP_LIMIT = 2000000				; adresses SX couvertes par la carte PC_OP -> PC_ARG
+SX_MAP_BASE = (2*SX_NB + 4 + 89)*8		; adresse numerique de la carte dans SX_TBL::
+; SX3 initialisait ici 18 Mo sous forme de millions d'elements dd/db.
+; fasmg leur associe une representation interne beaucoup plus couteuse et pouvait
+; epuiser sa memoire sur TLALOC. La version presente utilise rq + store creux.
+virtual at 0
+  SX_TBL::	dq 2*SX_NB + 4 + 89 dup 0
+;			[0 .. NB-1]       occurrences par mnemonique
+;			[NB .. 2NB-1]     mots d'operande par mnemonique
+;			[2NB+0]           total instructions materielles
+;			[2NB+1]           total appels systeme
+;			[2NB+2]           total operations hors support
+;			[2NB+3]           total mots d'operande
+;			[2NB+4  .. +11]   largeur utile des deplacements disp
+;			[2NB+12 .. +19]   largeur utile des offsets ofs
+;			[2NB+20 .. +27]   largeur utile des litteraux LI
+;			[2NB+28 .. +43]   niveau lexical lvl employe (0..15)
+;			[2NB+44 .. +51]   portee des branchements, en instructions du flux OP abstrait
+;			[2NB+52 .. +55]   formats B choisis : B16/B24/B32/B64
+;			[2NB+56 .. +58]   formats C choisis : C24/C32/C64
+;			[2NB+59]          C32 alternatif (lvl4/disp16/ofs12), nombre qui tient
+;			[2NB+60 .. +64]   LI0/LI8/LI16/LI32/LI64
+;			[2NB+65 .. +72]   portee branchements dans le flux ARG (mots)
+;			[2NB+73 .. +77]   couple branche (OP,ARG) : 8/16/24/32/>32 bits chacun
+;			[2NB+78 .. +82]   couple CALL   (OP,ARG) : 8/16/24/32/>32 bits chacun
+;			[2NB+83 .. +90]   portee relative LCA dans l'image SX (indicative)
+;			[2NB+91]          cible sans entree dans la carte PC_OP -> PC_ARG
+;			[2NB+92]          PC_OP abstrait : nombre de macros LLIR emises, toutes familles
+  ; Carte creuse : un enregistrement de 8 octets par adresse SX potentielle.
+; IMPORTANT : SX_TBL:: designe l'espace d'adressage virtuel ; l'expression
+; apres les deux-points est une adresse absolue dans cet espace. SX_MAP_BASE
+; doit donc etre ajoute explicitement aux indices de la carte.
+  ; rq reserve l'espace sans materialiser 2 millions de valeurs. Seules les
+  ; entrees correspondant effectivement au debut d'une instruction sont ecrites.
+  ; [31..0] = PC_ARG avant instruction, [63..32] = PC_OP avant instruction.
+  rq SX_MAP_LIMIT
+end virtual
+
+macro SX_TICK idx*, nargs:0, fam:0
+  local a, b, c, d, e
+  load d:8 from SX_TBL:(2*SX_NB+3)*8
+  load e:8 from SX_TBL:SX_PCOP*8
+  if $ >= 0 & $ < SX_MAP_LIMIT
+    store d:4 at SX_TBL:(SX_MAP_BASE + $*8)
+    store e:4 at SX_TBL:(SX_MAP_BASE + $*8+4)
+  end if
+  db 0							; 1 octet par instruction : le flux d'opcodes est reel,
+								; donc les etiquettes avancent et la portee des
+								; branchements devient mesurable
+  load a:8 from SX_TBL:idx*8
+  store a+1:8 at SX_TBL:idx*8
+  load b:8 from SX_TBL:(SX_NB+idx)*8
+  store b+nargs:8 at SX_TBL:(SX_NB+idx)*8
+  load c:8 from SX_TBL:(2*SX_NB+fam)*8
+  store c+1:8 at SX_TBL:(2*SX_NB+fam)*8
+  store d+nargs:8 at SX_TBL:(2*SX_NB+3)*8
+  store e+1:8 at SX_TBL:SX_PCOP*8
+end macro
+
+SX_BDISP = 2*SX_NB + 4
+SX_BOFS  = 2*SX_NB + 12
+SX_BLI   = 2*SX_NB + 20
+SX_BLVL  = 2*SX_NB + 28
+SX_BBR   = 2*SX_NB + 44
+SX_BFORM = 2*SX_NB + 52
+SX_CFORM = 2*SX_NB + 56
+SX_CALT  = 2*SX_NB + 59
+SX_LIFORM= 2*SX_NB + 60
+SX_BBARG = 2*SX_NB + 65
+SX_BPAIR = 2*SX_NB + 73
+SX_CPAIR = 2*SX_NB + 78
+SX_LCAREL= 2*SX_NB + 83
+SX_MAPMISS=2*SX_NB + 91
+SX_PCOP  = 2*SX_NB + 92
+
+
+macro SX_BIN base*, v*					; classe une valeur signee par largeur utile
+  local x, b, a
+  x = v
+  if x = 0
+    b = 0						; nul : implicitable
+  else if x > 0 & x < 16
+    b = 1						; 4 bits non signes
+  else if x >= -128 & x < 128
+    b = 2						; 8 bits signes
+  else if x >= -2048 & x < 2048
+    b = 3						; 12 bits signes
+  else if x >= -32768 & x < 32768
+    b = 4						; 16 bits signes
+  else if x >= -8388608 & x < 8388608
+    b = 5						; 24 bits signes
+  else if x >= -2147483648 & x < 2147483648
+    b = 6						; 32 bits signes
+  else
+    b = 7						; au dela
+  end if
+  load a:8 from SX_TBL:(base+b)*8
+  store a+1:8 at SX_TBL:(base+b)*8
+end macro
+
+macro SX_LVL v*						; niveau lexical employe
+  local x, a
+  x = v
+  if x >= 0 & x < 16
+    load a:8 from SX_TBL:(SX_BLVL+x)*8
+    store a+1:8 at SX_TBL:(SX_BLVL+x)*8
+  end if
+end macro
+
+; Classe les formats candidats directement, de facon EXCLUSIVE :
+; B16 = lvl4 + disp12, B24 = lvl4 + disp20, B32 = lvl4 + disp28, sinon B64.
+macro SX_BFORMAT lvl*, disp*
+  local b, a
+  if lvl >= 0 & lvl < 16 & disp >= -2048 & disp < 2048
+    b = 0
+  else if lvl >= 0 & lvl < 16 & disp >= -524288 & disp < 524288
+    b = 1
+  else if lvl >= 0 & lvl < 16 & disp >= -134217728 & disp < 134217728
+    b = 2
+  else
+    b = 3
+  end if
+  load a:8 from SX_TBL:(SX_BFORM+b)*8
+  store a+1:8 at SX_TBL:(SX_BFORM+b)*8
+end macro
+
+; C24 = lvl4 + disp16 + ofs4(non signe)
+; C32 = lvl4 + disp20 + ofs8(signe), choix provisoire equilibre.
+; C64 = secours. On compte aussi independamment le candidat C32-alt
+;       lvl4 + disp16 + ofs12(signe), afin de comparer les deux repartitions.
+macro SX_CFORMAT lvl*, disp*, ofs*
+  local b, a
+  if lvl >= 0 & lvl < 16 & disp >= -32768 & disp < 32768 & ofs >= 0 & ofs < 16
+    b = 0
+  else if lvl >= 0 & lvl < 16 & disp >= -524288 & disp < 524288 & ofs >= -128 & ofs < 128
+    b = 1
+  else
+    b = 2
+  end if
+  load a:8 from SX_TBL:(SX_CFORM+b)*8
+  store a+1:8 at SX_TBL:(SX_CFORM+b)*8
+  if lvl >= 0 & lvl < 16 & disp >= -32768 & disp < 32768 & ofs >= -2048 & ofs < 2048
+    load a:8 from SX_TBL:SX_CALT*8
+    store a+1:8 at SX_TBL:SX_CALT*8
+  end if
+end macro
+
+; LI : forme sans complement pour zero, puis immediat signe 8/16/32/64 bits.
+macro SX_LIFORMAT v*
+  local b, a
+  if v = 0
+    b = 0
+  else if v >= -128 & v < 128
+    b = 1
+  else if v >= -32768 & v < 32768
+    b = 2
+  else if v >= -2147483648 & v < 2147483648
+    b = 3
+  else
+    b = 4
+  end if
+  load a:8 from SX_TBL:(SX_LIFORM+b)*8
+  store a+1:8 at SX_TBL:(SX_LIFORM+b)*8
+end macro
+
+; Couple de deplacements signes. La classe donne la largeur requise POUR CHACUN
+; des deux champs : 8, 16, 24, 32 ou >32 bits.
+macro SX_PAIR base*, dop*, darg*
+  local b, a
+  if dop >= -128 & dop < 128 & darg >= -128 & darg < 128
+    b = 0
+  else if dop >= -32768 & dop < 32768 & darg >= -32768 & darg < 32768
+    b = 1
+  else if dop >= -8388608 & dop < 8388608 & darg >= -8388608 & darg < 8388608
+    b = 2
+  else if dop >= -2147483648 & dop < 2147483648 & darg >= -2147483648 & darg < 2147483648
+    b = 3
+  else
+    b = 4
+  end if
+  load a:8 from SX_TBL:(base+b)*8
+  store a+1:8 at SX_TBL:(base+b)*8
+end macro
+
+; Mesure un transfert vers target. src_op est le PC_OP abstrait APRES l'opcode
+; (une unite par macro LLIR, donnees statiques exclues) et src_arg le PC_ARG
+; APRES consommation de son complement. La carte enregistre les deux PC AVANT
+; l'opcode cible, ce qui donne le couple de reprise exact.
+macro SX_TARGET_PAIR pairbase*, target*, src_op*, src_arg*, count_hists:0
+  local targ_arg, targ_op, dop, darg, a
+  if target >= 0 & target < SX_MAP_LIMIT
+    load targ_arg:4 from SX_TBL:(SX_MAP_BASE + target*8)
+    load targ_op:4 from SX_TBL:(SX_MAP_BASE + target*8+4)
+    ; Une case rq jamais ecrite reste indefinie. Ceci remplace la gigantesque
+    ; table SX_ARGVALID initialisee de SX3.
+    if definite targ_arg & definite targ_op
+      dop = targ_op - src_op
+      darg = targ_arg - src_arg
+      if count_hists <> 0
+        SX_BIN SX_BBR, dop
+        SX_BIN SX_BBARG, darg
+      end if
+      SX_PAIR pairbase, dop, darg
+    else
+      load a:8 from SX_TBL:SX_MAPMISS*8
+      store a+1:8 at SX_TBL:SX_MAPMISS*8
+    end if
+  else
+    load a:8 from SX_TBL:SX_MAPMISS*8
+    store a+1:8 at SX_TBL:SX_MAPMISS*8
+  end if
+end macro
+
+macro SX_NUM value*, width:8				; entier decimal cadre a droite
+  local v, p, dd, seen
+  v = value
+  p = 1
+  repeat width-1
+    p = p * 10
+  end repeat
+  seen = 0
+  repeat width, n:0
+    dd = (v / p) mod 10
+    if dd <> 0
+      seen = 1
+    end if
+    if seen = 0 & n < width-1
+      db ' '
+    else
+      db '0' + dd
+    end if
+    p = p / 10
+  end repeat
+end macro
+
+macro SX_TXT txt&
+  db txt, 13, 10
+end macro
+
+macro SX_BROW slot*
+  local a
+  load a:8 from SX_TBL:(slot)*8
+  SX_NUM a
+  SX_TXT ''
+end macro
+
+macro SX_ROW name*, idx*
+  local a, b
+  load a:8 from SX_TBL:idx*8
+  load b:8 from SX_TBL:(SX_NB+idx)*8
+  db name
+  SX_NUM a
+  SX_NUM b
+  SX_TXT ''
+end macro
+
+;			M A C R O S   S T R U C T U R E L L E S   ( reprises telles quelles )
+;	Elles ne produisent pas d'instruction : espaces de noms, zones virtuelles de
+;	variables, etiquettes, donnees statiques, armement de l'assemblage paresseux.
+
+macro show description, value				; pour debogage
+  repeat 1, d:value
+    display description,`d,13,10
+  end repeat
+end macro
+
+macro hexa_show description, value			; adresse hexa pour la carto de debogage
+  local x, digit
+  x = value
+  display description, '0', 'x'
+  repeat 16, n:0
+    digit = (x shr ((15 - n) shl 2)) and 0Fh
+    if digit < 10
+      display '0' + digit
+    else
+      display 'A' + digit - 10
+    end if
+  end repeat
+  display 13, 10
+end macro
+
+macro			align_b?
+;			.......
+end macro
+
+macro			align_w?
+;			.......
+  desalign = $ mod 2
+  if desalign <> 0
+    repeat 2-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+macro			align_d?
+;			.......
+  desalign = $ mod 4
+  if desalign <> 0
+    repeat 4-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+macro			align_q?
+;			.......
+  desalign = $ mod 8
+  if desalign <> 0
+    repeat 8-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+macro			PRO	sub_name_lbl			; Debut de procedure declaree
+;			----------------------
+  namespace sub_name_lbl						; definir son espace de noms
+  BRA post							; contournement de l'elaboration autour de la procedure
+end macro
+
+macro			ELB	lvl				; En tete de la partie elaboration de procedure
+;			-------------
+elab:
+  virtual at 8							; Commence 8 octets apres le FP dynamique
+    VARzone::
+  end virtual
+	LINK lvl, loc_siz
+
+end macro
+
+macro			endPRO					; Fin de procedure
+;			------
+post:
+  virtual VARzone
+    align_q
+    loc_siz = $							; Ce n'est que la que l'on calcule la taille des locales qui sera retropropagee au LINK du ELAB
+  end virtual
+  end namespace
+end macro
+
+macro			PRMS					; En tete de la definition des parametres
+;			----
+  virtual at 8							; La pile de travail croit vers les adresses hautes, les parametres sont au dessus du FP dynamique
+    PRMzone::							; donc 8 octets (adresses 64 bits) au dessus du FP
+  end virtual
+
+end macro
+
+macro			PRM	name_ofs				; Definition d'un parametre
+;			------------------
+  virtual PRMzone
+    name_ofs = $
+    dq ?
+  end virtual
+
+end macro
+
+macro			endPRMS					; Fin de la definition des parametres adjust = 8 pour fonction
+;			-------
+  virtual PRMzone
+    prm_siz = $-8							; Calcul de la taille du parametrage
+  end virtual
+
+end macro
+
+macro			VAR	name_disp, sizChar, siz:1		; Definition d'un lieu de variable
+;			-----------------------------------
+  virtual VARzone
+     if `sizChar = 'B'  |  `sizChar = 'b'
+      align_b
+      name_disp = $							; displacement des data de variable
+      rb siz							; reservation
+    else if `sizChar = 'W'  |  `sizChar = 'w'
+      align_w
+      name_disp = $
+      rw siz
+    else if `sizChar = 'D'  |  `sizChar = 'd'
+      align_d
+      name_disp = $
+      rd siz
+    else if `sizChar = 'Q'  |  `sizChar = 'q'
+      align_q
+      name_disp = $
+      rq siz
+    else
+      align_q							; assurer l'alignement de pile dans tous les cas possibles
+      name_disp = $							; displacement des data de variable
+      rb sizChar							; taille numerique en octets
+    end if
+  end virtual
+end macro
+
+macro			STATOFS	name, siz, algn:0			; Definition de l'offset statique (pour un record statique, dans une virtual at 0)
+;			---------------------------
+; algn = alignement du COMPOSANT elementaire en octets (1/2/4/8), passe par
+; l'expander. algn 0 : compatibilite, ancienne regle par taille totale.
+  if algn = 8
+    align_q
+  else if algn = 4
+    align_d
+  else if algn = 2
+    align_w
+  else if algn = 1
+								; octets : pas d'alignement
+  else								; algn 0 : ancienne regle
+    if siz > 4
+      align_q
+    else if siz > 2
+      align_d
+    else if siz > 1
+      align_w
+    end if
+  end if
+name = $								; nom offset du champ
+  rb siz								; reservation
+end macro
+
+macro			CST	name_cst:_nil_, sizChar:b, val&	; Definition d'une constante
+;			-----------------------------------------
+  postpone
+    align_#sizChar							; aligner en fonction de l'unite de reservation
+    name_cst = $							;
+    d#sizChar val							; reservation
+end postpone
+end macro
+
+macro			USEINFO	lvl, field_name, load_instruc&	; Reference a un __u use info
+;			----------------------------------------
+  virtual VARzone
+    align_q							; aligner en fonction de l'unite de reservation
+    field_name#__u = $						; lieu ptr use info
+    rq 1
+  end virtual
+  load_instruc
+  SA lvl, field_name#__u
+end macro
+
+macro			BEGIN_BLOC_DEF				; Debut du bloc d'images d'un enumere
+;			--------------
+;	Donnees inline protegees par BRA (pattern des thunks LD_/ST_, sain
+;	sous "if defined"). Macros ordinaires, noms FIXES : la paire vit dans
+;	le namespace _TYPE de l'enumere, unicite garantie par construction.
+;	Ni struc coupee, ni postpone, ni "!", ni local inter-macros.
+  BRA	IMAGES.skip
+IMAGES.data = $							; les db d'images suivent, inline
+end macro
+
+macro			END_BLOC_DEF	siz, fst, lst		; Fin : pose le ENUM_USE_INFO etendu
+;			---------------------------------
+;	CONTRAT (record ENUM_USE_INFO du prelude + doublet images) :
+;	  SIZ @0 (dd) | FST @+4 | LST @+8 | pad | data_ptr @+16 | info_ptr @+24
+;	  use__info pointe SIZ ; TEXT_IO (GET_ENUM_IMAGES) lit le doublet a __u+16.
+IMAGES.data_end = $							; fin des octets d'images (avant info/scalaires)
+  align_q
+IMAGES.info = $
+	dd 8*(IMAGES.data_end - IMAGES.data), 8, 1, IMAGES.data_end - IMAGES.data
+SIZ = $
+	dd siz
+FST = $
+	dd fst
+LST = $
+	dd lst
+	dd 0
+IMAGES.data_ptr = $
+	dq IMAGES.data
+IMAGES.info_ptr = $
+	dq IMAGES.info
+IMAGES.skip:
+end macro
+
+macro			STR	name, bytes			; Definition d'une constante chaine au format d'un tableau de caracteres (pour traitement homogene des chaines)
+;			---------------------
+;	Une chaine Ada est un tableau d'octets caracteres, c'est a dire un descripteur [ PTR_TO CHARS qword | CAR_SIZE dword | FIRST dword | LAST dword ]
+; et des caracteres qui pointes par PTR_TO_CHARS peuvent etre detaches du descripteur. Ici, cas de constante, les caracteres sont juste apres le descripteur.
+;
+  postpone
+    local data
+    local info
+    local str_bit_size
+    align_q							; aligner le descripteur sur un quadword
+
+  namespace name
+
+  data_ptr = $							; adresse de la constante STRING (en fait double pointeur)
+    dq	data							; offset 0 : adresse des caracteres (juste apres dans le cas present)
+  info_ptr = $							;
+    dq	info							; offset 8 : adresse des infos TOT_SIZ, COMP_SIZ, FST_1, LST_1
+  info = $							; use info
+    dd	str_bit_size, 8, 1, str_bit_size/8				; offset 16 : TOT_SIZ=str_bit_size ; offset 20 :  COMP_SIZ=8bits ; offset	24 : FST=1 ; offset 28 : LST=str_byte_size
+    virtual at 0							; definition des offsets sur le useinfo
+    SIZ = $
+    rd 1
+    COMP_SIZ = $
+    rd 1
+    FST_1 = $
+    rd 1
+    LST_1 = $
+    end virtual
+  data = $							; pour une constante les caracteres suivent (pour une chaine variable ce n'est pas le cas, les octets sont dans la co-pile)
+    db	bytes
+    str_bit_size =  8*($ - data)					; Calculer la longueur effective en bits
+  end namespace
+
+end postpone
+end macro
+
+;			A U X I L I A I R E S   N E U T R A L I S E E S
+
+macro			PUSH_RAX
+end macro
+macro			PUSH_RDX
+end macro
+macro			POP_RAX
+end macro
+macro			POP_RBX
+end macro
+macro			POP_RCX
+end macro
+macro			POP_RDX
+end macro
+macro			POP_RSI
+end macro
+macro			POP_RDI
+end macro
+macro			FP_IN_RAX		lvl
+end macro
+macro			RAX_IN_FP		lvl
+end macro
+macro			FP_IN_RBP		lvl
+end macro
+macro			BASE_IN_RAX	lvl
+end macro
+macro			INDIRECT_BASE_IN_RAX	lvl, disp
+end macro
+macro			FETCH_BYTE_U	disp
+end macro
+macro			FETCH_WORD_U	disp
+end macro
+macro			FETCH_DWORD_U	disp
+end macro
+macro			FETCH_BYTE	disp
+end macro
+macro			FETCH_WORD	disp
+end macro
+macro			FETCH_DWORD	disp
+end macro
+macro			FETCH_QWORD	disp
+end macro
+macro			STORE_BYTE	disp
+end macro
+macro			STORE_WORD	disp
+end macro
+macro			STORE_DWORD	disp
+end macro
+macro			STORE_QWORD	disp
+end macro
+macro			BLK_OP_OCTET	opc*
+end macro
+macro			COPY_STRING_APPEND_NUL
+end macro
+
+;			I N S T R U C T I O N S   --   C O M P T A G E
+
+macro			DROP
+  SX_TICK 0, 0, 0
+end macro
+macro			DUP
+  SX_TICK 1, 0, 0
+end macro
+macro			OVER
+  SX_TICK 2, 0, 0
+end macro
+macro			LI	val		; Load Integer
+  SX_TICK 3, 1, 0
+  SX_BIN SX_BLI, val
+  SX_LIFORMAT val
+end macro
+macro			LIF	val		; Load Immediate Float (IEEE 754 double 64 bits sur la pile entier
+  SX_TICK 4, 1, 0
+end macro
+macro			LCA	ptr, disp:0		; Load Constant Address (distinguer de LI - qui charge en 32 bits 
+  local sx_src
+  SX_TICK 5, 1, 0
+  sx_src = $
+  postpone
+    SX_BIN SX_LCAREL, ptr + disp - sx_src
+  end postpone
+end macro
+macro			LSPA	prefix, subname		; Load SubProgram Address de .elab, en armant l'assemblage lazy
+  postpone
+    if ~definite prefix#subname#_
+      prefix#subname#_ = prefix#subname#.elab
+    end if
+end postpone
+  SX_TICK 6, 1, 0
+end macro
+macro			LVA	lvl:-1, disp:0		; Load Variable Address pour lvl et disp (empile l'adresse de la v
+  if lvl = -1 & disp = 0
+					; identite : rien n'est emis par les codis, rien n'est compte
+  else if lvl = -1
+    SX_TICK 7, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 7, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			LIVA	lvl:-1, disp:0, ofs:0		; Load Indirect Variable Address pour lvl et disp (empile l'adress
+  if lvl = -1
+    SX_TICK 8, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 8, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			ULB	lvl:-1, disp:0		; Unsigned Load Byte 8 bits (zero extension)
+  if lvl = -1
+    SX_TICK 9, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 9, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			ULW	lvl:-1, disp:0		; Unsigned Load Word 16 bits
+  if lvl = -1
+    SX_TICK 10, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 10, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			ULD	lvl:-1, disp:0		; Unsigned Load doubleword 32 bits
+  if lvl = -1
+    SX_TICK 11, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 11, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			LB	lvl:-1, disp:0		; 4 ou 5 instr : Load Byte 8 bits
+  if lvl = -1
+    SX_TICK 12, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 12, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			LW	lvl:-1, disp:0		; Load Word 16 bits
+  if lvl = -1
+    SX_TICK 13, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 13, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			LD	lvl:-1, disp:0		; Load doubleword 32 bits
+  if lvl = -1
+    SX_TICK 14, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 14, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			LQ	lvl:-1, disp:0		; Load quadword 64 bits
+  if lvl = -1
+    SX_TICK 15, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 15, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			LA	lvl:-1, disp:0		; Load Address 64 bits
+  if lvl = -1
+    SX_TICK 16, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 16, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			ULIB	lvl:-1, disp:0, ofs:0		; Unsigned Load Indirect byte (la variable en frame ou empilee est
+  if lvl = -1
+    SX_TICK 17, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 17, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			ULIW	lvl:-1, disp:0, ofs:0		; Unsigned Load Indirect word
+  if lvl = -1
+    SX_TICK 18, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 18, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			ULID	lvl:-1, disp:0, ofs:0		; Unsigned Load Indirect doubleword
+  if lvl = -1
+    SX_TICK 19, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 19, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			LIB	lvl:-1, disp:0, ofs:0		; Load Indirect byte (la variable en frame ou empilee est une adre
+  if lvl = -1
+    SX_TICK 20, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 20, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			LIW	lvl:-1, disp:0, ofs:0		; Load Indirect word
+  if lvl = -1
+    SX_TICK 21, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 21, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			LID	lvl:-1, disp:0, ofs:0		; Load Indirect doubleword
+  if lvl = -1
+    SX_TICK 22, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 22, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			LIQ	lvl:-1, disp:0, ofs:0		; Load Indirect quadword
+  if lvl = -1
+    SX_TICK 23, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 23, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			LIA	lvl:-1, disp:0, ofs:0		; Load Address 64 bits Indirect
+  if lvl = -1
+    SX_TICK 24, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 24, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			SB	lvl:-1, disp:0		; Store byte 8 bits
+  if lvl = -1
+    SX_TICK 25, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 25, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			SW	lvl:-1, disp:0		; Store word 16 bits
+  if lvl = -1
+    SX_TICK 26, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 26, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			SD	lvl:-1, disp:0		; Store doubleword 32 bits
+  if lvl = -1
+    SX_TICK 27, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 27, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			SQ	lvl:-1, disp:0		; Store Quadword 64 bits
+  if lvl = -1
+    SX_TICK 28, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 28, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			SA	lvl:-1, disp:0		; Store Address 64 bits
+  if lvl = -1
+    SX_TICK 29, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 29, 1, 0			; couple (lvl,disp) : format B
+    SX_BIN SX_BDISP, disp
+    SX_LVL lvl
+    SX_BFORMAT lvl, disp
+  end if
+end macro
+macro			SIB	lvl:-1, disp:0, ofs:0		; Store Indirect byte
+  if lvl = -1
+    SX_TICK 30, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 30, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			SIW	lvl:-1, disp:0, ofs:0		; Store Indirect word
+  if lvl = -1
+    SX_TICK 31, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 31, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			SID	lvl:-1, disp:0, ofs:0		; Store Indirect doubleword
+  if lvl = -1
+    SX_TICK 32, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 32, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			SIQ	lvl:-1, disp:0, ofs:0		; Store Indirect quadword
+  if lvl = -1
+    SX_TICK 33, 0, 0			; adresse deja empilee : format A
+  else
+    SX_TICK 33, 1, 0			; couple (lvl,disp) : format C
+    SX_BIN SX_BDISP, disp
+    SX_BIN SX_BOFS, ofs
+    SX_LVL lvl
+    SX_CFORMAT lvl, disp, ofs
+  end if
+end macro
+macro			SIA	lvl, disp, ofs		; Store Address 64 bits Indirect
+  SX_TICK 34, 0, 2
+end macro
+macro			ET
+  SX_TICK 35, 0, 0
+end macro
+macro			OU
+  SX_TICK 36, 0, 0
+end macro
+macro			NON
+  SX_TICK 37, 0, 0
+end macro
+macro			OUX
+  SX_TICK 38, 0, 0
+end macro
+macro			SHL		; decalage gauche
+  SX_TICK 39, 0, 0
+end macro
+macro			SHR		; decalage droit
+  SX_TICK 40, 0, 0
+end macro
+macro			UBFX		; unsigned bit field extract
+  SX_TICK 41, 0, 0
+end macro
+macro			SBFX		; signed bit field extract
+  SX_TICK 42, 0, 0
+end macro
+macro			BFI		; bit field insert in stacked value
+  SX_TICK 43, 0, 0
+end macro
+macro			DEC
+  SX_TICK 44, 0, 0
+end macro
+macro			INC
+  SX_TICK 45, 0, 0
+end macro
+macro			NEG
+  SX_TICK 46, 0, 0
+end macro
+macro			ABS
+  SX_TICK 47, 0, 0
+end macro
+macro			CLAMP0		; sommet := max( 0, sommet )		(compte d'elements : intervalle nul 
+  SX_TICK 48, 0, 0
+end macro
+macro			ADD
+  SX_TICK 49, 0, 0
+end macro
+macro			SUB
+  SX_TICK 50, 0, 0
+end macro
+macro			MUL
+  SX_TICK 51, 0, 0
+end macro
+macro			DIV
+  SX_TICK 52, 0, 0
+end macro
+macro			REMI		; A rem B	  (reste division tronquee, signe du dividende)
+  SX_TICK 53, 0, 0
+end macro
+macro			MODI		; A mod B	  (modulo mathematique, signe du diviseur)
+  SX_TICK 54, 0, 0
+end macro
+macro			SAR		; decalage arithmetique droit
+  SX_TICK 55, 0, 0
+end macro
+macro			FADD
+  SX_TICK 56, 0, 0
+end macro
+macro			FSUB
+  SX_TICK 57, 0, 0
+end macro
+macro			FMUL
+  SX_TICK 58, 0, 0
+end macro
+macro			FDIV
+  SX_TICK 59, 0, 0
+end macro
+macro			FNEG		; negation flottante : complement du bit de signe IEEE 754 (bit 63
+  SX_TICK 60, 0, 0
+end macro
+macro			FABS		; valeur absolue flottante : mise a zero du bit de signe IEEE 754 
+  SX_TICK 61, 0, 0
+end macro
+macro			FEXP		; exponentiation flottante A ** B  (B entier positif sur la pile)
+  SX_TICK 62, 0, 0
+end macro
+macro			CVTIF		; Conversion entier signe 64 bits -> double IEEE 754
+  SX_TICK 63, 0, 0
+end macro
+macro			CVTFI		; Conversion double IEEE 754 -> entier signe 64 bits (troncature v
+  SX_TICK 64, 0, 0
+end macro
+macro			CVTFIR		; Float -> Integer, arrondi Ada
+  SX_TICK 65, 0, 0
+end macro
+macro			CVTIX		; Conversion de l'entier I en FIXED X de SMALL = NUMER/DENOM
+  SX_TICK 66, 0, 0
+end macro
+macro			CVTXI		; Conversion du FIXED X de SMALL = NUMER/DENOM en INTEGER I
+  SX_TICK 67, 0, 0
+end macro
+macro			CEQ
+  SX_TICK 68, 0, 0
+end macro
+macro			CNE		; A /= B	 A empile puis B
+  SX_TICK 69, 0, 0
+end macro
+macro			CGT		; A > B A empile puis B (note pour avoir "A less than B" intervert
+  SX_TICK 70, 0, 0
+end macro
+macro			CGE		; A >= B A empile puis B (note pour avoir "A less or equal than B"
+  SX_TICK 71, 0, 0
+end macro
+macro			CLT		; A < B	A empile puis B
+  SX_TICK 72, 0, 0
+end macro
+macro			CLE		; A <= B	 A empile puis B
+  SX_TICK 73, 0, 0
+end macro
+macro			FCEQ		; A = B  flottant
+  SX_TICK 74, 0, 0
+end macro
+macro			FCNE		; A /= B  flottant
+  SX_TICK 75, 0, 0
+end macro
+macro			FCGT		; A > B  flottant
+  SX_TICK 76, 0, 0
+end macro
+macro			FCGE		; A >= B  flottant
+  SX_TICK 77, 0, 0
+end macro
+macro			FCLT		; A < B  flottant
+  SX_TICK 78, 0, 0
+end macro
+macro			FCLE		; A <= B  flottant
+  SX_TICK 79, 0, 0
+end macro
+;			C O N T R O L E S   D ' I N T E R V A L L E   E T   C H A M P S   D E   B I T S
+;	Ajoutes pour LLIR_hardware_support V3 : CHKt lvl, disp (forme B, B24) et CHKIt lvl, disp, ofs
+;	(forme C, C32) ; UBFXI, SBFXI, BFII lsb, w (D8_8). Un mot d'operande chacun.
+macro			CHKB	lvl*, disp*		; controle d'intervalle, bornes en DISPLAY[lvl]+disp
+  SX_TICK 115, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_LVL lvl
+  SX_BFORMAT lvl, disp
+end macro
+macro			CHKW	lvl*, disp*		; controle d'intervalle, bornes en DISPLAY[lvl]+disp
+  SX_TICK 116, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_LVL lvl
+  SX_BFORMAT lvl, disp
+end macro
+macro			CHKD	lvl*, disp*		; controle d'intervalle, bornes en DISPLAY[lvl]+disp
+  SX_TICK 117, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_LVL lvl
+  SX_BFORMAT lvl, disp
+end macro
+macro			CHKQ	lvl*, disp*		; controle d'intervalle, bornes en DISPLAY[lvl]+disp
+  SX_TICK 118, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_LVL lvl
+  SX_BFORMAT lvl, disp
+end macro
+macro			CHKUB	lvl*, disp*		; controle d'intervalle, bornes en DISPLAY[lvl]+disp
+  SX_TICK 119, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_LVL lvl
+  SX_BFORMAT lvl, disp
+end macro
+macro			CHKUW	lvl*, disp*		; controle d'intervalle, bornes en DISPLAY[lvl]+disp
+  SX_TICK 120, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_LVL lvl
+  SX_BFORMAT lvl, disp
+end macro
+macro			CHKUD	lvl*, disp*		; controle d'intervalle, bornes en DISPLAY[lvl]+disp
+  SX_TICK 121, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_LVL lvl
+  SX_BFORMAT lvl, disp
+end macro
+macro			CHKIB	lvl*, disp*, ofs*		; controle d'intervalle, bornes en [DISPLAY[lvl]+disp]+ofs
+  SX_TICK 122, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_BIN SX_BOFS, ofs
+  SX_LVL lvl
+  SX_CFORMAT lvl, disp, ofs
+end macro
+macro			CHKIW	lvl*, disp*, ofs*		; controle d'intervalle, bornes en [DISPLAY[lvl]+disp]+ofs
+  SX_TICK 123, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_BIN SX_BOFS, ofs
+  SX_LVL lvl
+  SX_CFORMAT lvl, disp, ofs
+end macro
+macro			CHKID	lvl*, disp*, ofs*		; controle d'intervalle, bornes en [DISPLAY[lvl]+disp]+ofs
+  SX_TICK 124, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_BIN SX_BOFS, ofs
+  SX_LVL lvl
+  SX_CFORMAT lvl, disp, ofs
+end macro
+macro			CHKIQ	lvl*, disp*, ofs*		; controle d'intervalle, bornes en [DISPLAY[lvl]+disp]+ofs
+  SX_TICK 125, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_BIN SX_BOFS, ofs
+  SX_LVL lvl
+  SX_CFORMAT lvl, disp, ofs
+end macro
+macro			CHKUIB	lvl*, disp*, ofs*		; controle d'intervalle, bornes en [DISPLAY[lvl]+disp]+ofs
+  SX_TICK 126, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_BIN SX_BOFS, ofs
+  SX_LVL lvl
+  SX_CFORMAT lvl, disp, ofs
+end macro
+macro			CHKUIW	lvl*, disp*, ofs*		; controle d'intervalle, bornes en [DISPLAY[lvl]+disp]+ofs
+  SX_TICK 127, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_BIN SX_BOFS, ofs
+  SX_LVL lvl
+  SX_CFORMAT lvl, disp, ofs
+end macro
+macro			CHKUID	lvl*, disp*, ofs*		; controle d'intervalle, bornes en [DISPLAY[lvl]+disp]+ofs
+  SX_TICK 128, 1, 0
+  SX_BIN SX_BDISP, disp
+  SX_BIN SX_BOFS, ofs
+  SX_LVL lvl
+  SX_CFORMAT lvl, disp, ofs
+end macro
+macro			UBFXI	lsb*, w*		; champ de bits a position et largeur immediates
+  SX_TICK 129, 1, 0
+end macro
+macro			SBFXI	lsb*, w*		; champ de bits a position et largeur immediates
+  SX_TICK 130, 1, 0
+end macro
+macro			BFII	lsb*, w*		; champ de bits a position et largeur immediates
+  SX_TICK 131, 1, 0
+end macro
+
+macro			BRA	lbl		; inconditionnel
+  local sx_src_op, sx_src_arg
+  SX_TICK 80, 1, 0
+  load sx_src_op:8 from SX_TBL:SX_PCOP*8
+  load sx_src_arg:8 from SX_TBL:(2*SX_NB+3)*8
+  postpone
+    SX_TARGET_PAIR SX_BPAIR, lbl, sx_src_op, sx_src_arg, 1
+  end postpone
+end macro
+macro			BT	lbl		; branch true
+  local sx_src_op, sx_src_arg
+  SX_TICK 81, 1, 0
+  load sx_src_op:8 from SX_TBL:SX_PCOP*8
+  load sx_src_arg:8 from SX_TBL:(2*SX_NB+3)*8
+  postpone
+    SX_TARGET_PAIR SX_BPAIR, lbl, sx_src_op, sx_src_arg, 1
+  end postpone
+end macro
+macro			BF	lbl		; branch false
+  local sx_src_op, sx_src_arg
+  SX_TICK 82, 1, 0
+  load sx_src_op:8 from SX_TBL:SX_PCOP*8
+  load sx_src_arg:8 from SX_TBL:(2*SX_NB+3)*8
+  postpone
+    SX_TARGET_PAIR SX_BPAIR, lbl, sx_src_op, sx_src_arg, 1
+  end postpone
+end macro
+macro			CALL	prefix, subname		; CALL par offset
+  local sx_src_op, sx_src_arg
+  SX_TICK 83, 1, 0
+  load sx_src_op:8 from SX_TBL:SX_PCOP*8
+  load sx_src_arg:8 from SX_TBL:(2*SX_NB+3)*8
+  postpone
+    if ~definite prefix#subname#_
+      prefix#subname#_ = prefix#subname#.elab
+    end if
+    SX_TARGET_PAIR SX_CPAIR, prefix#subname#_, sx_src_op, sx_src_arg, 0
+  end postpone
+end macro
+macro			CALLI		; CALL indirect par RAX
+  SX_TICK 84, 0, 0
+end macro
+macro			RTD	param_size:0
+  if param_size = 0
+    SX_TICK 85, 0, 0			; format A
+  else
+    SX_TICK 85, 1, 0			; format D
+  end if
+end macro
+macro			LINK	lvl, alloc		; ALLOCATION POUR VARIABLES LOCALES APRES FRAME PTR
+  SX_TICK 86, 1, 0
+end macro
+macro			UNLINK	lvl		; DISPOSE VARS LOCALES ET RESTORE FRAME PTR
+  SX_TICK 87, 1, 0
+end macro
+macro			UNLINKR	lvl		; UNLINK + LIBERATION DE LA CO-PILE (r14 redescend a la cellule LI
+  SX_TICK 88, 1, 0
+end macro
+macro			CO_VAR		; Allocation d'un bloc sur la co-pile taille en octets sur la pile
+  SX_TICK 89, 0, 2
+end macro
+macro			HEAP_ALLOC		; Allocation bump-pointer pour Ada new : taille en octets sur pile
+  SX_TICK 90, 0, 2
+end macro
+macro			EXC_MACH		lvl, ctx		; PILIER 11 : photographie de l'etat machine cache
+  SX_TICK 91, 1, 0
+end macro
+macro			EXC_RAISE		top		; PILIER 11 : deroulage. Corps de l'INSTANCE UNIQUE,
+  SX_TICK 92, 1, 0
+end macro
+macro			BLKAND		; [DST] and= [SRC] octet a octet
+  SX_TICK 93, 0, 2
+end macro
+macro			BLKOU		; [DST] or= [SRC] octet a octet
+  SX_TICK 94, 0, 2
+end macro
+macro			BLKOUX		; [DST] xor= [SRC] octet a octet
+  SX_TICK 95, 0, 2
+end macro
+macro			BLKNOT		; NOT composite : chaque octet ^= 1
+  SX_TICK 96, 0, 2
+end macro
+macro			BLKMOV		; Copie de bloc sans recouvrement
+  SX_TICK 97, 0, 2
+end macro
+macro			BLKCMP		; Comparaison de blocs : empile 1 si egaux, 0 sinon (LEN=0 -> 1)
+  SX_TICK 98, 0, 2
+end macro
+macro			LEXCMP siz*, sgn*		; Comparaison lexicographique de tableaux (LRM 4.5.2) -- lot D2
+  SX_TICK 99, 0, 2
+end macro
+macro			SYS_CLOCK_GETTIME
+  SX_TICK 100, 0, 1
+end macro
+macro			SYS_PUT_CHAR		; affiche un seul caractere sur stdout
+  SX_TICK 101, 0, 1
+end macro
+macro			SYS_PUT_STR		; affiche tout une chaine sur stdout
+  SX_TICK 102, 0, 1
+end macro
+macro			SYS_GET_CHAR		; lit un seul caractere sur stdin en mode non canonique
+  SX_TICK 103, 0, 1
+end macro
+macro			SYS_GET_STR		; lit une ligne sur stdin
+  SX_TICK 104, 0, 1
+end macro
+macro			SYS_FILE_CREATE		; FONCTION creation d'un fichier	rax=2 rdi=ptr_name rsi=flags(O_CR
+  SX_TICK 105, 0, 1
+end macro
+macro			SYS_FILE_OPEN		; FONCTION ouverture d'un fichier
+  SX_TICK 106, 0, 1
+end macro
+macro			SYS_FILE_SET_POS		; positionnement sur un fichier
+  SX_TICK 107, 0, 1
+end macro
+macro			SYS_FILE_GET_POS		; position courante dans un fichier (lseek SEEK_CUR avec offset 0)
+  SX_TICK 108, 0, 1
+end macro
+macro			SYS_FILE_GET_SIZE		; taille d'un fichier en octets (lseek SEEK_END puis SEEK_SET pour
+  SX_TICK 109, 0, 1
+end macro
+macro			SYS_FILE_WRITE		; ecriture sur un fichier
+  SX_TICK 110, 0, 1
+end macro
+macro			SYS_FILE_READ		; lecture sur un fichier
+  SX_TICK 111, 0, 1
+end macro
+macro			SYS_FILE_CLOSE		; fermeture d'un fichier
+  SX_TICK 112, 0, 1
+end macro
+macro			SYS_FILE_DELETE		; destruction d'un fichier
+  SX_TICK 113, 0, 1
+end macro
+macro			SYS_EXIT	code:0		; retour au systeme
+  SX_TICK 114, 0, 1
+end macro
+
+;			E M I S S I O N   D U   R A P P O R T
+
+postpone
+  SX_DATA = $
+  SX_NM = 0
+  SX_NS = 0
+  SX_NH = 0
+  SX_NA = 0
+  load SX_NM:8 from SX_TBL:(2*SX_NB+0)*8
+  load SX_NS:8 from SX_TBL:(2*SX_NB+1)*8
+  load SX_NH:8 from SX_TBL:(2*SX_NB+2)*8
+  load SX_NA:8 from SX_TBL:(2*SX_NB+3)*8
+  SX_TXT '========================================================================'
+  SX_TXT 'TLALOC  --  CODI SX : statistiques d''emission LLIR'
+  SX_TXT '========================================================================'
+  SX_TXT ''
+  db 'instructions du repertoire materiel : '
+  SX_NUM SX_NM
+  SX_TXT ''
+  db 'mots de 64 bits du flux des operandes: '
+  SX_NUM SX_NA
+  SX_TXT ''
+  db 'instructions a zero adresse         : '
+  SX_NUM SX_NM - SX_NA
+  SX_TXT ''
+  SX_TXT ''
+  db 'appels systeme                       : '
+  SX_NUM SX_NS
+  SX_TXT ''
+  db 'operations hors support materiel     : '
+  SX_NUM SX_NH
+  SX_TXT ''
+  db 'octets de donnees statiques          : '
+  SX_NUM SX_DATA - SX_NM
+  SX_TXT ''
+  SX_TXT ''
+  SX_TXT 'VOLUME DES DEUX FLUX'
+  db '  flux des opcodes   1 octet/instr   : '
+  SX_NUM SX_NM
+  db ' octets'
+  SX_TXT ''
+  db '  flux des operandes 8 octets/mot    : '
+  SX_NUM SX_NA*8
+  db ' octets'
+  SX_TXT ''
+  db '  total du code                      : '
+  SX_NUM SX_NM+SX_NA*8
+  db ' octets'
+  SX_TXT ''
+  SX_TXT ''
+  SX_TXT 'HISTOGRAMME        mnemonique / occurrences / mots d''operande'
+  SX_TXT '--- repertoire materiel ---'
+  SX_ROW 'DROP            ', 0
+  SX_ROW 'DUP             ', 1
+  SX_ROW 'OVER            ', 2
+  SX_ROW 'LI              ', 3
+  SX_ROW 'LIF             ', 4
+  SX_ROW 'LCA             ', 5
+  SX_ROW 'LSPA            ', 6
+  SX_ROW 'LVA             ', 7
+  SX_ROW 'LIVA            ', 8
+  SX_ROW 'ULB             ', 9
+  SX_ROW 'ULW             ', 10
+  SX_ROW 'ULD             ', 11
+  SX_ROW 'LB              ', 12
+  SX_ROW 'LW              ', 13
+  SX_ROW 'LD              ', 14
+  SX_ROW 'LQ              ', 15
+  SX_ROW 'LA              ', 16
+  SX_ROW 'ULIB            ', 17
+  SX_ROW 'ULIW            ', 18
+  SX_ROW 'ULID            ', 19
+  SX_ROW 'LIB             ', 20
+  SX_ROW 'LIW             ', 21
+  SX_ROW 'LID             ', 22
+  SX_ROW 'LIQ             ', 23
+  SX_ROW 'LIA             ', 24
+  SX_ROW 'SB              ', 25
+  SX_ROW 'SW              ', 26
+  SX_ROW 'SD              ', 27
+  SX_ROW 'SQ              ', 28
+  SX_ROW 'SA              ', 29
+  SX_ROW 'SIB             ', 30
+  SX_ROW 'SIW             ', 31
+  SX_ROW 'SID             ', 32
+  SX_ROW 'SIQ             ', 33
+  SX_ROW 'ET              ', 35
+  SX_ROW 'OU              ', 36
+  SX_ROW 'NON             ', 37
+  SX_ROW 'OUX             ', 38
+  SX_ROW 'SHL             ', 39
+  SX_ROW 'SHR             ', 40
+  SX_ROW 'UBFX            ', 41
+  SX_ROW 'SBFX            ', 42
+  SX_ROW 'BFI             ', 43
+  SX_ROW 'DEC             ', 44
+  SX_ROW 'INC             ', 45
+  SX_ROW 'NEG             ', 46
+  SX_ROW 'ABS             ', 47
+  SX_ROW 'CLAMP0          ', 48
+  SX_ROW 'ADD             ', 49
+  SX_ROW 'SUB             ', 50
+  SX_ROW 'MUL             ', 51
+  SX_ROW 'DIV             ', 52
+  SX_ROW 'REMI            ', 53
+  SX_ROW 'MODI            ', 54
+  SX_ROW 'SAR             ', 55
+  SX_ROW 'FADD            ', 56
+  SX_ROW 'FSUB            ', 57
+  SX_ROW 'FMUL            ', 58
+  SX_ROW 'FDIV            ', 59
+  SX_ROW 'FNEG            ', 60
+  SX_ROW 'FABS            ', 61
+  SX_ROW 'FEXP            ', 62
+  SX_ROW 'CVTIF           ', 63
+  SX_ROW 'CVTFI           ', 64
+  SX_ROW 'CVTFIR          ', 65
+  SX_ROW 'CVTIX           ', 66
+  SX_ROW 'CVTXI           ', 67
+  SX_ROW 'CEQ             ', 68
+  SX_ROW 'CNE             ', 69
+  SX_ROW 'CGT             ', 70
+  SX_ROW 'CGE             ', 71
+  SX_ROW 'CLT             ', 72
+  SX_ROW 'CLE             ', 73
+  SX_ROW 'FCEQ            ', 74
+  SX_ROW 'FCNE            ', 75
+  SX_ROW 'FCGT            ', 76
+  SX_ROW 'FCGE            ', 77
+  SX_ROW 'FCLT            ', 78
+  SX_ROW 'FCLE            ', 79
+  SX_ROW 'BRA             ', 80
+  SX_ROW 'BT              ', 81
+  SX_ROW 'BF              ', 82
+  SX_ROW 'CALL            ', 83
+  SX_ROW 'CALLI           ', 84
+  SX_ROW 'RTD             ', 85
+  SX_ROW 'LINK            ', 86
+  SX_ROW 'UNLINK          ', 87
+  SX_ROW 'UNLINKR         ', 88
+  SX_ROW 'EXC_MACH        ', 91
+  SX_ROW 'EXC_RAISE       ', 92
+  SX_ROW 'CHKB            ', 115
+  SX_ROW 'CHKW            ', 116
+  SX_ROW 'CHKD            ', 117
+  SX_ROW 'CHKQ            ', 118
+  SX_ROW 'CHKUB           ', 119
+  SX_ROW 'CHKUW           ', 120
+  SX_ROW 'CHKUD           ', 121
+  SX_ROW 'CHKIB           ', 122
+  SX_ROW 'CHKIW           ', 123
+  SX_ROW 'CHKID           ', 124
+  SX_ROW 'CHKIQ           ', 125
+  SX_ROW 'CHKUIB          ', 126
+  SX_ROW 'CHKUIW          ', 127
+  SX_ROW 'CHKUID          ', 128
+  SX_ROW 'UBFXI           ', 129
+  SX_ROW 'SBFXI           ', 130
+  SX_ROW 'BFII            ', 131
+  SX_TXT '--- appels systeme ---'
+  SX_ROW 'SYS_CLOCK_GETTIME', 100
+  SX_ROW 'SYS_PUT_CHAR    ', 101
+  SX_ROW 'SYS_PUT_STR     ', 102
+  SX_ROW 'SYS_GET_CHAR    ', 103
+  SX_ROW 'SYS_GET_STR     ', 104
+  SX_ROW 'SYS_FILE_CREATE ', 105
+  SX_ROW 'SYS_FILE_OPEN   ', 106
+  SX_ROW 'SYS_FILE_SET_POS', 107
+  SX_ROW 'SYS_FILE_GET_POS', 108
+  SX_ROW 'SYS_FILE_GET_SIZE', 109
+  SX_ROW 'SYS_FILE_WRITE  ', 110
+  SX_ROW 'SYS_FILE_READ   ', 111
+  SX_ROW 'SYS_FILE_CLOSE  ', 112
+  SX_ROW 'SYS_FILE_DELETE ', 113
+  SX_ROW 'SYS_EXIT        ', 114
+  SX_TXT '--- hors support materiel ---'
+  SX_ROW 'SIA             ', 34
+  SX_ROW 'CO_VAR          ', 89
+  SX_ROW 'HEAP_ALLOC      ', 90
+  SX_ROW 'BLKAND          ', 93
+  SX_ROW 'BLKOU           ', 94
+  SX_ROW 'BLKOUX          ', 95
+  SX_ROW 'BLKNOT          ', 96
+  SX_ROW 'BLKMOV          ', 97
+  SX_ROW 'BLKCMP          ', 98
+  SX_ROW 'LEXCMP          ', 99
+  SX_TXT ''
+  SX_TXT 'LARGEUR UTILE DES OPERANDES   (valeur / nombre d''occurrences)'
+  SX_TXT '--- deplacements disp ---'
+  db 'nul (implicitable)    '
+  SX_BROW SX_BDISP + 0
+  db '4 bits non signes     '
+  SX_BROW SX_BDISP + 1
+  db '8 bits signes         '
+  SX_BROW SX_BDISP + 2
+  db '12 bits signes        '
+  SX_BROW SX_BDISP + 3
+  db '16 bits signes        '
+  SX_BROW SX_BDISP + 4
+  db '24 bits signes        '
+  SX_BROW SX_BDISP + 5
+  db '32 bits signes        '
+  SX_BROW SX_BDISP + 6
+  db 'au dela de 32 bits    '
+  SX_BROW SX_BDISP + 7
+  SX_TXT '--- offsets ofs ---'
+  db 'nul (implicitable)    '
+  SX_BROW SX_BOFS + 0
+  db '4 bits non signes     '
+  SX_BROW SX_BOFS + 1
+  db '8 bits signes         '
+  SX_BROW SX_BOFS + 2
+  db '12 bits signes        '
+  SX_BROW SX_BOFS + 3
+  db '16 bits signes        '
+  SX_BROW SX_BOFS + 4
+  db '24 bits signes        '
+  SX_BROW SX_BOFS + 5
+  db '32 bits signes        '
+  SX_BROW SX_BOFS + 6
+  db 'au dela de 32 bits    '
+  SX_BROW SX_BOFS + 7
+  SX_TXT '--- litteraux LI ---'
+  db 'nul (implicitable)    '
+  SX_BROW SX_BLI + 0
+  db '4 bits non signes     '
+  SX_BROW SX_BLI + 1
+  db '8 bits signes         '
+  SX_BROW SX_BLI + 2
+  db '12 bits signes        '
+  SX_BROW SX_BLI + 3
+  db '16 bits signes        '
+  SX_BROW SX_BLI + 4
+  db '24 bits signes        '
+  SX_BROW SX_BLI + 5
+  db '32 bits signes        '
+  SX_BROW SX_BLI + 6
+  db 'au dela de 32 bits    '
+  SX_BROW SX_BLI + 7
+  SX_TXT '--- niveau lexical lvl employe ---'
+  db 'niveau 0              '
+  SX_BROW SX_BLVL + 0
+  db 'niveau 1              '
+  SX_BROW SX_BLVL + 1
+  db 'niveau 2              '
+  SX_BROW SX_BLVL + 2
+  db 'niveau 3              '
+  SX_BROW SX_BLVL + 3
+  db 'niveau 4              '
+  SX_BROW SX_BLVL + 4
+  db 'niveau 5              '
+  SX_BROW SX_BLVL + 5
+  db 'niveau 6              '
+  SX_BROW SX_BLVL + 6
+  db 'niveau 7              '
+  SX_BROW SX_BLVL + 7
+  db 'niveau 8              '
+  SX_BROW SX_BLVL + 8
+  db 'niveau 9              '
+  SX_BROW SX_BLVL + 9
+  db 'niveau 10             '
+  SX_BROW SX_BLVL + 10
+  db 'niveau 11             '
+  SX_BROW SX_BLVL + 11
+  db 'niveau 12             '
+  SX_BROW SX_BLVL + 12
+  db 'niveau 13             '
+  SX_BROW SX_BLVL + 13
+  db 'niveau 14             '
+  SX_BROW SX_BLVL + 14
+  db 'niveau 15             '
+  SX_BROW SX_BLVL + 15
+  SX_TXT '--- portee des branchements (instructions du flux OP abstrait) ---'
+  db 'nul (implicitable)    '
+  SX_BROW SX_BBR + 0
+  db '4 bits non signes     '
+  SX_BROW SX_BBR + 1
+  db '8 bits signes         '
+  SX_BROW SX_BBR + 2
+  db '12 bits signes        '
+  SX_BROW SX_BBR + 3
+  db '16 bits signes        '
+  SX_BROW SX_BBR + 4
+  db '24 bits signes        '
+  SX_BROW SX_BBR + 5
+  db '32 bits signes        '
+  SX_BROW SX_BBR + 6
+  db 'au dela de 32 bits    '
+  SX_BROW SX_BBR + 7
+  SX_TXT ''
+  SX_TXT 'FORMATS CANDIDATS SX3   (classes exclusives sauf mention contraire)'
+  SX_TXT '--- format B : lvl4 + disp ---'
+  db 'B16  lvl4+disp12       '
+  SX_BROW SX_BFORM + 0
+  db 'B24  lvl4+disp20       '
+  SX_BROW SX_BFORM + 1
+  db 'B32  lvl4+disp28       '
+  SX_BROW SX_BFORM + 2
+  db 'B64  secours           '
+  SX_BROW SX_BFORM + 3
+  SX_TXT '--- format C : lvl + disp + ofs ---'
+  db 'C24  4+16+4            '
+  SX_BROW SX_CFORM + 0
+  db 'C32  4+20+8            '
+  SX_BROW SX_CFORM + 1
+  db 'C64  secours           '
+  SX_BROW SX_CFORM + 2
+  db 'C32-alt 4+16+12 (fit) '
+  SX_BROW SX_CALT
+  SX_TXT '--- LI : taille minimale du complement ---'
+  db 'LI0   aucun complement '
+  SX_BROW SX_LIFORM + 0
+  db 'LI8   signe            '
+  SX_BROW SX_LIFORM + 1
+  db 'LI16  signe            '
+  SX_BROW SX_LIFORM + 2
+  db 'LI32  signe            '
+  SX_BROW SX_LIFORM + 3
+  db 'LI64                   '
+  SX_BROW SX_LIFORM + 4
+  SX_TXT '--- delta ARG des BRA/BT/BF (en NOMBRE de mots-operandes) ---'
+  db 'nul                    '
+  SX_BROW SX_BBARG + 0
+  db '4 bits non signes      '
+  SX_BROW SX_BBARG + 1
+  db '8 bits signes          '
+  SX_BROW SX_BBARG + 2
+  db '12 bits signes         '
+  SX_BROW SX_BBARG + 3
+  db '16 bits signes         '
+  SX_BROW SX_BBARG + 4
+  db '24 bits signes         '
+  SX_BROW SX_BBARG + 5
+  db '32 bits signes         '
+  SX_BROW SX_BBARG + 6
+  db 'au dela de 32 bits     '
+  SX_BROW SX_BBARG + 7
+  SX_TXT '--- couple BRA/BT/BF : meme largeur signee pour deltaOP et deltaARG ---'
+  db '8+8 bits   (2 octets)  '
+  SX_BROW SX_BPAIR + 0
+  db '16+16 bits (4 octets)  '
+  SX_BROW SX_BPAIR + 1
+  db '24+24 bits (6 octets)  '
+  SX_BROW SX_BPAIR + 2
+  db '32+32 bits (8 octets)  '
+  SX_BROW SX_BPAIR + 3
+  db 'au dela                '
+  SX_BROW SX_BPAIR + 4
+  SX_TXT '--- couple CALL : meme largeur signee pour deltaOP et deltaARG ---'
+  db '8+8 bits   (2 octets)  '
+  SX_BROW SX_CPAIR + 0
+  db '16+16 bits (4 octets)  '
+  SX_BROW SX_CPAIR + 1
+  db '24+24 bits (6 octets)  '
+  SX_BROW SX_CPAIR + 2
+  db '32+32 bits (8 octets)  '
+  SX_BROW SX_CPAIR + 3
+  db 'au dela                '
+  SX_BROW SX_CPAIR + 4
+  SX_TXT '--- LCA : portee relative dans image SX (mesure indicative) ---'
+  db 'nul                    '
+  SX_BROW SX_LCAREL + 0
+  db '4 bits non signes      '
+  SX_BROW SX_LCAREL + 1
+  db '8 bits signes          '
+  SX_BROW SX_LCAREL + 2
+  db '12 bits signes         '
+  SX_BROW SX_LCAREL + 3
+  db '16 bits signes         '
+  SX_BROW SX_LCAREL + 4
+  db '24 bits signes         '
+  SX_BROW SX_LCAREL + 5
+  db '32 bits signes         '
+  SX_BROW SX_LCAREL + 6
+  db 'au dela de 32 bits     '
+  SX_BROW SX_LCAREL + 7
+  db 'cibles non cartographiees '
+  SX_BROW SX_MAPMISS
+  SX_TXT ''
+  SX_TXT 'VOLUME ESTIME DES ACCES B/C + LI AVEC CES FORMATS'
+  load SX_B16:8 from SX_TBL:(SX_BFORM+0)*8
+  load SX_B24:8 from SX_TBL:(SX_BFORM+1)*8
+  load SX_B32:8 from SX_TBL:(SX_BFORM+2)*8
+  load SX_B64:8 from SX_TBL:(SX_BFORM+3)*8
+  load SX_C24:8 from SX_TBL:(SX_CFORM+0)*8
+  load SX_C32:8 from SX_TBL:(SX_CFORM+1)*8
+  load SX_C64:8 from SX_TBL:(SX_CFORM+2)*8
+  load SX_LI0:8 from SX_TBL:(SX_LIFORM+0)*8
+  load SX_LI8:8 from SX_TBL:(SX_LIFORM+1)*8
+  load SX_LI16:8 from SX_TBL:(SX_LIFORM+2)*8
+  load SX_LI32:8 from SX_TBL:(SX_LIFORM+3)*8
+  load SX_LI64:8 from SX_TBL:(SX_LIFORM+4)*8
+  SX_OLD3 = 8*(SX_B16+SX_B24+SX_B32+SX_B64+SX_C24+SX_C32+SX_C64+SX_LI0+SX_LI8+SX_LI16+SX_LI32+SX_LI64)
+  SX_NEW3 = 2*SX_B16+3*SX_B24+4*SX_B32+8*SX_B64 + 3*SX_C24+4*SX_C32+8*SX_C64 + SX_LI8+2*SX_LI16+4*SX_LI32+8*SX_LI64
+  db 'ancien, mots 64 bits   '
+  SX_NUM SX_OLD3
+  db ' octets'
+  SX_TXT ''
+  db 'candidat variable      '
+  SX_NUM SX_NEW3
+  db ' octets'
+  SX_TXT ''
+  db 'gain                   '
+  SX_NUM SX_OLD3-SX_NEW3
+  db ' octets'
+  SX_TXT ''
+end postpone

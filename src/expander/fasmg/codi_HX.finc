@@ -1,0 +1,1234 @@
+;-----------------------------------------------------------------------------------------------------------------------
+;- SPDX-FileCopyrightText: 2026 VINCENT MORIN, UBO
+;- SPDX-License-Identifier: GPL-3.0-or-later
+;-----------------------------------------------------------------------------------------------------------------------
+;		C O D I   H X  --  T L A L O C   A D A   H A R D W A R E   E X E C U T O R
+;
+;	Codi BINAIRE EXACT de la machine TAHX, selon LLIR_hardware_support (V3). Derive de codi_TX :
+;	memes noms de macros, memes parametres, donc les .FINC et .FAS du front end s'assemblent
+;	sans modification.
+;
+;	ENCODAGE
+;	  - opcode sur 1 octet, puis complement de 0 a 8 octets ; la longueur ne depend que de
+;	    l'opcode (invariant de decodage) ;
+;	  - complement range OCTET DE POIDS FORT EN TETE, dans l'ordre de la notation des formats :
+;	    le champ lvl occupe ainsi toujours les bits 7..4 de l'octet qui suit l'opcode ;
+;	  - format minimal : FMT 00 si lvl = -1 et disp (et ofs) nuls, sinon B16/C24, puis B24/C32 ;
+;	  - LI : imm4 non signe (0..15), puis D8, D16, D32, D64 etendus en signe ;
+;	  - branches BRA/BT/BF : BR8..BR32 recalcules a chaque passe depuis BR8 (pas de memoire
+;	    par branche, cf. HX_BRANCHE) ;
+;	  - CALL D24, RTD D24 ou RTD 0, TRAP/UNLINK/UNLINKR D8, EXC_RAISE D24, UBFXI.. D8_8 ;
+;	  - replis des champs trop etroits (ofs > 255) : sequences de LLIR_hardware_support.
+;
+;	IMAGE
+;	  0x400000       en-tete de 0x78 octets, celui des images TX de format 3, signature 'TLALOCHX'
+;	  0x400078       point d'entree, puis code et donnees statiques melanges comme en x86
+;	  fin            table des instructions (un dd par instruction HX, adresse relative a 0x400000 ;
+;	                 bit 31 SUITE : l'instruction prolonge l'instruction LLIR precedente (repli,
+;	                 SYS_EXIT, sequence CHK) ; bit 30 VIDE : reserve, plus produit (LVA -1,0
+;	                 n'est emis par aucun codi))
+;	                 facultative : HX_SANS_TABLE = 1 avant l'include du codi la supprime (l'image
+;	                 ne contient alors que code et donnees, comme pour la machine reelle ; en-tete
+;	                 +56 et +64 a zero ; l'executeur ne peut plus verifier les debuts d'instruction)
+;	Les donnees en ligne (images d'enumeres) restent protegees par BRA.
+;
+;	L'initialisation machine (piles, display, co-pile, tas) est faite par l'executeur.
+;
+;		fasmg PROG.HXFAS PROG.hx      puis      tx_run PROG.hx
+;-----------------------------------------------------------------------------------------------------------------------
+
+postpone						; sera fait en toute toute fin car c'est le premier postpone
+  ASM_SIZE = $-0x400078
+end postpone
+
+;	Table des instructions : adresse (relative a 0x400000) de chaque instruction HX, dans
+;	l'ordre du code. La machine l'ignore ; l'executeur s'en sert pour separer instructions et
+;	donnees en ligne et pour verifier que tout PC atteint est un debut d'instruction (en HX,
+;	l'octet 0 est un opcode valide : ET). Ce postpone s'execute juste avant le precedent.
+virtual at 0
+  HX_TABLE::
+end virtual
+if definite HX_SANS_TABLE
+postpone
+  HX_TABLE_ADR = 0
+  HX_TABLE_NB = 0
+end postpone
+else
+postpone
+  db ((8 - ($ and 7)) and 7) dup 0
+  HX_TABLE_ADR = $
+  virtual HX_TABLE
+    HX_TABLE_TAILLE = $ - $$
+  end virtual
+  HX_TABLE_NB = HX_TABLE_TAILLE / 4
+  repeat HX_TABLE_NB / 2, k:0
+    load HX_Mot_Table : 8 from HX_TABLE : k * 8
+    dq HX_Mot_Table
+  end repeat
+  if HX_TABLE_NB mod 2
+    load HX_Mot_Table : 4 from HX_TABLE : HX_TABLE_TAILLE - 4
+    dd HX_Mot_Table
+  end if
+end postpone
+end if
+
+macro show description, value				; pour debogage
+  repeat 1, d:value
+    display description,`d,13,10
+  end repeat
+end macro
+
+macro hexa_show description, value			; adresse hexa pour la carto de debogage
+  local x, digit
+  x = value
+  display description, '0', 'x'
+  repeat 16, n:0
+    digit = (x shr ((15 - n) shl 2)) and 0Fh
+    if digit < 10
+      display '0' + digit
+    else
+      display 'A' + digit - 10
+    end if
+  end repeat
+  display 13, 10
+end macro
+;			-------------------------------------------------------------------
+;			.......
+macro			align_b?
+;			.......
+end macro
+
+;			.......
+macro			align_w?
+;			.......
+  desalign = $ mod 2
+  if desalign <> 0
+    repeat 2-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+;			.......
+macro			align_d?
+;			.......
+  desalign = $ mod 4
+  if desalign <> 0
+    repeat 4-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+;			.......
+macro			align_q?
+;			.......
+  desalign = $ mod 8
+  if desalign <> 0
+    repeat 8-desalign
+      db 0x90
+    end repeat
+  end if
+end macro
+
+
+;			----------------------
+macro			PRO	sub_name_lbl			; Debut de procedure declaree
+;			----------------------
+  namespace sub_name_lbl						; definir son espace de noms
+  BRA post							; contournement de l'elaboration autour de la procedure
+end macro
+
+;			----
+macro			PRMS					; En tete de la definition des parametres
+;			----
+  virtual at 8							; La pile de travail croit vers les adresses hautes, les parametres sont au dessus du FP dynamique
+    PRMzone::							; donc 8 octets (adresses 64 bits) au dessus du FP
+  end virtual
+
+end macro
+
+;			------------------
+macro			PRM	name_ofs				; Definition d'un parametre
+;			------------------
+  virtual PRMzone
+    name_ofs = $
+    dq ?
+  end virtual
+
+end macro
+
+;			-------
+macro			endPRMS					; Fin de la definition des parametres adjust = 8 pour fonction
+;			-------
+  virtual PRMzone
+    prm_siz = $-8							; Calcul de la taille du parametrage
+  end virtual
+
+end macro
+
+;			-------------
+macro			ELB	lvl				; En tete de la partie elaboration de procedure
+;			-------------
+elab:
+  virtual at 8							; Commence 8 octets apres le FP dynamique
+    VARzone::
+  end virtual
+	LINK lvl, loc_siz
+
+end macro
+
+;			--------------
+macro			BEGIN_BLOC_DEF				; Debut du bloc d'images d'un enumere
+;			--------------
+;	Donnees inline protegees par BRA (pattern des thunks LD_/ST_, sain
+;	sous "if defined"). Macros ordinaires, noms FIXES : la paire vit dans
+;	le namespace _TYPE de l'enumere, unicite garantie par construction.
+;	Ni struc coupee, ni postpone, ni "!", ni local inter-macros.
+  BRA	IMAGES.skip
+IMAGES.data = $							; les db d'images suivent, inline
+end macro
+
+;			---------------------------------
+macro			END_BLOC_DEF	siz, fst, lst		; Fin : pose le ENUM_USE_INFO etendu
+;			---------------------------------
+;	CONTRAT (record ENUM_USE_INFO du prelude + doublet images) :
+;	  SIZ @0 (dd) | FST @+4 | LST @+8 | pad | data_ptr @+16 | info_ptr @+24
+;	  use__info pointe SIZ ; TEXT_IO (GET_ENUM_IMAGES) lit le doublet a __u+16.
+IMAGES.data_end = $							; fin des octets d'images (avant info/scalaires)
+  align_q
+IMAGES.info = $
+	dd 8*(IMAGES.data_end - IMAGES.data), 8, 1, IMAGES.data_end - IMAGES.data
+SIZ = $
+	dd siz
+FST = $
+	dd fst
+LST = $
+	dd lst
+	dd 0
+IMAGES.data_ptr = $
+	dq IMAGES.data
+IMAGES.info_ptr = $
+	dq IMAGES.info
+IMAGES.skip:
+end macro
+
+;	Une chaine Ada est un tableau d'octets caracteres, c'est a dire un descripteur [ PTR_TO CHARS qword | CAR_SIZE dword | FIRST dword | LAST dword ]
+; et des caracteres qui pointes par PTR_TO_CHARS peuvent etre detaches du descripteur. Ici, cas de constante, les caracteres sont juste apres le descripteur.
+;	On décompose en deux parties la constitution d'une chaîne pour pouvoir insérer tous les octets voulus.
+
+;			---------------------
+macro			STR	name, bytes			; Definition d'une constante chaine au format d'un tableau de caracteres (pour traitement homogene des chaines)
+;			---------------------
+;	Une chaine Ada est un tableau d'octets caracteres, c'est a dire un descripteur [ PTR_TO CHARS qword | CAR_SIZE dword | FIRST dword | LAST dword ]
+; et des caracteres qui pointes par PTR_TO_CHARS peuvent etre detaches du descripteur. Ici, cas de constante, les caracteres sont juste apres le descripteur.
+;
+  postpone
+    local data
+    local info
+    local str_bit_size
+    align_q							; aligner le descripteur sur un quadword
+
+  namespace name
+
+  data_ptr = $							; adresse de la constante STRING (en fait double pointeur)
+    dq	data							; offset 0 : adresse des caracteres (juste apres dans le cas present)
+  info_ptr = $							;
+    dq	info							; offset 8 : adresse des infos TOT_SIZ, COMP_SIZ, FST_1, LST_1
+  info = $							; use info
+    dd	str_bit_size, 8, 1, str_bit_size/8				; offset 16 : TOT_SIZ=str_bit_size ; offset 20 :  COMP_SIZ=8bits ; offset	24 : FST=1 ; offset 28 : LST=str_byte_size
+    virtual at 0							; definition des offsets sur le useinfo
+    SIZ = $
+    rd 1
+    COMP_SIZ = $
+    rd 1
+    FST_1 = $
+    rd 1
+    LST_1 = $
+    end virtual
+  data = $							; pour une constante les caracteres suivent (pour une chaine variable ce n'est pas le cas, les octets sont dans la co-pile)
+    db	bytes
+    str_bit_size =  8*($ - data)					; Calculer la longueur effective en bits
+  end namespace
+
+  end postpone
+end macro
+
+;			-----------------------------------------
+macro			CST	name_cst:_nil_, sizChar:b, val&	; Definition d'une constante
+;			-----------------------------------------
+  postpone
+    align_#sizChar							; aligner en fonction de l'unite de reservation
+    name_cst = $							;
+    d#sizChar val							; reservation
+  end postpone
+end macro
+
+;			----------------------------------------
+macro			USEINFO	lvl, field_name, load_instruc&	; Reference a un __u use info
+;			----------------------------------------
+  virtual VARzone
+    align_q							; aligner en fonction de l'unite de reservation
+    field_name#__u = $						; lieu ptr use info
+    rq 1
+  end virtual
+  load_instruc
+  SA lvl, field_name#__u
+end macro
+
+;			---------------------------
+macro			STATOFS	name, siz, algn:0			; Definition de l'offset statique (pour un record statique, dans une virtual at 0)
+;			---------------------------
+; algn = alignement du COMPOSANT elementaire en octets (1/2/4/8), passe par
+; l'expander. algn 0 : compatibilite, ancienne regle par taille totale.
+  if algn = 8
+    align_q
+  else if algn = 4
+    align_d
+  else if algn = 2
+    align_w
+  else if algn = 1
+								; octets : pas d'alignement
+  else								; algn 0 : ancienne regle
+    if siz > 4
+      align_q
+    else if siz > 2
+      align_d
+    else if siz > 1
+      align_w
+    end if
+  end if
+name = $								; nom offset du champ
+  rb siz								; reservation
+end macro
+
+;			-----------------------------------
+macro			VAR	name_disp, sizChar, siz:1		; Definition d'un lieu de variable
+;			-----------------------------------
+  virtual VARzone
+     if `sizChar = 'B'  |  `sizChar = 'b'
+      align_b
+      name_disp = $							; displacement des data de variable
+      rb siz							; reservation
+    else if `sizChar = 'W'  |  `sizChar = 'w'
+      align_w
+      name_disp = $
+      rw siz
+    else if `sizChar = 'D'  |  `sizChar = 'd'
+      align_d
+      name_disp = $
+      rd siz
+    else if `sizChar = 'Q'  |  `sizChar = 'q'
+      align_q
+      name_disp = $
+      rq siz
+    else
+      align_q							; assurer l'alignement de pile dans tous les cas possibles
+      name_disp = $							; displacement des data de variable
+      rb sizChar							; taille numerique en octets
+    end if
+  end virtual
+end macro
+
+
+;			------
+macro			endPRO					; Fin de procedure
+;			------
+post:
+  virtual VARzone
+    align_q
+    loc_siz = $							; Ce n'est que la que l'on calcule la taille des locales qui sera retropropagee au LINK du ELAB
+  end virtual
+  end namespace
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		O P C O D E S   H X   (LLIR_hardware_support V3, table des opcodes)
+;-----------------------------------------------------------------------------------------------------------------------
+
+;	famille A : un octet
+HX_ET		= 00h
+HX_OU		= 01h
+HX_OUX		= 02h
+HX_NON		= 03h
+HX_SHL		= 04h
+HX_SHR		= 05h
+HX_SAR		= 06h
+HX_CLAMP0	= 07h
+HX_NEG		= 08h
+HX_CGT		= 09h
+HX_CLT		= 0Ah
+HX_CNE		= 0Bh
+HX_CEQ		= 0Ch
+HX_CGE		= 0Dh
+HX_CLE		= 0Eh
+HX_ABS		= 0Fh
+HX_ADD		= 10h
+HX_INC		= 11h
+HX_SUB		= 12h
+HX_DEC		= 13h
+HX_MUL		= 14h
+HX_DIV		= 15h
+HX_REMI		= 16h
+HX_MODI		= 17h
+HX_UBFX		= 18h
+HX_SBFX		= 19h
+HX_BFI		= 1Ah
+HX_CVTIX	= 1Ch
+HX_CVTXI	= 1Dh
+HX_FADD		= 20h
+HX_FSUB		= 21h
+HX_FMUL		= 22h
+HX_FDIV		= 23h
+HX_FEXP		= 24h
+HX_CVTIF	= 25h
+HX_CVTFI	= 26h
+HX_CVTFIR	= 27h
+HX_FNEG		= 28h
+HX_FCGT		= 29h
+HX_FCLT		= 2Ah
+HX_FCNE		= 2Bh
+HX_FCEQ		= 2Ch
+HX_FCGE		= 2Dh
+HX_FCLE		= 2Eh
+HX_FABS		= 2Fh
+HX_DROP		= 30h
+HX_DUP		= 31h
+HX_OVER		= 32h
+HX_CALLI	= 33h
+HX_BLKMOV	= 34h
+HX_BLKCMP	= 35h
+HX_CO_VAR	= 38h
+HX_HEAP_ALLOC	= 39h
+HX_BLKAND	= 3Ch
+HX_BLKOU	= 3Dh
+HX_BLKOUX	= 3Eh
+HX_BLKNOT	= 3Fh
+
+;	familles B (01) et C (10) : OP = famille MODE FMT SZ
+HX_FAM_B	= 40h
+HX_FAM_C	= 80h
+HX_MODE_SPEC	= 0			; LINK, EXC_MACH, LVA / LIVA
+HX_MODE_LS	= 1			; chargement signe
+HX_MODE_ST	= 2			; rangement
+HX_MODE_LU	= 3			; chargement non signe
+HX_SZ_LINK	= 0
+HX_SZ_EXC_MACH	= 1
+HX_SZ_VA	= 3			; LVA / LIVA
+HX_FMT_00	= 0
+HX_FMT_01	= 1			; B16 / C24
+HX_FMT_10	= 2			; B24 / C32
+HX_FMT_CHK	= 3			; CHK B24 / CHKI C32
+
+;	famille D
+HX_LI8		= 0C0h
+HX_LI16		= 0C1h
+HX_LI32		= 0C2h
+HX_LI64		= 0C3h
+HX_UBFXI	= 0C4h
+HX_SBFXI	= 0C5h
+HX_BFII		= 0C6h
+HX_LEXCMP	= 0C8h			; + 4 si non signe, + SZ
+HX_LI4		= 0D0h			; + imm4 (0..15)
+HX_BRA		= 0E0h			; + SZ
+HX_BT		= 0E4h
+HX_BF		= 0E8h
+HX_TRAP		= 0F0h
+HX_CALL		= 0F2h
+HX_RTD		= 0F6h
+HX_RTD0		= 0F7h
+HX_UNLINK	= 0F8h
+HX_UNLINKR	= 0F9h
+HX_EXC_RAISE	= 0FEh
+HX_RTX		= 0FFh
+
+;	Services TRAP (numerotation de LLIR_hardware_support)
+HX_SYS_EXIT		= 0
+HX_SYS_CLOCK_GETTIME	= 1
+HX_SYS_PUT_CHAR		= 2
+HX_SYS_PUT_STR		= 3
+HX_SYS_GET_CHAR		= 4
+HX_SYS_GET_STR		= 5
+HX_SYS_FILE_CREATE	= 6
+HX_SYS_FILE_OPEN	= 7
+HX_SYS_FILE_SET_POS	= 8
+HX_SYS_FILE_GET_POS	= 9
+HX_SYS_FILE_GET_SIZE	= 10
+HX_SYS_FILE_WRITE	= 11
+HX_SYS_FILE_READ	= 12
+HX_SYS_FILE_CLOSE	= 13
+HX_SYS_FILE_DELETE	= 14
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		E M I S S I O N
+;-----------------------------------------------------------------------------------------------------------------------
+
+;	v tient-il dans un champ signe de n bits ?  (resultat dans la constante nommee)
+macro HX_TIENT res*, v*, n*
+  if (v) >= -(1 shl ((n)-1)) & (v) < (1 shl ((n)-1))
+    res = 1
+  else
+    res = 0
+  end if
+end macro
+
+;	entree de la table des instructions (appelee depuis les instructions CALM)
+HX_DRAPEAU_SUITE = 80000000h
+HX_DRAPEAU_VIDE  = 40000000h
+
+;	Groupes : les instructions HX emises pour une seule instruction LLIR (repli, SYS_EXIT,
+;	sequence CHK) ; toutes sauf la premiere portent SUITE dans la table. L'etat vit dans
+;	une zone virtuelle etiquetee :: , globale par construction (une affectation ordinaire
+;	irait dans l'espace de noms courant). +0 profondeur des groupes, +8 premiere emise.
+virtual at 0
+  HX_ETAT:: dq 0, 0
+end virtual
+macro HX_GROUPE_DEBUT
+  local p
+  load p:8 from HX_ETAT:0
+  if p = 0
+    store 0:8 at HX_ETAT:8
+  end if
+  store p+1:8 at HX_ETAT:0
+end macro
+macro HX_GROUPE_FIN
+  local p
+  load p:8 from HX_ETAT:0
+  store p-1:8 at HX_ETAT:0
+end macro
+
+if definite HX_SANS_TABLE
+  macro HX_TABLE_ENTREE a*
+  end macro
+  macro HX_TABLE_VIDE a*
+  end macro
+else
+  macro HX_TABLE_ENTREE a*
+    local p, e, f
+    f = 0
+    load p:8 from HX_ETAT:0
+    if p > 0
+      load e:8 from HX_ETAT:8
+      if e
+        f = HX_DRAPEAU_SUITE
+      else
+        store 1:8 at HX_ETAT:8
+      end if
+    end if
+    virtual HX_TABLE
+      dd a or f
+    end virtual
+  end macro
+  macro HX_TABLE_VIDE a*
+    virtual HX_TABLE
+      dd a or HX_DRAPEAU_VIDE
+    end virtual
+  end macro
+end if
+
+;	une instruction : opcode, puis complement de n octets, poids fort en tete
+macro HX_INSTR op*, compl:0, n:0
+  local adresse
+  adresse = $ - 0x400000
+  HX_TABLE_ENTREE adresse
+  db op
+  repeat n, k:0
+    db ((compl) shr (8*((n)-1-k))) and 0FFh
+  end repeat
+end macro
+
+;	LI : format le plus etroit ; la valeur est prise modulo 2^64, puis lue signee
+macro HX_LI val*
+  local v
+  v = (val) and 0FFFFFFFFFFFFFFFFh
+  if v >= 8000000000000000h
+    v = v - 10000000000000000h
+  end if
+  if v >= 0 & v <= 15
+    HX_INSTR HX_LI4 + v
+  else if v >= -80h & v < 80h
+    HX_INSTR HX_LI8, v, 1
+  else if v >= -8000h & v < 8000h
+    HX_INSTR HX_LI16, v, 2
+  else if v >= -80000000h & v < 80000000h
+    HX_INSTR HX_LI32, v, 4
+  else
+    HX_INSTR HX_LI64, v, 8
+  end if
+end macro
+
+;	branche relaxee : BR8..BR32, recalculee a chaque passe depuis BR8.
+;	  Cible en arriere : distance exacte (cible deja placee dans cette passe).
+;	  Cible en avant : la position predite de la cible inclut la taille qu'avait la branche
+;	  a la passe precedente ; la distance est donc d = cible - ($ + taille precedente),
+;	  independante de la taille essayee (sinon une branche BR16 a 127 octets de sa cible
+;	  se verrait a 128 en BR8 et resterait BR16 : point fixe non minimal).
+;	  Debut et fin de la branche sont memorises sous le nom de la CIBLE, avec le rang de la
+;	  branche parmi celles qui visent cette cible dans la passe : les symboles locaux ne
+;	  conviennent pas, fasmg les retrouve par l'ordre des invocations, que l'assemblage
+;	  paresseux des procedures decale. Un rang decale ne fausse qu'une passe.
+macro HX_BRANCHE base*, cible*
+  local s, d, adresse
+  adresse = $ - 0x400000
+  HX_TABLE_ENTREE adresse
+  s = 1
+  HX_CIBLE_SIMPLE = 1						; la memoire par cible exige un nom
+  irp op, +,-,*,/,(,)
+    match =op, cible
+      HX_CIBLE_SIMPLE = 0
+    end match
+    match any =op more, cible
+      HX_CIBLE_SIMPLE = 0
+    end match
+    match any =op, cible
+      HX_CIBLE_SIMPLE = 0
+    end match
+  end irp
+  if defined cible & (cible) <= $
+    d = (cible) - ($ + 2)					; en arriere : distance exacte
+    if d < -80h
+      s = 2
+      if d - 1 < -8000h
+        s = 3
+        if d - 2 < -800000h
+          s = 4
+        end if
+      end if
+    end if
+  else if HX_CIBLE_SIMPLE = 0					; cible calculee (lbl+k) : sans memoire
+    repeat 3
+      d = (cible) - ($ + 1 + s)
+      if s < 4 & ( d < -(1 shl (8*s-1)) | d >= (1 shl (8*s-1)) )
+        s = s + 1
+      end if
+    end repeat
+  else								; en avant (ou cible encore inconnue)
+    if definite cible.__hx_n
+      cible.__hx_n = cible.__hx_n + 1
+    else
+      cible.__hx_n = 0
+    end if
+    repeat 1, r:cible.__hx_n
+      if defined cible & defined cible.__hx_deb#r & defined cible.__hx_fin#r
+        d = (cible) - ($ + cible.__hx_fin#r - cible.__hx_deb#r)	; taille de la passe precedente
+        if d >= 80h
+          s = 2
+          if d >= 8000h
+            s = 3
+            if d >= 800000h
+              s = 4
+            end if
+          end if
+        end if
+      else if defined cible
+        repeat 3
+          d = (cible) - ($ + 1 + s)
+          if s < 4 & ( d < -(1 shl (8*s-1)) | d >= (1 shl (8*s-1)) )
+            s = s + 1
+          end if
+        end repeat
+      end if
+      cible.__hx_deb#r := $
+      cible.__hx_fin#r := $ + 1 + s
+    end repeat
+  end if
+  d = (cible) - ($ + 1 + s)
+  assert d >= -80000000h & d < 80000000h
+  if s = 1
+    db base, d and 0FFh
+  else if s = 2
+    db base + 1, (d shr 8) and 0FFh, d and 0FFh
+  else if s = 3
+    db base + 2, (d shr 16) and 0FFh, (d shr 8) and 0FFh, d and 0FFh
+  else
+    db base + 3, (d shr 24) and 0FFh, (d shr 16) and 0FFh, (d shr 8) and 0FFh, d and 0FFh
+  end if
+end macro
+
+;	famille B : lvl, disp ; FMT 00 si lvl = -1 et disp = 0
+macro HX_B mode*, sz*, lvl*, disp*
+  local t12, t20, l
+  assert (lvl) >= -1 & (lvl) <= 14
+  l = (lvl) and 0Fh
+  HX_TIENT t12, disp, 12
+  HX_TIENT t20, disp, 20
+  if (lvl) = -1 & (disp) = 0
+    HX_INSTR HX_FAM_B + (mode) shl 4 + HX_FMT_00 shl 2 + (sz)
+  else if t12 = 1
+    HX_INSTR HX_FAM_B + (mode) shl 4 + HX_FMT_01 shl 2 + (sz), l shl 12 + (disp) and 0FFFh, 2
+  else if t20 = 1
+    HX_INSTR HX_FAM_B + (mode) shl 4 + HX_FMT_10 shl 2 + (sz), l shl 20 + (disp) and 0FFFFFh, 3
+  else
+    err 'HX : deplacement hors du format B24 (cf. LLIR_hardware_support [Q5])'
+  end if
+end macro
+
+;	famille C, formats directs : FMT 00, C24, C32 (le repli est fait par HX_C)
+macro HX_C_DIRECT mode*, sz*, lvl*, disp*, ofs*
+  local t16, t20, l
+  l = (lvl) and 0Fh
+  HX_TIENT t16, disp, 16
+  HX_TIENT t20, disp, 20
+  if (lvl) = -1 & (disp) = 0 & (ofs) = 0
+    if (mode) = HX_MODE_SPEC
+      HX_B HX_MODE_LS, 3, -1, 0					; LIVA -1,0,0 = LQ -1,0 (code reserve)
+    else
+      HX_INSTR HX_FAM_C + (mode) shl 4 + HX_FMT_00 shl 2 + (sz)
+    end if
+  else if (ofs) >= 0 & (ofs) <= 15 & t16 = 1
+    HX_INSTR HX_FAM_C + (mode) shl 4 + HX_FMT_01 shl 2 + (sz), l shl 20 + (ofs) shl 16 + (disp) and 0FFFFh, 3
+  else if (ofs) >= 0 & (ofs) <= 255 & t20 = 1
+    HX_INSTR HX_FAM_C + (mode) shl 4 + HX_FMT_10 shl 2 + (sz), l shl 28 + (ofs) shl 20 + (disp) and 0FFFFFh, 4
+  else
+    err 'HX : deplacement ou ofs hors format (cf. LLIR_hardware_support [Q5])'
+  end if
+end macro
+
+;	famille C : lvl, disp, ofs ; le champ ofs est non signe (0..255) ; hors de 0..255
+;	(ofs > 255, ou ofs negatif [Q9]), repli par un acces B dont le disp signe porte ofs :
+;	  LIVA, chargements	LIVA lvl,disp,0 ; Lx 1111,ofs
+;	  rangement, lvl >= 0	LIVA lvl,disp,0 ; OVER ; Sx 1111,ofs ; DROP
+;	  rangement, lvl = -1	OVER ; LIVA 1111,disp,0 ; OVER ; Sx 1111,ofs ; DROP ; DROP
+macro HX_C mode*, sz*, lvl*, disp*, ofs*
+  local t20, o20
+  assert (lvl) >= -1 & (lvl) <= 14
+  HX_TIENT t20, disp, 20
+  HX_TIENT o20, ofs, 20
+  if ((ofs) >= 0 & (ofs) <= 255) | t20 = 0 | o20 = 0
+    HX_C_DIRECT mode, sz, lvl, disp, ofs
+  else if (mode) <> HX_MODE_ST
+    HX_GROUPE_DEBUT
+    HX_C_DIRECT HX_MODE_SPEC, HX_SZ_VA, lvl, disp, 0
+    HX_B mode, sz, -1, ofs
+    HX_GROUPE_FIN
+  else if (lvl) <> -1
+    HX_GROUPE_DEBUT
+    HX_C_DIRECT HX_MODE_SPEC, HX_SZ_VA, lvl, disp, 0
+    HX_INSTR HX_OVER
+    HX_B mode, sz, -1, ofs
+    HX_INSTR HX_DROP
+    HX_GROUPE_FIN
+  else
+    HX_GROUPE_DEBUT
+    HX_INSTR HX_OVER
+    HX_C_DIRECT HX_MODE_SPEC, HX_SZ_VA, -1, disp, 0
+    HX_INSTR HX_OVER
+    HX_B mode, sz, -1, ofs
+    HX_INSTR HX_DROP
+    HX_INSTR HX_DROP
+    HX_GROUPE_FIN
+  end if
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		A U X I L I A I R E S   x 8 6   N E U T R A L I S E E S   (au cas ou un .FINC les emploierait)
+;-----------------------------------------------------------------------------------------------------------------------
+
+macro PUSH_RAX
+  err 'PUSH_RAX : macro x86 sans equivalent HX'
+end macro
+macro POP_RAX
+  err 'POP_RAX : macro x86 sans equivalent HX'
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		I N S T R U C T I O N S   L L I R
+;-----------------------------------------------------------------------------------------------------------------------
+
+;	Les instructions les plus frequentes (famille A, LI, acces B et C) sont des
+;	calminstruction : fasmg les execute sans developpement de texte, deux a trois fois
+;	plus vite que des macros imbriquees. Les cas rares (replis, CHK, LINK, branches)
+;	restent des macros.
+
+;	--- famille A : operations sans complement
+iterate op, DROP, DUP, OVER, ET, OU, OUX, NON, SHL, SHR, SAR, CLAMP0, NEG, ABS, ADD, SUB, INC, DEC, \
+	    MUL, DIV, REMI, MODI, UBFX, SBFX, BFI, CVTIX, CVTXI, FADD, FSUB, FMUL, FDIV, FNEG, FABS, FEXP, \
+	    CVTIF, CVTFI, CVTFIR, CEQ, CNE, CGT, CGE, CLT, CLE, FCEQ, FCNE, FCGT, FCGE, FCLT, FCLE, \
+	    CALLI, CO_VAR, HEAP_ALLOC, BLKMOV, BLKCMP, BLKAND, BLKOU, BLKOUX, BLKNOT
+  calminstruction op
+    local a
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    emit 1, HX_#op
+  end calminstruction
+end iterate
+
+;	--- immediats et adresses constantes
+calminstruction LI val*
+  local a, v
+  compute v, (val) and 0FFFFFFFFFFFFFFFFh
+  compute a, $ - 0x400000
+  arrange a, =HX_TABLE_ENTREE a
+  assemble a
+  check v >= 8000000000000000h
+  jno positif
+  compute v, v - 10000000000000000h
+ positif:
+  check v >= 0 & v <= 15
+  jyes imm4
+  check v >= -80h & v < 80h
+  jyes d8
+  check v >= -8000h & v < 8000h
+  jyes d16
+  check v >= -80000000h & v < 80000000h
+  jyes d32
+  emit 1, HX_LI64
+  emit 1, (v shr 56) and 0FFh
+  emit 1, (v shr 48) and 0FFh
+  emit 1, (v shr 40) and 0FFh
+  emit 1, (v shr 32) and 0FFh
+ e32:
+  emit 1, (v shr 24) and 0FFh
+  emit 1, (v shr 16) and 0FFh
+ e16:
+  emit 1, (v shr 8) and 0FFh
+ e8:
+  emit 1, v and 0FFh
+  exit
+ imm4:
+  emit 1, HX_LI4 + v
+  exit
+ d8:
+  emit 1, HX_LI8
+  jump e8
+ d16:
+  emit 1, HX_LI16
+  jump e16
+ d32:
+  emit 1, HX_LI32
+  jump e32
+end calminstruction
+macro LIF val					; motif IEEE 754 double du litteral, puis LI le plus etroit
+  local motif
+  virtual at 0
+    dq val
+    load motif : 8 from 0
+  end virtual
+  LI motif
+end macro
+macro LCA ptr, disp:0
+  LI ptr+disp
+end macro
+macro LSPA prefix, subname
+  if ~ definite prefix#subname#.__appel_postpone		; un seul postpone par procedure et par passe
+    prefix#subname#.__appel_postpone = 1			; (leur cout croit comme leur nombre au carre)
+    postpone
+      if ~definite prefix#subname#_
+        prefix#subname#_ = prefix#subname#.elab
+      end if
+    end postpone
+  end if
+  LI prefix#subname#_
+end macro
+
+;	--- adresses de variables
+calminstruction LVA lvl:-1, disp:0			; LVA -1,0 : identite, rien n'est emis (comme en TX et x86)
+    local a, l
+    compute lvl, lvl
+    compute disp, disp
+    check lvl >= -1 & lvl <= 14
+    jno mauvais_niveau
+    compute a, $ - 0x400000
+    check lvl = -1 & disp = 0
+    jyes vide
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    compute l, lvl and 0Fh
+    check disp >= -800h & disp < 800h
+    jyes b16
+    check disp >= -80000h & disp < 80000h
+    jyes b24
+    err 'HX : deplacement hors du format B24 (cf. LLIR_hardware_support [Q5])'
+    exit
+   b16:
+    emit 1, HX_FAM_B + HX_MODE_SPEC shl 4 + HX_FMT_01 shl 2 + HX_SZ_VA
+    emit 1, l shl 4 + (disp shr 8) and 0Fh
+    emit 1, disp and 0FFh
+    exit
+   b24:
+    emit 1, HX_FAM_B + HX_MODE_SPEC shl 4 + HX_FMT_10 shl 2 + HX_SZ_VA
+    emit 1, l shl 4 + (disp shr 16) and 0Fh
+    emit 1, (disp shr 8) and 0FFh
+    emit 1, disp and 0FFh
+    exit
+   vide:
+    exit
+   mauvais_niveau:
+    err 'HX : lvl hors de -1..14'
+end calminstruction
+
+;	--- chargements et rangements : SZ 0 = B, 1 = W, 2 = D, 3 = Q
+;	    famille B : FMT 00 si lvl = -1 et disp = 0, sinon B16 (disp 12 bits), sinon B24
+iterate <op, mode, sz>, LB,HX_MODE_LS,0, LW,HX_MODE_LS,1, LD,HX_MODE_LS,2, LQ,HX_MODE_LS,3, LA,HX_MODE_LS,3, \
+			ULB,HX_MODE_LU,0, ULW,HX_MODE_LU,1, ULD,HX_MODE_LU,2, \
+			SB,HX_MODE_ST,0, SW,HX_MODE_ST,1, SD,HX_MODE_ST,2, SQ,HX_MODE_ST,3, SA,HX_MODE_ST,3
+  calminstruction op lvl:-1, disp:0
+    local a, l
+    compute lvl, lvl
+    compute disp, disp
+    check lvl >= -1 & lvl <= 14
+    jno mauvais_niveau
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    compute l, lvl and 0Fh
+    check lvl = -1 & disp = 0
+    jyes f00
+    check disp >= -800h & disp < 800h
+    jyes b16
+    check disp >= -80000h & disp < 80000h
+    jyes b24
+    err 'HX : deplacement hors du format B24 (cf. LLIR_hardware_support [Q5])'
+    exit
+   f00:
+    emit 1, HX_FAM_B + mode shl 4 + sz
+    exit
+   b16:
+    emit 1, HX_FAM_B + mode shl 4 + HX_FMT_01 shl 2 + sz
+    emit 1, l shl 4 + (disp shr 8) and 0Fh
+    emit 1, disp and 0FFh
+    exit
+   b24:
+    emit 1, HX_FAM_B + mode shl 4 + HX_FMT_10 shl 2 + sz
+    emit 1, l shl 4 + (disp shr 16) and 0Fh
+    emit 1, (disp shr 8) and 0FFh
+    emit 1, disp and 0FFh
+    exit
+   mauvais_niveau:
+    err 'HX : lvl hors de -1..14'
+  end calminstruction
+end iterate
+
+;	    famille C : FMT 00 si lvl = -1, disp = 0 et ofs = 0 ; C24 si ofs 0..15 et disp 16 bits ;
+;	    C32 si ofs 0..255 et disp 20 bits ; sinon repli (macro HX_C)
+iterate <op, mode, sz>, LIB,HX_MODE_LS,0, LIW,HX_MODE_LS,1, LID,HX_MODE_LS,2, LIQ,HX_MODE_LS,3, LIA,HX_MODE_LS,3, \
+			ULIB,HX_MODE_LU,0, ULIW,HX_MODE_LU,1, ULID,HX_MODE_LU,2, \
+			SIB,HX_MODE_ST,0, SIW,HX_MODE_ST,1, SID,HX_MODE_ST,2, SIQ,HX_MODE_ST,3, SIA,HX_MODE_ST,3, \
+			LIVA,HX_MODE_SPEC,HX_SZ_VA
+  calminstruction op lvl:-1, disp:0, ofs:0
+    local a, l, lv, dp, of
+    compute lv, lvl
+    compute dp, disp
+    compute of, ofs
+    check lv >= -1 & lv <= 14
+    jno mauvais_niveau
+    check of >= 0 & of <= 255 & dp >= -80000h & dp < 80000h
+    jno repli
+    check lv = -1 & dp = 0 & of = 0 & mode = HX_MODE_SPEC
+    jyes liva_lq
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    compute l, lv and 0Fh
+    check lv = -1 & dp = 0 & of = 0
+    jyes f00
+    check of <= 15 & dp >= -8000h & dp < 8000h
+    jyes c24
+    emit 1, HX_FAM_C + mode shl 4 + HX_FMT_10 shl 2 + sz
+    emit 1, l shl 4 + of shr 4
+    emit 1, (of and 0Fh) shl 4 + (dp shr 16) and 0Fh
+    emit 1, (dp shr 8) and 0FFh
+    emit 1, dp and 0FFh
+    exit
+   f00:
+    emit 1, HX_FAM_C + mode shl 4 + sz
+    exit
+   c24:
+    emit 1, HX_FAM_C + mode shl 4 + HX_FMT_01 shl 2 + sz
+    emit 1, l shl 4 + of
+    emit 1, (dp shr 8) and 0FFh
+    emit 1, dp and 0FFh
+    exit
+   liva_lq:
+    arrange a, =LQ -1, 0				; LIVA -1,0,0 = LQ -1,0 (code reserve)
+    assemble a
+    exit
+   repli:
+    arrange a, =HX_C mode, sz, lvl, disp, ofs
+    assemble a
+    exit
+   mauvais_niveau:
+    err 'HX : lvl hors de -1..14'
+  end calminstruction
+end iterate
+
+;	--- controle de flot : deplacements relatifs a l'instruction suivante
+macro BRA lbl
+  HX_BRANCHE HX_BRA, lbl
+end macro
+macro BT lbl
+  HX_BRANCHE HX_BT, lbl
+end macro
+macro BF lbl
+  HX_BRANCHE HX_BF, lbl
+end macro
+macro CALL prefix, subname
+  local d
+  if ~ definite prefix#subname#.__appel_postpone		; un seul postpone par procedure et par passe
+    prefix#subname#.__appel_postpone = 1			; (leur cout croit comme leur nombre au carre)
+    postpone
+      if ~definite prefix#subname#_
+        prefix#subname#_ = prefix#subname#.elab
+      end if
+    end postpone
+  end if
+  d = prefix#subname#_ - ($ + 4)
+  assert d >= -800000h & d < 800000h
+  HX_INSTR HX_CALL, d and 0FFFFFFh, 3
+end macro
+calminstruction RTD param_size:0
+    local a
+    compute param_size, param_size
+    check param_size >= 0 & param_size < 1000000h
+    jno trop
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    check param_size = 0
+    jyes zero
+    emit 1, HX_RTD
+    emit 1, (param_size shr 16) and 0FFh
+    emit 1, (param_size shr 8) and 0FFh
+    emit 1, param_size and 0FFh
+    exit
+   zero:
+    emit 1, HX_RTD0
+    exit
+   trop:
+    err 'HX : RTD hors de 0..16 Mio'
+end calminstruction
+
+;	--- frames
+calminstruction LINK lvl*, alloc*
+    local a
+    compute lvl, lvl
+    compute alloc, alloc
+    check lvl >= 0 & lvl <= 14 & alloc >= 0
+    jno mauvais
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    check alloc < 1000h
+    jyes b16
+    check alloc < 100000h
+    jyes b24
+    err 'HX : LINK de plus de 1 Mio (cf. LLIR_hardware_support [Q5])'
+    exit
+   b16:
+    emit 1, HX_FAM_B + HX_MODE_SPEC shl 4 + HX_FMT_01 shl 2 + HX_SZ_LINK
+    emit 1, lvl shl 4 + (alloc shr 8)
+    emit 1, alloc and 0FFh
+    exit
+   b24:
+    emit 1, HX_FAM_B + HX_MODE_SPEC shl 4 + HX_FMT_10 shl 2 + HX_SZ_LINK
+    emit 1, lvl shl 4 + (alloc shr 16)
+    emit 1, (alloc shr 8) and 0FFh
+    emit 1, alloc and 0FFh
+    exit
+   mauvais:
+    err 'HX : LINK, lvl hors de 0..14 ou taille negative'
+end calminstruction
+iterate op, UNLINK, UNLINKR
+  calminstruction op lvl*
+    local a
+    compute lvl, lvl
+    check lvl >= 0 & lvl <= 14
+    jno mauvais
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    emit 1, HX_#op
+    emit 1, lvl
+    exit
+   mauvais:
+    err 'HX : lvl hors de 0..14'
+  end calminstruction
+end iterate
+
+;	--- exceptions
+macro EXC_MACH lvl, ctx
+  local t12, t20
+  assert (lvl) >= 0 & (lvl) <= 14
+  HX_TIENT t12, ctx, 12
+  HX_TIENT t20, ctx, 20
+  if t12 = 1
+    HX_INSTR HX_FAM_B + HX_MODE_SPEC shl 4 + HX_FMT_01 shl 2 + HX_SZ_EXC_MACH, (lvl) shl 12 + (ctx) and 0FFFh, 2
+  else if t20 = 1
+    HX_INSTR HX_FAM_B + HX_MODE_SPEC shl 4 + HX_FMT_10 shl 2 + HX_SZ_EXC_MACH, (lvl) shl 20 + (ctx) and 0FFFFFh, 3
+  else
+    err 'HX : EXC_MACH hors du format B24'
+  end if
+end macro
+macro EXC_RAISE top
+  assert (top) >= 0 & (top) < 1000000h
+  HX_INSTR HX_EXC_RAISE, top, 3
+end macro
+
+;	--- comparaison lexicographique : sgn = 1 composants signes ; SZ = log2 (siz)
+macro LEXCMP siz*, sgn*
+  local sz, u
+  assert siz = 1 | siz = 2 | siz = 4 | siz = 8
+  sz = bsf siz
+  if sgn = 0 & siz < 8
+    u = 4
+  else
+    u = 0
+  end if
+  HX_INSTR HX_LEXCMP + u + sz
+end macro
+
+;	--- controles d'intervalle ( v -- v ) : bornes FST, LST consecutives
+;	    forme B en DISPLAY[lvl]+disp (B24), forme C en [DISPLAY[lvl]+disp]+ofs (C32) ; echec vers CEV
+;	    hors format : sequence de remplacement DUP / Lt / CLT / BT / DUP / Lt / CGT / BT
+macro HX_CHK_B mode*, sz*, charge*, taille*, lvl*, disp*
+  local t20
+  assert (lvl) >= 0 & (lvl) <= 14
+  HX_TIENT t20, disp, 20
+  if t20 = 1
+    HX_INSTR HX_FAM_B + (mode) shl 4 + HX_FMT_CHK shl 2 + (sz), (lvl) shl 20 + (disp) and 0FFFFFh, 3
+  else
+    HX_GROUPE_DEBUT
+    DUP
+    charge lvl, disp
+    CLT
+    BT STANDARD.ce_raise_
+    DUP
+    charge lvl, disp+taille
+    CGT
+    BT STANDARD.ce_raise_
+    HX_GROUPE_FIN
+  end if
+end macro
+macro HX_CHK_C mode*, sz*, charge*, taille*, lvl*, disp*, ofs*
+  local t20
+  assert (lvl) >= 0 & (lvl) <= 14
+  HX_TIENT t20, disp, 20
+  if t20 = 1 & (ofs) >= 0 & (ofs) <= 255
+    HX_INSTR HX_FAM_C + (mode) shl 4 + HX_FMT_CHK shl 2 + (sz), (lvl) shl 28 + (ofs) shl 20 + (disp) and 0FFFFFh, 4
+  else
+    HX_GROUPE_DEBUT
+    DUP
+    charge lvl, disp, ofs
+    CLT
+    BT STANDARD.ce_raise_
+    DUP
+    charge lvl, disp, ofs+taille
+    CGT
+    BT STANDARD.ce_raise_
+    HX_GROUPE_FIN
+  end if
+end macro
+iterate <op, mode, sz, charge, taille>, CHKB,HX_MODE_LS,0,LB,1, CHKW,HX_MODE_LS,1,LW,2, CHKD,HX_MODE_LS,2,LD,4, \
+		CHKQ,HX_MODE_LS,3,LQ,8, CHKUB,HX_MODE_LU,0,ULB,1, CHKUW,HX_MODE_LU,1,ULW,2, CHKUD,HX_MODE_LU,2,ULD,4
+  calminstruction op lvl*, disp*
+    local a, lv, dp
+    compute lv, lvl
+    compute dp, disp
+    check lv >= 0 & lv <= 14 & dp >= -80000h & dp < 80000h
+    jno hors_format
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    emit 1, HX_FAM_B + mode shl 4 + HX_FMT_CHK shl 2 + sz
+    emit 1, lv shl 4 + (dp shr 16) and 0Fh
+    emit 1, (dp shr 8) and 0FFh
+    emit 1, dp and 0FFh
+    exit
+   hors_format:
+    arrange a, =HX_CHK_B =mode, sz, =charge, taille, lvl, disp
+    assemble a
+  end calminstruction
+end iterate
+iterate <op, mode, sz, charge, taille>, CHKIB,HX_MODE_LS,0,LIB,1, CHKIW,HX_MODE_LS,1,LIW,2, CHKID,HX_MODE_LS,2,LID,4, \
+		CHKIQ,HX_MODE_LS,3,LIQ,8, CHKUIB,HX_MODE_LU,0,ULIB,1, CHKUIW,HX_MODE_LU,1,ULIW,2, CHKUID,HX_MODE_LU,2,ULID,4
+  calminstruction op lvl*, disp*, ofs*
+    local a, lv, dp, of
+    compute lv, lvl
+    compute dp, disp
+    compute of, ofs
+    check lv >= 0 & lv <= 14 & dp >= -80000h & dp < 80000h & of >= 0 & of <= 255
+    jno hors_format
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    emit 1, HX_FAM_C + mode shl 4 + HX_FMT_CHK shl 2 + sz
+    emit 1, lv shl 4 + of shr 4
+    emit 1, (of and 0Fh) shl 4 + (dp shr 16) and 0Fh
+    emit 1, (dp shr 8) and 0FFh
+    emit 1, dp and 0FFh
+    exit
+   hors_format:
+    arrange a, =HX_CHK_C =mode, sz, =charge, taille, lvl, disp, ofs
+    assemble a
+  end calminstruction
+end iterate
+
+;	--- champs de bits a position et largeur immediates : D8_8, imm = lsb puis Imm = w
+macro HX_BF_IMM op*, lsb*, w*
+  assert lsb >= 0 & lsb <= 63
+  assert w >= 1 & w <= 64
+  assert lsb + w <= 64
+  HX_INSTR op, (lsb) shl 8 + (w), 2
+end macro
+iterate op, UBFXI, SBFXI, BFII
+  calminstruction op lsb*, w*
+    local a
+    compute lsb, lsb
+    compute w, w
+    check lsb >= 0 & lsb <= 63 & w >= 1 & w <= 64 & lsb + w <= 64
+    jno mauvais
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    emit 1, HX_#op
+    emit 1, lsb
+    emit 1, w
+    exit
+   mauvais:
+    err 'HX : champ de bits hors de 0..63'
+  end calminstruction
+end iterate
+
+;	--- appels systeme : TRAP n (D8) ; SYS_EXIT code devient LI code ; TRAP 0
+iterate op, CLOCK_GETTIME, PUT_CHAR, PUT_STR, GET_CHAR, GET_STR, FILE_CREATE, FILE_OPEN, FILE_SET_POS, \
+	    FILE_GET_POS, FILE_GET_SIZE, FILE_WRITE, FILE_READ, FILE_CLOSE, FILE_DELETE
+  calminstruction SYS_#op
+    local a
+    compute a, $ - 0x400000
+    arrange a, =HX_TABLE_ENTREE a
+    assemble a
+    emit 1, HX_TRAP
+    emit 1, HX_SYS_#op
+  end calminstruction
+end iterate
+macro SYS_EXIT code:0
+  HX_GROUPE_DEBUT
+  LI code
+  HX_INSTR HX_TRAP, HX_SYS_EXIT, 1
+  HX_GROUPE_FIN
+end macro
+
+;-----------------------------------------------------------------------------------------------------------------------
+;		E N - T E T E   D E   L ' I M A G E   H X
+;-----------------------------------------------------------------------------------------------------------------------
+
+org 0x400000
+
+HX_Header:
+	db	'TLALOCHX'				; +0  signature
+	dq	1					; +8  version du format HX
+	dq	0x400000				; +16 adresse de chargement de l'image
+	dq	0x400078				; +24 point d'entree
+	dq	ASM_SIZE				; +32 octets de code et donnees depuis 0x400078
+	dq	0					; +40 sans objet (TX : taille d'un enregistrement)
+    if defined STANDARD.ce_raise_
+	dq	STANDARD.ce_raise_			; +48 vecteur CEV : echec des CHK
+    else
+	dq	0					; +48 pas de ce_raise_ : un CHK en echec est une faute
+    end if
+	dq	HX_TABLE_ADR				; +56 table des instructions (adresse)
+	dq	HX_TABLE_NB				; +64 nombre d'instructions
+	db	(0x400078 - $) dup 0			; completer jusqu'a 0x78
+
+;-----------------------------------------------------------------------------------------------------------------------

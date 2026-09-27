@@ -11,7 +11,7 @@
 		--		     / /o o o\ \		|  L  o n e s o m e  |
 		--		    \|H|H|H|H|H|/		|  A  d a		 |
 		--		   G))  Q	  Q  ((G		|  L  o v i n g	 |
-		--		    / \	"   / \ 	   	|  O  l't i m e r    |
+		--		    / \	"   / \ 	   	|  O  l't i m e r's  |
 		--		   /_/  \V¨V/  \_\		|  C  o m p i l e r  |
 		--		       \vvvvv/		\-------______-------/
 		--		     \ooooooooo/
@@ -68,7 +68,7 @@ is
     ADD_VERB( "BIND" );
     ADD_PARAMETER( "UNIT" );
     ADD_QUALIFIER( "TARGET_CPU", "X86_64,ARM64,RISCV64", DEFAULT=> "X86_64" );
-    ADD_QUALIFIER( "TARGET_OS", "LINUX,WINDOWS", DEFAULT=> "LINUX" );
+    ADD_QUALIFIER( "TARGET_OS", "LINUX,WINDOWS,UEFI", DEFAULT=> "LINUX" );
 
     ADD_VERB( "DUMP" );
     ADD_QUALIFIER( "FORMAT", "PRETTY,UGLY,ALLTREE", IMPLICIT_FIRST_VALUE=> TRUE );
