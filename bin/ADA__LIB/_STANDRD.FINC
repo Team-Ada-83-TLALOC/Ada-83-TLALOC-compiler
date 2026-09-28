@@ -73,18 +73,12 @@ VAR FST, Q
 VAR LST, Q
 	LI	64
 	SD	0, SIZ__
-	LI	2
-	LI	63
-	DEC
-	SHL
+	LI	09223372036854775807
 	NEG
-	SQ	0, FST
-	LI	2
-	LI	63
-	DEC
-	SHL
 	LI	1
 	SUB
+	SQ	0, FST
+	LI	09223372036854775807
 	SQ	0, LST
 end namespace
 _FLOAT = '_FLOAT'
@@ -832,18 +826,12 @@ VAR FST, Q
 VAR LST, Q
 	LI	64
 	SD	0, SIZ__
-	LI	2
-	LI	63
-	DEC
-	SHL
+	LI	09223372036854775807
 	NEG
-	SQ	0, FST
-	LI	2
-	LI	63
-	DEC
-	SHL
 	LI	1
 	SUB
+	SQ	0, FST
+	LI	09223372036854775807
 	SQ	0, LST
 end namespace
 ; EXC_LBL	L2
@@ -1164,7 +1152,14 @@ begin:
 	BF	L24
 	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
-	CHKID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	CGT
+	BT	STANDARD.ce_raise_
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
@@ -1207,7 +1202,14 @@ LOOP__3:
 	SD  2,	DIG_disp
 	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
-	CHKID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	CGT
+	BT	STANDARD.ce_raise_
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
@@ -1241,7 +1243,14 @@ L23:
 	BF	L29
 	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
-	CHKID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	CGT
+	BT	STANDARD.ce_raise_
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
@@ -1255,7 +1264,14 @@ L23:
 L29:
 	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
-	CHKID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	CGT
+	BT	STANDARD.ce_raise_
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
 	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
@@ -1275,7 +1291,8 @@ VAR	RET_INFO_L30, Q
 	LA  ,  8
 	SA   2, RET_INFO_L30
 	DROP
-	LIA	1, -result__ofs, 8
+	LA   1, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L30
 	BLKMOV
@@ -1301,9 +1318,17 @@ endPRMS
 ELB 1
  hexa_show 'var elab I ', $
 VAR I_disp, D
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, , 8
 	LD	, _STRING.FST_1
-	CHKD	0, STANDARD._POSITIVE.FST
+	DUP
+	LD	0, STANDARD._POSITIVE.FST
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LD	0, STANDARD._POSITIVE.LST
+	CGT
+	BT	STANDARD.ce_raise_
 	SD  1,	I_disp
 
  hexa_show ' disp ', I_disp
@@ -1319,26 +1344,32 @@ VAR LEN_disp, D
 begin:
 LOOP__4:
 	LD 1,	I_disp
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
 	BF	L34
-	LIA	1, -IMAGES_ofs, 0
+	LVA	1, -IMAGES_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1346,24 +1377,29 @@ LOOP__4:
 	ADD
 	ULB
 	SD  1,	ITEM_REP_disp
-	LIA	1, -IMAGES_ofs, 0
+	LVA	1, -IMAGES_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	LI	1
 	ADD
 	DUP
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1424,11 +1460,13 @@ VAR IMG__u, Q
 	LD	2, _IMG__type.SIZ__
 	LI	8
 	DIV
-	LIA	1, -IMAGES_ofs, 0
+	LVA	1, -IMAGES_ofs
+	LIA	, , 0
 	LD 1,	STANDARD.ENUM_IMAGE_L31.I_disp
 	LI	2
 	ADD
-	LIA	1, -IMAGES_ofs, 8
+	LVA	1, -IMAGES_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.FST_1
 	SUB
 	LI	1
@@ -1481,7 +1519,8 @@ VAR	RET_INFO_L39, Q
 	LA  ,  8
 	SA   2, RET_INFO_L39
 	DROP
-	LIA	1, -result__ofs, 8
+	LA   1, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L39
 	BLKMOV
@@ -1497,7 +1536,14 @@ L35:
 	ADD
 	LD 1,	LEN_disp
 	ADD
-	CHKD	0, STANDARD._POSITIVE.FST
+	DUP
+	LD	0, STANDARD._POSITIVE.FST
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LD	0, STANDARD._POSITIVE.LST
+	CGT
+	BT	STANDARD.ce_raise_
 	SD  1,	I_disp
 	BRA	LOOP__4
 L34:
@@ -1521,7 +1567,8 @@ endPRMS
 ELB 1
  hexa_show 'var elab I ', $
 VAR I_disp, D
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, _STRING.FST_1
 	SD  1,	I_disp
 
@@ -1548,28 +1595,34 @@ VAR SOME_DIGIT_disp, B
 begin:
 LOOP__6:
 	LD 1,	I_disp
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
 	DUP
 	BF	L44
 	DROP
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1588,28 +1641,34 @@ L44:
 L43:
 
 	LD 1,	I_disp
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
 	DUP
 	BF	L47
 	DROP
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1621,22 +1680,27 @@ L43:
 	DUP
 	BT	L48
 	DROP
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1648,22 +1712,27 @@ L43:
 L48:
 L47:
 	BF	L46
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1682,28 +1751,34 @@ L46:
 L45:
 LOOP__7:
 	LD 1,	I_disp
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
 	DUP
 	BF	L50
 	DROP
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1715,22 +1790,27 @@ LOOP__7:
 	DUP
 	BF	L52
 	DROP
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1743,22 +1823,27 @@ L52:
 	DUP
 	BT	L51
 	DROP
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1776,22 +1861,27 @@ L51:
 L50:
 	BF	L49
 
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1804,22 +1894,27 @@ L50:
 	LQ 1,	N_disp
 	LI	10
 	MUL
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1843,28 +1938,34 @@ L54:
 L49:
 LOOP__8:
 	LD 1,	I_disp
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
 	DUP
 	BF	L57
 	DROP
-	LIA	1, -S_ofs, 0
+	LVA	1, -S_ofs
+	LIA	, , 0
 	LD 1,	I_disp
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, 0,  8
 	LD	, STANDARD._STRING.FST_1
 	SUB
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
@@ -1889,7 +1990,8 @@ L56:
 	BT	L60
 	DROP
 	LD 1,	I_disp
-	LIA	1, -S_ofs, 8
+	LVA	1, -S_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
 L60:

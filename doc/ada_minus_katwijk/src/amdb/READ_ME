@@ -1,9 +1,0 @@
-This directory contains the sources of the ada debugger,and directories
-for manual and help pages(menus and manual).
-It uses for compilation files from '../das' and '../share'(see makefile).
-The debugger(adadb) is actually a sourceline tracer so the values of variables
-are not available.
-Bugs are however available for anyone who wants to get involved too deeply.
-A number of 'problem reports' can be found in the file '../ddb_errors'.
-
-Ton Biegstraaten (abi@dutinfd).

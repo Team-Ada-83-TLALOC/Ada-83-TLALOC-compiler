@@ -1,7 +1,0 @@
-#include	"../h/print.h"
-#include	"../h/unix.h"
-#include	"../h/rt_defs.h"
-#include	"../h/rt_types.h"
-#include	"../h/dats.h"
-#include	"cnames.h"
-

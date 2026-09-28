@@ -1,5 +1,0 @@
-This directory contains the menu and menu description files for 'ddb'.
-The directory should be positioned at '/das1/adacomp/dasdb/menus'.
-Edit ../command.c for changing this location.
-
-Ton Biegstraaten (mcvax!dutinfd!abi)

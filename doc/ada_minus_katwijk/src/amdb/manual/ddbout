@@ -1,3 +1,0 @@
-nroff -mm titlepg > front
-nroff -rB1 -mm macros p1 p2 p3 p4 p5 after.nr all.nr break.nr calls.nr cat.nr cont.nr context.nr  controls.nr delete.nr exit.nr help.nr exception.nr kill.nr last.nr lines.nr list.nr menu.nr print.nr quit.nr return.nr run.nr  show.nr stack.nr step.nr trace.nr use.nr with.nr  eind > /tmp/manual
-*** Error code -117

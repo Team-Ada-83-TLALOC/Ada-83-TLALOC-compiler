@@ -1,4 +1,0 @@
-cc -I/das1/adacomp/das -DVAX -c run.c
-cc -i command.o context.o line.o main.o get_tree.o lib_read.o record_man.o std.o rec_sizes.o call.o object.o print.o dapse_int.o run.o  screen.o symbol.o trace.o  tty.o /das1/adacomp/das/libman.a -ll -lc -o ddb
-size ddb
-59244 + 29916 + 5440 = 94600b = 0270610b

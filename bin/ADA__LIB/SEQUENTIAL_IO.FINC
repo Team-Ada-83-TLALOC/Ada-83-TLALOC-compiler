@@ -192,9 +192,11 @@ L6:
 	LI	1
 	MUL
 	ADD
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -205,13 +207,16 @@ L6:
 	CLAMP0
 	LI	1
 	MUL
-	LIA	1, -NAME_ofs, 0
+	LA  1,	-NAME_ofs
+	LA
 	BLKMOV
 	LA 1, -FILE_ofs
 	LIVA 	, 0, STANDARD.SEQUENTIAL_IO._FILE_TYPE.NAME_LEN
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -309,9 +314,11 @@ L15:
 	LI	1
 	MUL
 	ADD
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -322,13 +329,16 @@ L15:
 	CLAMP0
 	LI	1
 	MUL
-	LIA	1, -NAME_ofs, 0
+	LA  1,	-NAME_ofs
+	LA
 	BLKMOV
 	LA 1, -FILE_ofs
 	LIVA 	, 0, STANDARD.SEQUENTIAL_IO._FILE_TYPE.NAME_LEN
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
-	LIA	1, -NAME_ofs, 8
+	LVA	1, -NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -708,7 +718,8 @@ VAR	RET_INFO_L48, Q
 	LA  ,  8
 	SA   1, RET_INFO_L48
 	DROP
-	LIA	1, -result__ofs, 8
+	LA   1, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   1, RET_INFO_L48
 	BLKMOV
@@ -753,7 +764,8 @@ VAR	RET_INFO_L54, Q
 	LA  ,  8
 	SA   1, RET_INFO_L54
 	DROP
-	LIA	1, -result__ofs, 8
+	LA   1, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   1, RET_INFO_L54
 	BLKMOV
@@ -877,7 +889,8 @@ L66:
 	LI	0
 	LA  1,	-GFP_ofs
 	LVA	1, -ITEM_ofs
-	LIA	1, -GFP_ofs, -ELEMENT_TYPE__outadr_ofs
+	LA  1,	-GFP_ofs
+	LA	, -ELEMENT_TYPE__outadr_ofs
 	CALLI
 	LD 1,	SIZE_BYTES_disp
 	LA 1, -FILE_ofs
@@ -982,7 +995,8 @@ L77:
 	LI	0
 	LA  1,	-GFP_ofs
 	LVA	1, -ITEM_ofs
-	LIA	1, -GFP_ofs, -ELEMENT_TYPE__inadr_ofs
+	LA  1,	-GFP_ofs
+	LA	, -ELEMENT_TYPE__inadr_ofs
 	CALLI
 	LD 1,	SIZE_BYTES_disp
 	LA 1, -FILE_ofs

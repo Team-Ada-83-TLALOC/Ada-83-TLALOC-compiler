@@ -526,6 +526,9 @@ end macro
 
 ;	--- immediats et adresses constantes
 macro LI val
+  if (val) < -8000000000000000h | (val) >= 8000000000000000h
+    err 'LI : immediat hors de [-2^63, 2^63) (LLIR_hardware_support V7)'
+  end if
   TX_REC TX_LI, 0, 0, val
 end macro
 macro LIF val					; le litteral flottant est converti par fasmg en IEEE 754 double

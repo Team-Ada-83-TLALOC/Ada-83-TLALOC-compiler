@@ -135,18 +135,12 @@ VAR FST, Q
 VAR LST, Q
 	LI	64
 	SD	1, SIZ__
-	LI	2
-	LI	63
-	DEC
-	SHL
+	LI	09223372036854775807
 	NEG
-	SQ	1, FST
-	LI	2
-	LI	63
-	DEC
-	SHL
 	LI	1
 	SUB
+	SQ	1, FST
+	LI	09223372036854775807
 	SQ	1, LST
 VAR PARENT__u, Q
 	LA	1, STANDARD.TARGET_CODE_L1.SYMBOLS._VALUE_TYPE.use__info
@@ -413,7 +407,8 @@ VAR	RET_INFO_L74, Q
 	LA  ,  8
 	SA   2, RET_INFO_L74
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L74
 	BLKMOV
@@ -473,7 +468,8 @@ VAR	RET_INFO_L79, Q
 	LA  ,  8
 	SA   2, RET_INFO_L79
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L79
 	BLKMOV
@@ -490,7 +486,8 @@ VAR	RET_INFO_L81, Q
 	LA  ,  8
 	SA   2, RET_INFO_L81
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L81
 	BLKMOV
@@ -509,7 +506,8 @@ VAR	RET_INFO_L83, Q
 	LA  ,  8
 	SA   2, RET_INFO_L83
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L83
 	BLKMOV
@@ -527,7 +525,8 @@ VAR	RET_INFO_L85, Q
 	LA  ,  8
 	SA   2, RET_INFO_L85
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L85
 	BLKMOV
@@ -621,7 +620,8 @@ VAR	RET_INFO_L98, Q
 	LA  ,  8
 	SA   2, RET_INFO_L98
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L98
 	BLKMOV
@@ -681,7 +681,8 @@ VAR	RET_INFO_L103, Q
 	LA  ,  8
 	SA   2, RET_INFO_L103
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L103
 	BLKMOV
@@ -698,7 +699,8 @@ VAR	RET_INFO_L105, Q
 	LA  ,  8
 	SA   2, RET_INFO_L105
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L105
 	BLKMOV
@@ -717,7 +719,8 @@ VAR	RET_INFO_L107, Q
 	LA  ,  8
 	SA   2, RET_INFO_L107
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L107
 	BLKMOV
@@ -735,7 +738,8 @@ VAR	RET_INFO_L109, Q
 	LA  ,  8
 	SA   2, RET_INFO_L109
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L109
 	BLKMOV
@@ -785,7 +789,8 @@ VAR	RET_INFO_L118, Q
 	LA  ,  8
 	SA   2, RET_INFO_L118
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L118
 	BLKMOV
@@ -803,7 +808,8 @@ VAR	RET_INFO_L120, Q
 	LA  ,  8
 	SA   2, RET_INFO_L120
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L120
 	BLKMOV
@@ -821,7 +827,8 @@ VAR	RET_INFO_L122, Q
 	LA  ,  8
 	SA   2, RET_INFO_L122
 	DROP
-	LIA	2, -result__ofs, 8
+	LA   2, -result__ofs
+	LA  ,  8
 	LI	16
 	LA   2, RET_INFO_L122
 	BLKMOV
@@ -992,9 +999,11 @@ L125:
 	ULB  1,	-MAP_ofs
 	SB  1,	GENERATE_BINARY_MAP_disp
 
-	LIA	1, -UNIT_NAME_ofs, 8
+	LVA	1, -UNIT_NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.LST_1
-	LIA	1, -UNIT_NAME_ofs, 8
+	LVA	1, -UNIT_NAME_ofs
+	LIA	, , 8
 	LD	, _STRING.FST_1
 	SUB
 	INC
@@ -1446,7 +1455,14 @@ end namespace
 	LI	1
 	CALL	STANDARD.TARGET_CODE_L1.EMITS. ,P3_EMIT_L58
 	LI	1
-	CHKUD	0, STANDARD.TEXT_IO._POSITIVE_COUNT.FST
+	DUP
+	ULD	0, STANDARD.TEXT_IO._POSITIVE_COUNT.FST
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	ULD	0, STANDARD.TEXT_IO._POSITIVE_COUNT.LST
+	CGT
+	BT	STANDARD.ce_raise_
 	CALL	STANDARD.TEXT_IO. ,NEW_LINE_L26
 STR STR_L142, "CARTO capacites :"
 	LCA	STR_L142.data_ptr

@@ -1,7 +1,0 @@
-echo werkt alleen wanneer root
-cd view;make install
-cd ../libvy;make install
-cd ../veyacc;make install
-cd ../adadep;make install
-cd ../rt;make install
-cd ../standard;make install

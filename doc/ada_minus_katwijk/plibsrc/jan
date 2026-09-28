@@ -1,6 +1,0 @@
-package jan is
-   function bla return integer;
-   pragma interface (C, bla);
-   b : integer := bla;
-end;
-

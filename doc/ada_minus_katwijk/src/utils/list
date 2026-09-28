@@ -1,8 +1,0 @@
-ac strings.ada
-ac consts.ada
-ac getargs.ada
-ac system.ada
-ac text_io.ada
-ac cdb.ada
-ac integer_io.ada
-ac printcdb.ada

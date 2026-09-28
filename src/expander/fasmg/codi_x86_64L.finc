@@ -448,6 +448,9 @@ end macro
 ;			-------------
 macro			LI	val				; Load Integer
 ;			-------------
+  if (val) < -8000000000000000h | (val) >= 8000000000000000h
+    err 'LI : immediat hors de [-2^63, 2^63) (LLIR_hardware_support V7)'
+  end if
   db 0x48, 0xB8							; mov rax, quadval
   dq val
   PUSH_RAX
@@ -745,12 +748,14 @@ end macro
 macro			SHL					; decalage gauche
 ;			---
   POP_RCX								; nombre de positions de decalage
+  db 0x48, 0x83, 0xF9, 0x3F, 0x76, 0x02, 0x0F, 0x0B			; cmp rcx, 63 ; jbe +2 ; ud2	compte >= 64 : faute 137 (V7)
   db 0x48, 0xD3, 0x65, 0x00						; shl qword ptr [rbp], cl
 end macro
 ;			---
 macro			SHR					; decalage droit
 ;			---
   POP_RCX								; nombre de positions de decalage
+  db 0x48, 0x83, 0xF9, 0x3F, 0x76, 0x02, 0x0F, 0x0B			; cmp rcx, 63 ; jbe +2 ; ud2	compte >= 64 : faute 137 (V7)
   db 0x48, 0xD3, 0x6D, 0x00						; shr qword ptr [rbp], cl
 end macro
 
@@ -767,10 +772,10 @@ macro			UBFX					; unsigned bit field extract
   db 0x48, 0x8B, 0x45, 0x00						; mov rax, qword ptr [rbp]	valeur source
   db 0x48, 0xD3, 0xE8						; shr rax, cl		rax := valeur >> LSB
   db 0x48, 0x89, 0xD1						; mov rcx, rdx		rcx = Width
-  db 0x6A, 0x01							; push 1
-  db 0x5A								; pop rdx			rdx = 1
-  db 0x48, 0xD3, 0xE2						; shl rdx, cl		rdx = 1 << Width
-  db 0x48, 0xFF, 0xCA						; dec rdx			rdx = mask
+  db 0x48, 0xF7, 0xD9						; neg rcx			cl = -Width, soit 64 - Width modulo 64
+  db 0x6A, 0xFF							; push -1
+  db 0x5A								; pop rdx			rdx = tous les bits a 1
+  db 0x48, 0xD3, 0xEA						; shr rdx, cl		rdx = mask (Width = 64 : mot entier, V7)
   db 0x48, 0x21, 0xD0						; and rax, rdx		rax = field non signe
   db 0x48, 0x89, 0x45, 0x00						; mov qword ptr [rbp], rax
 end macro
@@ -796,10 +801,10 @@ macro			BFI					; bit field insert in stacked value
   POP_RDX								; rdx = LSB
   POP_RAX								; rax = valeur a inserer
 								;  MAKE MASK
-  db 0x6A, 0x01							; push 1
-  db 0x5B								; pop rbx			rbx = 1
-  db 0x48, 0xD3, 0xE3						; shl rbx, cl		1 << Width
-  db 0x48, 0xFF, 0xCB						; dec rbx			mask = (1<<Width)-1
+  db 0x48, 0xF7, 0xD9						; neg rcx			cl = -Width, soit 64 - Width modulo 64
+  db 0x6A, 0xFF							; push -1
+  db 0x5B								; pop rbx			rbx = tous les bits a 1
+  db 0x48, 0xD3, 0xEB						; shr rbx, cl		mask (Width = 64 : mot entier, V7)
 								;  CUT SHIFT INSERTION
   db 0x48, 0x21, 0xD8						; and rax, rbx		inserted &= mask
   db 0x48, 0x89, 0xD1						; mov rcx, rdx		CL = LSB
@@ -855,16 +860,19 @@ end macro
 macro			DEC
 ;			---
   db 0x48, 0xFF, 0x4D, 0x00						; dec qword ptr [rbp]
+  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
 end macro
 ;			---
 macro			INC
 ;			---
   db 0x48, 0xFF, 0x45, 0x00						; inc qword ptr [rbp]
+  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
 end macro
 ;			---
 macro			NEG
 ;			---
   db 0x48, 0xF7, 0x5D, 0x00						; neg qword ptr [rbp]
+  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
 end macro
 ;			---
 macro			ABS
@@ -873,6 +881,7 @@ macro			ABS
   db 0x48, 0xC1, 0xF8, 0x3F						; sar rax, 63			(RAX = tout bit de signe = allsign)
   db 0x48, 0x31, 0x45, 0x00						; xor QWORD PTR [rbp], rax		(X xor allsign)
   db 0x48, 0x29, 0x45, 0x00						; sub QWORD PTR [rbp], rax		( (X xor allsign) - allsign )
+  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
 end macro
 ;			------
 macro			CLAMP0					; sommet := max( 0, sommet )		(compte d'elements : intervalle nul -> 0)
@@ -887,18 +896,21 @@ macro			ADD
 ;			---
   POP_RAX
   db 0x48, 0x01, 0x45, 0x00						; add qword ptr [rbp], rax
+  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
 end macro
 ;			---
 macro			SUB
 ;			---
   POP_RAX
   db 0x48, 0x29, 0x45, 0x00						; sub qword ptr [rbp], rax
+  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
 end macro
 ;			---
 macro			MUL
 ;			---
   POP_RAX
   db 0x48, 0xF7, 0x6D, 0x00						; imul qword ptr [rbp]
+  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
   DROP
   PUSH_RAX
 end macro
@@ -942,6 +954,7 @@ end macro
 macro			SAR					; decalage arithmetique droit
 ;			---
   POP_RCX								; nombre de positions de decalage
+  db 0x48, 0x83, 0xF9, 0x3F, 0x76, 0x02, 0x0F, 0x0B			; cmp rcx, 63 ; jbe +2 ; ud2	compte >= 64 : faute 137 (V7)
   db 0x48, 0xD3, 0x7D, 0x00						; sar qword ptr [rbp], cl
 end macro
 

@@ -1,4 +1,0 @@
-eopti()
-{
-  error("unknown option");
-}

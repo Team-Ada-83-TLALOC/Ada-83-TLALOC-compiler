@@ -1,4 +1,0 @@
-for i do
-    nroff -mm page_macros $i > `basename $i .nr`.man
-done
-

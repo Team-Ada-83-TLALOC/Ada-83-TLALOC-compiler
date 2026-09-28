@@ -1,5 +1,0 @@
-funkties die zich hier niet bevinden, kunnen zich in ../lib bevinden,
-ze kunnen eventueel aan de source toegevoegd worden.
-nu worden ze door LD uit de library in ../lib toegevoegd,
-zie de makefile
-

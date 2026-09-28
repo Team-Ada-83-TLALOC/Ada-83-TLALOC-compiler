@@ -1,8 +1,0 @@
-ac -g system.ada
-ac -g c_lib.ada
-ac unix.ada
-ac -g calendar.ada
-ac io_except.ada
-ac text_io.ada
-ac -g enumerat.ada
-ac -g integer_io.ada

@@ -14,7 +14,8 @@ is				--------
 
     type SHORT_INTEGER		is range -2**15 .. 2**15-1;
     type INTEGER			is range -2**31 .. 2**31-1;
-    type LONG_INTEGER		is range -2**63 .. 2**63-1;
+--    type LONG_INTEGER		is range -2**63 .. 2**63-1;
+    type LONG_INTEGER		is range -16#7FFFFFFFFFFFFFFF# - 1 .. 16#7FFFFFFFFFFFFFFF#;			--| Evitement de debordement
 
     type FLOAT			is digits  6 range -1.0E38 .. 1.0E38;
     type LONG_FLOAT			is digits 15 range -1.0E308 .. 1.0E308;

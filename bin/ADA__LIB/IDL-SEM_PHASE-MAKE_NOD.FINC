@@ -76,9 +76,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -162,9 +164,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -233,9 +237,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -309,9 +315,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -390,9 +398,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -466,9 +476,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -542,9 +554,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -618,9 +632,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -694,9 +710,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -770,9 +788,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -836,9 +856,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -907,9 +929,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -973,9 +997,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1039,9 +1065,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1105,9 +1133,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1214,9 +1244,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 73
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1323,9 +1355,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 73
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1437,9 +1471,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 73
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1532,9 +1568,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1618,9 +1656,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1694,9 +1734,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1760,9 +1802,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1826,9 +1870,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1897,9 +1943,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -1963,9 +2011,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 14
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2024,9 +2074,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 151
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2090,9 +2142,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 153
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2151,9 +2205,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 151
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2212,9 +2268,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 152
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2268,9 +2326,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 101
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2334,9 +2394,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2405,9 +2467,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 121
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2471,9 +2535,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2537,9 +2603,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2603,9 +2671,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2669,9 +2739,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2730,9 +2802,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2786,9 +2860,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2847,9 +2923,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2913,9 +2991,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -2974,9 +3054,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3035,9 +3117,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3101,9 +3185,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3167,9 +3253,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3233,9 +3321,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3299,9 +3389,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3360,9 +3452,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3411,9 +3505,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3472,9 +3568,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3533,9 +3631,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3599,9 +3699,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3655,9 +3757,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3716,9 +3820,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3782,9 +3888,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3843,9 +3951,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3904,9 +4014,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -3965,9 +4077,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4021,9 +4135,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4082,9 +4198,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4138,9 +4256,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4194,9 +4314,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4250,9 +4372,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4311,9 +4435,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4372,9 +4498,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4428,9 +4556,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4488,9 +4618,11 @@ begin:
 	LA  2,	-LIST_ofs
 	LVA 2,	NODE_disp
 	CALL	STANDARD.IDL.IDL_MAN. ,LIST_L36
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4544,9 +4676,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4595,9 +4729,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4646,9 +4782,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4697,9 +4835,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4748,9 +4888,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4799,9 +4941,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4850,9 +4994,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4905,9 +5051,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -4960,9 +5108,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5015,9 +5165,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5070,9 +5222,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5125,9 +5279,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5180,9 +5336,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5235,9 +5393,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5290,9 +5450,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5345,9 +5507,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5400,9 +5564,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5455,9 +5621,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5510,9 +5678,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5565,9 +5735,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5620,9 +5792,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5675,9 +5849,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5730,9 +5906,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5785,9 +5963,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5840,9 +6020,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5895,9 +6077,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -5950,9 +6134,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6005,9 +6191,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6060,9 +6248,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6115,9 +6305,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6181,9 +6373,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6232,9 +6426,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6288,9 +6484,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6344,9 +6542,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6400,9 +6600,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6461,9 +6663,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6527,9 +6731,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 101
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6588,9 +6794,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6649,9 +6857,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6705,9 +6915,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6761,9 +6973,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6827,9 +7041,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 124
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6893,9 +7109,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 124
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -6959,9 +7177,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7025,9 +7245,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7086,9 +7308,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7147,9 +7371,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7208,9 +7434,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7269,9 +7497,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7330,9 +7560,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7381,9 +7613,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7437,9 +7671,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7498,9 +7734,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7559,9 +7797,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7630,9 +7870,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7701,9 +7943,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7762,9 +8006,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 89
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7823,9 +8069,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 89
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7899,9 +8147,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -7970,9 +8220,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8051,9 +8303,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 124
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8117,9 +8371,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 87
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8183,9 +8439,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 87
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8244,9 +8502,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 87
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8320,9 +8580,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8386,9 +8648,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8447,9 +8711,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8523,9 +8789,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8599,9 +8867,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8670,9 +8940,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8741,9 +9013,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8807,9 +9081,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 88
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8878,9 +9154,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 92
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -8944,9 +9222,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 95
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9005,9 +9285,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 87
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9071,9 +9353,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 81
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9137,9 +9421,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 33
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9208,9 +9494,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 33
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9264,9 +9552,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9330,9 +9620,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 33
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9396,9 +9688,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 33
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9452,9 +9746,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9508,9 +9804,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9564,9 +9862,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9620,9 +9920,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9671,9 +9973,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9727,9 +10031,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9788,9 +10094,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9849,9 +10157,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9911,9 +10221,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -9967,9 +10279,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10033,9 +10347,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 132
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10089,9 +10405,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10140,9 +10458,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10191,9 +10511,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10257,9 +10579,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10308,9 +10632,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10364,9 +10690,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 117
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10420,9 +10748,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 116
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10481,9 +10811,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10542,9 +10874,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10598,9 +10932,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10649,9 +10985,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10700,9 +11038,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10751,9 +11091,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10802,9 +11144,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10863,9 +11207,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10924,9 +11270,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -10980,9 +11328,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11041,9 +11391,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11097,9 +11449,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11163,9 +11517,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11219,9 +11575,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11275,9 +11633,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11336,9 +11696,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11397,9 +11759,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11453,9 +11817,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11514,9 +11880,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11575,9 +11943,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11641,9 +12011,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11697,9 +12069,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 154
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11782,9 +12156,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 143
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11843,9 +12219,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 33
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -11943,9 +12321,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12028,9 +12408,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12108,9 +12490,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12193,9 +12577,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12283,9 +12669,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12378,9 +12766,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12482,9 +12872,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 30
 	CALL	STANDARD.IDL. ,DB_L18
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12581,9 +12973,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 28
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12665,9 +13059,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 40
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12758,9 +13154,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 46
 	CALL	STANDARD.IDL. ,DI_L20
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12834,9 +13232,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 35
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12905,9 +13305,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 35
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -12976,9 +13378,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 35
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -13037,9 +13441,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 84
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -13088,9 +13494,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 35
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -13139,9 +13547,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 35
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:
@@ -13190,9 +13600,11 @@ begin:
 	LVA 2,	NODE_disp
 	LI	 35
 	CALL	STANDARD.IDL. ,D_L16
-	LIA	2, -result__ofs, 0
+	LA   2,	-result__ofs
+	LA  ,  0
 	LI	STANDARD.IDL._TREE.size
-	LA	2, NODE_disp
+	LVA 2,	NODE_disp
+	LA
 	BLKMOV
 	BRA ret_lbl
 ret_lbl:

@@ -1,3 +1,0 @@
-#
-extern byte size [];
-

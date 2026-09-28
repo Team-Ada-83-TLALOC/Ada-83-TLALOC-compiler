@@ -1,9 +1,0 @@
-
-cd view;make cleanup
-cd ../libvy;make clean
-cd ../veyacc;make clean
-cd ../front;make cleanup
-cd ../cg;make cleanup
-cd ../adadep;make cleanup
-cd ../rt;make cleanup
-cd ../standard;make cleanup

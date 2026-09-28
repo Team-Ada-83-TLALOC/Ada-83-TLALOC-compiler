@@ -757,6 +757,11 @@ end iterate
 ;	--- immediats et adresses constantes
 calminstruction LI val*
   local a, v
+  compute v, val
+  check v >= -8000000000000000h & v < 8000000000000000h
+  jyes dans_intervalle
+  err 'LI : immediat hors de [-2^63, 2^63) (LLIR_hardware_support V7)'
+ dans_intervalle:
   compute v, (val) and 0FFFFFFFFFFFFFFFFh
   compute a, $ - 0x400000
   arrange a, =HX_TABLE_ENTREE a
@@ -800,12 +805,17 @@ calminstruction LI val*
   jump e32
 end calminstruction
 macro LIF val					; motif IEEE 754 double du litteral, puis LI le plus etroit
-  local motif
+  local motif, signe
   virtual at 0
     dq val
     load motif : 8 from 0
   end virtual
-  LI motif
+  if motif >= 8000000000000000h			; motif lu non signe : le ramener dans [-2^63, 2^63)
+    signe = motif - 10000000000000000h
+  else
+    signe = motif
+  end if
+  LI signe
 end macro
 macro LCA ptr, disp:0
   LI ptr+disp

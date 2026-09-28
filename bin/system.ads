@@ -7,8 +7,8 @@ is					------
   SYSTEM_NAME		:constant NAME	:= X86_64;						-- Intel 64 bits
   STORAGE_UNIT		:constant		:= 8;
   MEMORY_SIZE		:constant		:= 2**48-1;						-- 48 bits d'adresse effective 256 To
-  MAX_INT			:constant		:= 2**63-1;
-  MIN_INT			:constant		:= -(2**63);
+  MAX_INT			:constant		:= 16#7FFFFFFFFFFFFFFF#;					-- 2**63-1 Evitement des debordements
+  MIN_INT			:constant		:= -16#7FFFFFFFFFFFFFFF# - 1;					-- -(2**63) Evitement des debordements
   MAX_DIGITS		:constant		:= 15;							-- Pour virgule flottante
   MAX_MANTISSA		:constant		:= 63;							-- Pour virgule fixe
   FINE_DELTA		:constant		:= 2.0**(-63);
