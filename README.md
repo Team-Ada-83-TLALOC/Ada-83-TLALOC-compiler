@@ -77,13 +77,13 @@ Source Code (.ada)
 
 - **Linux on x86** (Ubuntu 24.04 or compatible)
 - **GNAT** 13.3+ (Ada compiler for building TLALOC)
-- **FASM** (Flat Assembler - g.kd3c or compatible)
+- **FASM** (Flat Assembler - g.kd3c or better g.l8vn)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://git.sr.ht/~vincent_morin/Ada_83_TLALOC
+git clone https://github.com/Team-Ada-83-TLALOC/Ada-83-TLALOC-compiler.git
 cd Ada_83_TLALOC
 # make a build directory if not already present
 mkdir ./build
@@ -110,8 +110,9 @@ Go to **bin** directory
 ./TLALOC CODE DIS_BONJOUR
 
 # Launch DIS_BONJOUR executable
+cd ./ADA__LIB
 
-.ADA__LIB//DIS_BONJOUR
+./DIS_BONJOUR
 
 # The program displays **" Bonjour "**.
 
@@ -175,7 +176,7 @@ Ada83_TLALOC/
 │   ├── sem_phase/         # Semantic analysis (28 subunits!)
 │   ├── expander/          # LLIR generation
 │   ├── pretty/            # DIANA pretty-printer
-│   ├── target_code/      # Code generation (X86, arm, riscv
+│   ├── target_code/       # Code generation (X86, arm, riscv
 │   └── communs/           # Shared utilities (IDL management)
 ├── bin/
 │   └── idl_tools/         # DIANA node definitions
@@ -187,10 +188,10 @@ Ada83_TLALOC/
 ## Technical Details
 
 ### Target Platform
-- **OS**: Linux (Ubuntu 24.04+)
-- **Processors**: x86-64, arm AArch64, RISC-V64
+- **OS**: Linux (Ubuntu 24.04+), Windows, UEFI
+- **Processors**: x86-64, arm AArch64, RISC-V64, TAHX
 - **Assembler**: fasmg (Flat Assembler) or TLALOC.TARGET_CODE
-- **Output**: ELF 64 Linux executables
+- **Output**: ELF 64 Linux executables, PE32+, TXHX
 - **tested SBC**:
 
    Orange Pi 3B with armbian
@@ -200,7 +201,7 @@ Ada83_TLALOC/
 
 ### Compilation Statistics
 - **Total code**: 34,344 lines
-- **Number of files**: 85
+- **Number of files**: ~100
 - **Largest module**: SEM_PHASE (64.6% of codebase)
 - **Frontend/Backend ratio**: 4.8:1 (typical for research compilers)
 
