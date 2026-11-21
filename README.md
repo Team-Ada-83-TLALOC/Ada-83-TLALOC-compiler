@@ -91,7 +91,7 @@ mkdir ./build
 ./make_T1
 # Recompile the compiler with T1 to obtain TLALOC.x86exe (TLALOC made TLALOC)
 cd ./bin
-./comp_TLALOC T1
+./comp_TLALOC
 ```
 
 ### First Program Use
@@ -238,13 +238,6 @@ TLALOC is a heritage preservation project. Contributions are welcome!
 - **Features**: Optimization passes, better diagnostics
 - **Education**: Teaching materials for compiler construction
 
-### Getting Started
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes
-4. Test with Ada 83 programs
-5. Submit a pull request
-
 **Note**: TLALOC targets Ada 83 only. Please do not submit features from later Ada standards (Ada 95, 2005, 2012, 2022).
 
 ---
@@ -316,16 +309,13 @@ TLALOC preserves this heritage by providing a working implementation of the orig
 
 - **Website**: [https://ada83.org](https://ada83.org)
 
-Preferred repository (light distribution)
-
-- **Source Hut**: [https://git.sr.ht/~vincent_morin/Ada_83_TLALOC](https://git.sr.ht/~vincent_morin/Ada_83_TLALOC)
-
+Repository
+- **GitHub**: [https://https://github.com/Team-Ada-83-TLALOC/Ada-83-TLALOC-compiler](https://https://github.com/Team-Ada-83-TLALOC/Ada-83-TLALOC-compiler)
 
 Historical repository (heavy)
 - **Framagit**: [https://framagit.org/VMo/ada-83-compiler-tools](https://framagit.org/VMo/ada-83-compiler-tools)
 
-Double of historical framagit
-- **GitHub**: [https://github.com/ViMoBr/Ada83_TLALOC](https://github.com/ViMoBr/Ada83_TLALOC)
+
 
 ---
 
