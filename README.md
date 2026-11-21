@@ -112,7 +112,7 @@ Go to **bin** directory
 
 # Launch DIS_BONJOUR executable
 
-.ADA__LIB//DIS_BONJOUR
+./ADA__LIB/DIS_BONJOUR.x86exe
 
 # The program displays **" Bonjour "**.
 
