@@ -1,0 +1,14 @@
+BUGS de TLALOC :
+
+Quatre défauts de TLALOC trouvés en écrivant les bancs (j'ai des reproducteurs de 8 à 30 lignes pour les deux premiers ; les bancs les contournent) :
+
+1) Déréférence d'un paramètre d'accès en mode in. Pour A.G, le code produit est LA 2, -A_ofs ; LIQ , 0, G.
+Il traite la valeur de A comme l'adresse d'une cellule pointeur, ce qui n'est juste que pour un paramètre in out.
+Il faudrait LIQ 2, -A_ofs, G. Le test A /= null est, lui, correct. Résultat : faute mémoire dans tout parcours récursif d'arbre avec des paramètres in.
+
+2) PUT( M( 2 ) ), où M( 2 ) est une composante d'un tableau de STRING( 1 .. 8 ) : la chaîne affichée a une longueur fausse, énorme.
+
+3) Noms de champs d'article non qualifiés dans le .FINC. Un champ nommé CLE ou VAR heurte une macro de codi_HX, et fasmg échoue.
+
+4) array( 0 .. NB_SEAUX - 1 ), avec un nombre nommé dans l'expression, est rejeté par « AMBIGUOUS EXPRESSION TYPE ».
+Le LRM 3.6.1 prévoit pourtant la conversion implicite vers INTEGER.

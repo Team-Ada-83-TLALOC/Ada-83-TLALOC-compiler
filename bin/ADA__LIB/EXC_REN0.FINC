@@ -1,0 +1,48 @@
+if ~ definite REN0_PACK
+include 'REN0_PACK.FINC'
+display 'including withed unit REN0_PACK.FINC', 10
+end if
+if ~ definite REN0_PACK
+include 'REN0_PACK.FINC'
+display 'including trans withed unit REN0_PACK.FINC', 10
+end if
+EXC_REN0 = 'EXC_REN0'
+PRO	EXC_REN0_L1
+ hexa_show 'EXC_REN0_L1 ', $
+ELB 1
+
+begin:
+VAR	exc_ctx_L2, q, 9
+	LA	0, STANDARD.EXCEPTIONS_TOP_CTX_disp
+	SA  1,	exc_ctx_L2
+	LCA	L2
+	SA  1,	exc_ctx_L2 + STANDARD._EXCEPTION_CONTEXT.DISPATCH
+	EXC_MACH  1,	exc_ctx_L2
+	LVA  1,	exc_ctx_L2
+	SA	0, STANDARD.EXCEPTIONS_TOP_CTX_disp
+	LCA	STANDARD.REN0_PACK.ORIGINE__exc.data_ptr
+	SA	0, STANDARD.EXCEPTIONS_CURRENT_disp
+	BRA	STANDARD.exc_raise_
+	LA 0,	STANDARD.EXCEPTIONS_TOP_CTX_disp
+	LA , 0
+	SA 0,	STANDARD.EXCEPTIONS_TOP_CTX_disp
+	BRA	L3
+L2:
+	LA	0, STANDARD.EXCEPTIONS_CURRENT_disp
+	SA  1,	exc_ctx_L2
+	LA	0, STANDARD.EXCEPTIONS_CURRENT_disp
+	LCA	STANDARD.REN0_PACK.ORIGINE__exc.data_ptr
+	CEQ
+	BT	L5
+	BRA	L6
+L5:
+	BRA	L4
+L6:
+	BRA	STANDARD.exc_raise_
+L4:
+L3:
+ret_lbl:
+	UNLINKR 1
+	RTD
+excep:
+endPRO

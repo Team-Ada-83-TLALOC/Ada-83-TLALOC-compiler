@@ -1,0 +1,7 @@
+REN0_PACK = 'REN0_PACK'
+namespace REN0_PACK
+
+ hexa_show ' spec ', $
+STR ORIGINE__exc, "ORIGINE"
+; EXC_LBL	L1
+end namespace

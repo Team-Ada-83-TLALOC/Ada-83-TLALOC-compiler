@@ -6,7 +6,6 @@
 # Artefacts de compilation GNAT (répertoire build/)
 # -----------------------------------------------------------
 build/
-src/tools
 
 # -----------------------------------------------------------
 # Fichiers objets et ALI (au cas où hors de build/)

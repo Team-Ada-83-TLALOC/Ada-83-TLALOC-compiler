@@ -77,19 +77,20 @@ Source Code (.ada)
 
 - **Linux on x86** (Ubuntu 24.04 or compatible)
 - **GNAT** 13.3+ (Ada compiler for building TLALOC)
-- **FASM** (Flat Assembler - g.kd3c or better g.l8vn)
+- **FASM** (Flat Assembler - g.kd3c or compatible)
 
 ### Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/Team-Ada-83-TLALOC/Ada-83-TLALOC-compiler.git
-cd Ada_83_TLALOC
+cd Ada-83-TLALOC-compiler
 # make a build directory if not already present
 mkdir ./build
 # Recompile the compiler with gnat / fasmg to obtain T1.exe (gnat made TLALOC)
-./make_T1.sh
+./make_T1
 # Recompile the compiler with T1 to obtain TLALOC.x86exe (TLALOC made TLALOC)
+cd ./bin
 ./comp_TLALOC T1
 ```
 
@@ -110,9 +111,8 @@ Go to **bin** directory
 ./TLALOC CODE DIS_BONJOUR
 
 # Launch DIS_BONJOUR executable
-cd ./ADA__LIB
 
-./DIS_BONJOUR
+.ADA__LIB//DIS_BONJOUR
 
 # The program displays **" Bonjour "**.
 
@@ -176,7 +176,7 @@ Ada83_TLALOC/
 │   ├── sem_phase/         # Semantic analysis (28 subunits!)
 │   ├── expander/          # LLIR generation
 │   ├── pretty/            # DIANA pretty-printer
-│   ├── target_code/       # Code generation (X86, arm, riscv
+│   ├── target_code/      # Code generation (X86, arm, riscv
 │   └── communs/           # Shared utilities (IDL management)
 ├── bin/
 │   └── idl_tools/         # DIANA node definitions
@@ -188,10 +188,10 @@ Ada83_TLALOC/
 ## Technical Details
 
 ### Target Platform
-- **OS**: Linux (Ubuntu 24.04+), Windows, UEFI
-- **Processors**: x86-64, arm AArch64, RISC-V64, TAHX
+- **OS**: Linux (Ubuntu 24.04+)
+- **Processors**: x86-64, arm AArch64, RISC-V64
 - **Assembler**: fasmg (Flat Assembler) or TLALOC.TARGET_CODE
-- **Output**: ELF 64 Linux executables, PE32+, TXHX
+- **Output**: ELF 64 Linux executables
 - **tested SBC**:
 
    Orange Pi 3B with armbian
@@ -201,7 +201,7 @@ Ada83_TLALOC/
 
 ### Compilation Statistics
 - **Total code**: 34,344 lines
-- **Number of files**: ~100
+- **Number of files**: 85
 - **Largest module**: SEM_PHASE (64.6% of codebase)
 - **Frontend/Backend ratio**: 4.8:1 (typical for research compilers)
 

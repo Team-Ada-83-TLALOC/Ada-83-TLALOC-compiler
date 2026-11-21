@@ -156,7 +156,7 @@ then
   echo "          -------------------"
   cd ./ADA__LIB
 
-  ./fasmg -p20 ./TLALOC.X86_64FAS ./T1.exe
+  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T1.exe
   chmod u+x ./T1.exe
   mv ./T1.exe ../
 
