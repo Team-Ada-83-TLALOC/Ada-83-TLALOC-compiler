@@ -1081,6 +1081,220 @@ end	SUBPROGRAM_ORIGIN;
 	--------------------
 
 
+		--^^^^^^^^^^^^^^^^^^^^^--
+  function	  CONTIENT_DISCRIMINANT	( EXP :TREE )	return BOOLEAN
+  is		-------------------------
+	-- Parcours des formes d'expression d'une borne de contrainte de composant.
+	-- Forme non prevue : FALSE (le composant reste statique ; le chemin
+	-- historique levera bruyamment au site de lecture si c'etait faux).
+    SEQ		: SEQ_TYPE;
+    E		: TREE;
+  begin
+    if  EXP = TREE_VOID  then
+      return  FALSE;
+    end if;
+
+    case  EXP.TY  is
+    when DN_USED_OBJECT_ID		=> return  D( SM_DEFN, EXP ).TY = DN_DISCRIMINANT_ID;
+    when DN_PARENTHESIZED
+       | DN_QUALIFIED
+       | DN_CONVERSION		=> return  CONTIENT_DISCRIMINANT( D( AS_EXP, EXP ) );
+    when DN_RANGE			=> return  CONTIENT_DISCRIMINANT( D( AS_EXP1, EXP ) )
+					   or else  CONTIENT_DISCRIMINANT( D( AS_EXP2, EXP ) );
+    when DN_FUNCTION_CALL		=>
+      SEQ := LIST( D( SM_NORMALIZED_PARAM_S, EXP ) );
+      while  not IS_EMPTY( SEQ )  loop
+        POP( SEQ, E );
+        if  CONTIENT_DISCRIMINANT( E )  then
+	return  TRUE;
+        end if;
+      end loop;
+      return  FALSE;
+    when others			=> return  FALSE;
+    end case;
+
+  end	CONTIENT_DISCRIMINANT;
+	---------------------
+
+
+		--^^^^^^^^^^^^^^^^^^^^^^^--
+  function	  EST_COMPOSANT_DYNAMIQUE	( COMP_ID :TREE )	return BOOLEAN
+  is		---------------------------
+	-- Composant de sous-type tableau dont une borne d'indice (SM_RANGE des
+	-- sous-types d'indice, la ou CODE_EXP butait) reference un discriminant.
+    T		: TREE;
+    IDX_S	: SEQ_TYPE;
+    IDX		: TREE;
+  begin
+    if  COMP_ID.TY /= DN_COMPONENT_ID  then
+      return  FALSE;
+    end if;
+
+    T := D( SM_OBJ_TYPE, COMP_ID );
+    if  T.TY /= DN_CONSTRAINED_ARRAY  then
+      return  FALSE;
+    end if;
+
+    IDX_S := LIST( D( SM_INDEX_SUBTYPE_S, T ) );
+    while  not IS_EMPTY( IDX_S )  loop
+      POP( IDX_S, IDX );
+      if  ( IDX.TY = DN_INTEGER  or else  IDX.TY = DN_ENUMERATION )
+      and then  CONTIENT_DISCRIMINANT( D( SM_RANGE, IDX ) )
+      then
+        return  TRUE;
+      end if;
+    end loop;
+    return  FALSE;
+
+  end	EST_COMPOSANT_DYNAMIQUE;
+	-----------------------
+
+
+		--^^^^^^^^^^^^^^^^^^^^--
+  function	  EST_RECORD_DYNAMIQUE	( REC_TYPE :TREE )	return BOOLEAN
+  is		------------------------
+    R		: TREE		:= REC_TYPE;
+
+		------------------
+    function	COMP_LIST_DYNAMIQUE	( CL :TREE )	return BOOLEAN
+    is		------------------
+      DECL_S	: SEQ_TYPE;
+      DECL	: TREE;
+      ID_S	: SEQ_TYPE;
+      ID		: TREE;
+      VP		: TREE;
+      VAR_S	: SEQ_TYPE;
+      VAR_E	: TREE;
+    begin
+      if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+        return  FALSE;
+      end if;
+
+      DECL_S := LIST( D( AS_DECL_S, CL ) );
+      while  not IS_EMPTY( DECL_S )  loop
+        POP( DECL_S, DECL );
+        if  DECL.TY /= DN_NULL_COMP_DECL  then
+	ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	while  not IS_EMPTY( ID_S )  loop
+	  POP( ID_S, ID );
+	  if  EST_COMPOSANT_DYNAMIQUE( ID )  then
+	    return  TRUE;
+	  end if;
+	end loop;
+        end if;
+      end loop;
+
+      VP := D( AS_VARIANT_PART, CL );
+      if  VP /= TREE_VOID  and then  VP /= TREE_NIL  then
+        VAR_S := LIST( D( AS_VARIANT_S, VP ) );
+        while  not IS_EMPTY( VAR_S )  loop
+	POP( VAR_S, VAR_E );
+	if  VAR_E.TY = DN_VARIANT  and then  COMP_LIST_DYNAMIQUE( D( AS_COMP_LIST, VAR_E ) )  then
+	  return  TRUE;
+	end if;
+        end loop;
+      end if;
+      return  FALSE;
+
+    end	COMP_LIST_DYNAMIQUE;
+	------------------
+
+  begin
+    R := FULL_TYPE_VIEW( R );
+    if  R.TY = DN_CONSTRAINED_RECORD  then
+      R := FULL_TYPE_VIEW( D( SM_BASE_TYPE, R ) );
+    end if;
+    if  R.TY /= DN_RECORD  then
+      return  FALSE;
+    end if;
+    return  COMP_LIST_DYNAMIQUE( D( SM_COMP_LIST, R ) );
+
+  end	EST_RECORD_DYNAMIQUE;
+	--------------------
+
+
+		--^^^^^^^^^^^^^^^^^--
+  procedure	  DESC_VERS_DONNEES	( COMP_ID :TREE )
+  is		---------------------
+	-- @desc = objet + COMP ; donnees = objet + [@desc + OFS]
+	--	  = @desc + [@desc + OFS] - COMP		(aucune reevaluation du prefixe)
+  begin
+    PUT_LINE( tab & "DUP" );
+    PUT_LINE( tab & "LD" & tab & "," & INTEGER'IMAGE( DESC_OFS ) );
+    PUT_LINE( tab & "ADD" );
+    PUT( tab & "LI" & tab );
+    REGIONS_PATH( COMP_ID );
+    PUT_LINE( PRINT_NAME( D( LX_SYMREP, COMP_ID ) ) );
+    PUT_LINE( tab & "SUB" );
+
+  end	DESC_VERS_DONNEES;
+	-----------------
+
+
+		--^^^^^^^^^^^^^^^^^^^^^^^--
+  function	  EST_SELECTION_DYNAMIQUE	( NAME :TREE )	return BOOLEAN
+  is		---------------------------
+  begin
+    return  NAME /= TREE_VOID
+	and then  NAME.TY = DN_SELECTED
+	and then  EST_COMPOSANT_DYNAMIQUE( D( SM_DEFN, D( AS_DESIGNATOR, NAME ) ) );
+
+  end	EST_SELECTION_DYNAMIQUE;
+	-----------------------
+
+
+		--^^^^^^^^^^^^^^^^^^^^^^^^^--
+  function	  A_DISCRIMINANTS_PAR_DEFAUT	( REC_TYPE :TREE )	return BOOLEAN
+  is		-----------------------------
+	-- RM83 3.7.1 : tous les discriminants ont un defaut, ou aucun ; on regarde
+	-- le premier.
+    R		: TREE		:= FULL_TYPE_VIEW( REC_TYPE );
+    DECL_S	: SEQ_TYPE;
+    DECL	: TREE;
+    ID_S	: SEQ_TYPE;
+    ID		: TREE;
+  begin
+    if  R.TY = DN_CONSTRAINED_RECORD  then
+      R := FULL_TYPE_VIEW( D( SM_BASE_TYPE, R ) );
+    end if;
+    if  R.TY /= DN_RECORD  then
+      return  FALSE;
+    end if;
+    DECL_S := LIST( D( SM_DISCRIMINANT_S, R ) );
+    if  IS_EMPTY( DECL_S )  then
+      return  FALSE;
+    end if;
+    POP( DECL_S, DECL );
+    ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
+    POP( ID_S, ID );
+    return  D( SM_INIT_EXP, ID ) /= TREE_VOID  and then  D( SM_INIT_EXP, ID ) /= TREE_NIL;
+
+  end	A_DISCRIMINANTS_PAR_DEFAUT;
+	--------------------------
+
+
+		--^^^^^^^^^^^^^^^^^--
+  procedure	  POSER_REC_COURANT	( LVL :LEVEL_NUM; NOM :STRING )
+  is		---------------------
+  begin
+    REC_COURANT_NOM( 1 .. NOM'LENGTH ) := NOM;
+    REC_COURANT_LEN := NOM'LENGTH;
+    REC_COURANT_LVL := LVL;
+
+  end	POSER_REC_COURANT;
+	-----------------
+
+
+		--^^^^^^^^^^^^^^^--
+  procedure	  OTER_REC_COURANT
+  is		-------------------
+  begin
+    REC_COURANT_LEN := 0;
+
+  end	OTER_REC_COURANT;
+	----------------
+
+
 	-----
 end	UTILS;
 	-----

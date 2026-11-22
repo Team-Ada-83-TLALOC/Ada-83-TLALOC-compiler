@@ -40,3 +40,9 @@ bin/ADA__LIB/SEQ_IO_TEST
 # Listing de dépôt (généré localement)
 # -----------------------------------------------------------
 listing_depot.txt
+
+# -----------------------------------------------------------
+# Repertoires tests acvc
+# -----------------------------------------------------------
+acvc_campagne/
+acvc_campagne/run/

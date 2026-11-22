@@ -762,7 +762,10 @@ separate ( EXPANDER )
 
         INVERSE_RECURSE_ON_PARAMETERS;
 
-        if  ACT_PRM.TY = DN_SELECTED  or else ACT_PRM.TY = DN_ALL  then
+        if  CODI.EST_SELECTION_DYNAMIQUE( ACT_PRM )  then						--| option B : doublet {donnees, descripteur}
+	EXPRESSIONS.CODE_DOUBLET_DYNAMIQUE( ACT_PRM, "SELARG_" & NEW_LABEL );			--| (par reference, tout mode)
+
+        elsif  ACT_PRM.TY = DN_SELECTED  or else ACT_PRM.TY = DN_ALL  then
 
 	declare
 	  ACT_TYPE	: TREE	:= D( SM_EXP_TYPE, ACT_PRM );
@@ -1209,6 +1212,15 @@ separate ( EXPANDER )
 			--| bruyant pose.  Remede le jour du temoin : doublet anonyme
 			--| a la WRAP_COMPOSITE_ACTUAL_DOUBLET (use__info du type).
 	      CODI.TROU( "CODE_RETURN tableau : source reference de composant (@data)", EXP );
+
+	    elsif  EXP.TY = DN_AGGREGATE  then
+		-- return ( ... ) : CODE_EXP n'a pas de type de contexte pour l'agregat
+		-- (CODE_AGGREGATE : « type contexte absent »).  Doublet anonyme de
+		-- l'operande d'agregat, le SOUS-TYPE DE RETOUR fournissant la contrainte
+		-- d'indice applicable (LRM 4.3.2) : others et positionnel en tirent
+		-- leurs bornes s'il est contraint.
+	      EXPRESSIONS.CODE_ARRAY_OPERAND( EXP, "RET_AGG_" & NEW_LABEL, CODI.FULL_TYPE_VIEW( RETURN_SUBTYPE ),
+					CONTRAINTE_APPLICABLE => TRUE );
 
 	    else
 	      EXPRESSIONS.CODE_EXP( EXP );
@@ -1797,14 +1809,16 @@ separate ( EXPANDER )
 	EXPRESSIONS.CODE_OBJECT_ADDRESS( DST_NAME );							-- @objet designe
 
 	if  DST_TYPE.TY = DN_RECORD  then
-	  PUT( tab & "LI" & tab );
-	  CODI.REGIONS_PATH( D( XD_SOURCE_NAME, DST_TYPE ) );
+	  if  SRC_EXP.TY = DN_AGGREGATE  then								--| LEN n'est empile que pour BLKMOV : avant,
+	    EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, DST_TYPE );						--| CODE_AGGREGATE le prenait pour @DST
 
-	  PUT_LINE( '_' & PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, DST_TYPE ) ) ) & ".size" );
-	  if  SRC_EXP.TY = DN_AGGREGATE  then
-	    EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, DST_TYPE );
+	  elsif  CODI.EST_RECORD_DYNAMIQUE( DST_TYPE )  then						--| option B : LEN = __TAILLE de la source
+	    EXPRESSIONS.CODE_COPIE_RECORD_DYNAMIQUE( SRC_EXP, DST_TYPE );
 
 	  else
+	    PUT( tab & "LI" & tab );
+	    CODI.REGIONS_PATH( D( XD_SOURCE_NAME, DST_TYPE ) );
+	    PUT_LINE( '_' & PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, DST_TYPE ) ) ) & ".size" );
 			--| Vague 2 (n 112) : le "A VERIFIER" est verifie -- le La
 			--| inconditionnel etait un trou (source reference de composant
 			--| = @data nue, le La lisait un data comme un data_ptr).
@@ -1851,6 +1865,30 @@ separate ( EXPANDER )
         begin
 	if  DST_TYPE.TY = DN_CONSTRAINED_RECORD  then						-- pilier 3.7 : vue contrainte -> base
 	  DST_TYPE := D( SM_BASE_TYPE, DST_TYPE );
+	end if;
+
+	if  CODI.EST_SELECTION_DYNAMIQUE( DST_NAME )  then
+			--| Option B : destination = donnees du composant, LEN = SIZ du
+			--| descripteur (bits -> octets), source = @data (regle n 112).
+	  if  SRC_EXP.TY = DN_AGGREGATE  then
+	    CODI.TROU( "CODE_ASSIGN agregat vers composant dynamique (etape 2)", SRC_EXP );
+	  end if;
+	  declare
+	    DESC	:constant STRING	:= "__DESC" & NEW_LABEL;
+	    LVL	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	  begin
+	    PUT_LINE( "VAR " & DESC & ", Q" );
+	    EXPRESSIONS.CODE_SELECTED( DST_NAME, IS_SOURCE => FALSE );				-- @descripteur
+	    PUT_LINE( tab & "DUP" );
+	    PUT_LINE( tab & "SA" & tab & LVL & ", " & DESC );
+	    CODI.DESC_VERS_DONNEES( D( SM_DEFN, D( AS_DESIGNATOR, DST_NAME ) ) );		-- @DST
+	    PUT_LINE( tab & "LID" & tab & LVL & ", " & DESC & "," & INTEGER'IMAGE( CODI.DESC_SIZ ) );
+	    PUT_LINE( tab & "LI" & tab & "3" );
+	    PUT_LINE( tab & "SAR" );									-- LEN
+	    EXPRESSIONS.CODE_COMPOSITE_DATA_ADDRESS( SRC_EXP );						-- @SRC
+	    PUT_LINE( tab & "BLKMOV" );
+	  end;
+	  return;
 	end if;
 
       -- Calculer l'adresse destination : @R.C, @A(I).C, etc.
@@ -2122,6 +2160,9 @@ separate ( EXPANDER )
 
 	    if  SRC_EXP.TY = DN_AGGREGATE  then
 	      EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, REC_TYPE );
+
+	    elsif  CODI.EST_RECORD_DYNAMIQUE( REC_TYPE )  then						--| option B : LEN = __TAILLE de la source
+	      EXPRESSIONS.CODE_COPIE_RECORD_DYNAMIQUE( SRC_EXP, REC_TYPE );
 
 	    else
 	      PUT( tab & "LI" & tab );

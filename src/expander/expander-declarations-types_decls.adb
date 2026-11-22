@@ -558,6 +558,10 @@ is
       COMP_TYPE := D( SM_TYPE_SPEC, COMP_TYPE );
     end if;
 
+    if  CODI.EST_RECORD_DYNAMIQUE( COMP_TYPE )  then						--| option B : pas de taille d'ELEMENT statique
+      CODI.TROU( "PROCESS_CONSTRAINED_ARRAY_TYPE_SPEC tableau de records dynamiques (taille max : etape 3)", COMP_TYPE );
+    end if;
+
     declare
       COMP_SIZE_TREE	: TREE			:= TREE_VOID;
       IS_STATIC		: BOOLEAN			:= COMP_SIZE_TREE /= TREE_VOID;
@@ -1042,6 +1046,7 @@ is
     LVL_STR		:constant STRING		:= IMAGE( LVL );
     IS_STATIC		: BOOLEAN			:= TRUE;
     STATIC_SIZE		: NATURAL			:= 0;
+    EST_DYNAMIQUE		: BOOLEAN			:= FALSE;				--| composant(s) dependant d'un discriminant (option B)
 
 
     function  STATIC_TYPE_SIZE_BITS	( T :TREE )	return NATURAL;
@@ -1468,6 +1473,8 @@ is
       return;
     end if;
 
+    EST_DYNAMIQUE := CODI.EST_RECORD_DYNAMIQUE( TYPE_SPEC );
+
     DI( CD_LEVEL,	  TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );
     DB( CD_COMPILED,  TYPE_SPEC, TRUE );
 
@@ -1556,7 +1563,14 @@ is
 	        LOCAL_INFO_STR	:constant STRING	:= '_' & COMP_ID_STR & "__type";
 
 	      begin
-	        if  COMP_TYPE.TY = DN_CONSTRAINED_ARRAY  then
+	        if  CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
+		--| Option B : bornes propres a chaque OBJET -- elles vivent dans le
+		--| descripteur de l'objet (CODE_INIT_DESCRIPTEURS), pas dans un bloc
+		--| info de niveau type. CD_LEVEL pose pour les lecteurs (TYPE_LVL de
+		--| CODE_INDEXED), sans bloc derriere.
+		DI( CD_LEVEL, COMP_TYPE, INTEGER( CODI.CUR_LEVEL ) );
+
+	        elsif  COMP_TYPE.TY = DN_CONSTRAINED_ARRAY  then
 		--| Piege n 46 generalise aux COMPOSANTS (session 5 aout) : le noeud
 		--| DN_CONSTRAINED_ARRAY anonyme revient CD_COMPILED=TRUE au compile du
 		--| CORPS (rechargement DCL apres la spec) -> le bloc info imbrique
@@ -1604,7 +1618,7 @@ is
 		PUT_LINE( COMP_TYPE_STR & ".use__info" );
 	        end if;
 
-	        if  STATIC_TYPE_SIZE_BITS( COMP_TYPE ) = 0  then
+	        if  STATIC_TYPE_SIZE_BITS( COMP_TYPE ) = 0  and then  not CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
 		IS_STATIC := FALSE;
 	        end if;
 
@@ -1738,7 +1752,22 @@ is
 	        COMP_SIZE		: NATURAL;
 
 	      begin
-	        if  IS_STATIC  then
+	        if  IS_STATIC  and then  CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
+		--| Option B : DESCRIPTEUR dans la partie statique (aligne sur 4).
+		declare
+		  IDX_S	: SEQ_TYPE	:= LIST( D( SM_INDEX_SUBTYPE_S, COMP_TYPE ) );
+		  IDX	: TREE;
+		begin
+		  POP( IDX_S, IDX );
+		  if  not IS_EMPTY( IDX_S )  then
+		    CODI.TROU( "CODE_RECORD_DECL composant dynamique multi-dimensions (descripteur 1-dim)", COMP_TYPE );
+		  end if;
+		end;
+		PUT_LINE( "STATOFS " & COMP_ID_STR & ',' & INTEGER'IMAGE( CODI.DESC_TAILLE ) & ", 4" );
+		STATIC_SIZE := ( ( STATIC_SIZE + 31 ) / 32 ) * 32
+			   + CODI.DESC_TAILLE * CODI.STORAGE_UNIT;
+
+	        elsif  IS_STATIC  then
 		COMP_SIZE := STATIC_TYPE_SIZE_BITS( COMP_TYPE );
 		if  COMP_SIZE = 0  then
 		  PUT_LINE( "; OFFSET NON STATIQUE A FAIRE ; taille inconnue pour " & COMP_ID_STR );
@@ -1795,12 +1824,19 @@ is
     begin
       TRAITER_COMP_LIST( D( SM_COMP_LIST, TYPE_SPEC ) );
 
+      if  IS_STATIC  and then  EST_DYNAMIQUE  then
+        PUT_LINE( "STATOFS __TAILLE, 4, 4" );								--| taille totale de l'OBJET (octets)
+        STATIC_SIZE := ( ( STATIC_SIZE + 31 ) / 32 ) * 32 + 32;
+      end if;
+
       if  IS_STATIC  then
-        PUT_LINE( "size = $" );
+        PUT_LINE( "size = $" );									--| record dynamique : partie STATIQUE seule
         PUT_LINE( "end virtual" );
         PUT_LINE( tab & "LI" & tab & " size*" & IMAGE( CODI.STORAGE_UNIT ) );
         PUT_LINE( tab & "SD" & tab & LVL_STR & ", SIZ__" );							-- Taille du patron
-        DI( CD_IMPL_SIZE, TYPE_SPEC, STATIC_SIZE );
+        if  not EST_DYNAMIQUE  then									--| pas de taille statique d'OBJET : un
+	DI( CD_IMPL_SIZE, TYPE_SPEC, STATIC_SIZE );							--| lecteur non adapte leve bruyamment
+        end if;
       end if;
 
       if  D( SM_SIZE, TYPE_SPEC ) /= TREE_VOID  then

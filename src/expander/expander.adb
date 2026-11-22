@@ -187,6 +187,37 @@ is
 
     function  EXIT_UNLINK_MNEMONIC	( HEADER :TREE )			return STRING;			--| chantier co-pile (n 163) : "UNLINKR" (rend la co-pile) ou "UNLINK" (garde : resultat tableau)
 
+			-- RECORDS A COMPOSANTS DEPENDANT DES DISCRIMINANTS (option B,
+			-- claude/conception_records_discriminants.md).  Un composant tableau
+			-- contraint par un discriminant est DYNAMIQUE : sa place dans la partie
+			-- statique est un DESCRIPTEUR [ SIZ | COMP_SIZ | FST_1 | LST_1 | OFS ]
+			-- (bloc info 1-dim suivi du deplacement de ses donnees depuis le debut
+			-- de l'objet) ; la partie statique porte aussi __TAILLE, taille totale.
+
+    DESC_SIZ			: constant		:= 0;						--| deplacements dans un descripteur (octets)
+    DESC_COMP_SIZ			: constant		:= 4;
+    DESC_FST_1			: constant		:= 8;
+    DESC_LST_1			: constant		:= 12;
+    DESC_OFS			: constant		:= 16;
+    DESC_TAILLE			: constant		:= 20;						--| taille d'un descripteur
+
+    function  CONTIENT_DISCRIMINANT	( EXP :TREE )			return BOOLEAN;			--| EXP reference un discriminant (bornes, LRM 3.7.1)
+    function  EST_COMPOSANT_DYNAMIQUE	( COMP_ID :TREE )			return BOOLEAN;			--| composant tableau contraint par un discriminant
+    function  EST_RECORD_DYNAMIQUE	( REC_TYPE :TREE )		return BOOLEAN;			--| record (vue quelconque) a composant(s) dynamique(s)
+    procedure DESC_VERS_DONNEES	( COMP_ID :TREE );							--| pile : @descripteur -> @donnees du composant
+    function  EST_SELECTION_DYNAMIQUE	( NAME :TREE )			return BOOLEAN;			--| NAME = R.A, A composant dynamique
+    function  A_DISCRIMINANTS_PAR_DEFAUT	( REC_TYPE :TREE )		return BOOLEAN;			--| discriminants avec valeur par defaut (LRM 3.7.1)
+
+			-- OBJET RECORD COURANT : un discriminant lu en contexte d'expression
+			-- (bornes, valeurs par defaut) l'est dans l'objet dont l'adresse est
+			-- dans la variable de cadre REC_COURANT_NOM, au niveau REC_COURANT_LVL.
+			-- REC_COURANT_LEN = 0 : pas d'objet courant (TROU au site de lecture).
+    REC_COURANT_NOM			: STRING( 1 .. 64 );
+    REC_COURANT_LEN			: NATURAL			:= 0;
+    REC_COURANT_LVL			: LEVEL_NUM		:= 0;
+    procedure POSER_REC_COURANT	( LVL :LEVEL_NUM; NOM :STRING );
+    procedure OTER_REC_COURANT;
+
     OPERAND_OVERFLOW		: exception;
 
 
@@ -217,7 +248,10 @@ is
     procedure CODE_AGGREGATE		( AGGREGATE, TYPE_SPEC	:TREE; DST_SLICE_RANGE :TREE := TREE_VOID );
     procedure CODE_OBJECT_ADDRESS	( NAME : TREE );
     procedure CODE_COMPOSITE_DATA_ADDRESS( EXP : TREE );
-    procedure CODE_ARRAY_OPERAND	( E :TREE; ANON :STRING; CONTEXT_TYPE :TREE );
+    procedure CODE_DOUBLET_DYNAMIQUE	( SELECTED :TREE; ANON :STRING );					--| option B : R.A dynamique -> @doublet {donnees, descripteur}
+    procedure CODE_COPIE_RECORD_DYNAMIQUE	( SRC_EXP :TREE; REC_TYPE :TREE );					--| option B : pile @DST -> (copie de __TAILLE(source) octets)
+    procedure CODE_ARRAY_OPERAND	( E :TREE; ANON :STRING; CONTEXT_TYPE :TREE;
+				  CONTRAINTE_APPLICABLE :BOOLEAN := FALSE );					--| LRM 4.3.2 : CONTEXT_TYPE contraint fournit les bornes
     function  IS_GENERIC_FORMAL_TYPE	( TYPE_DEFN	:TREE )		return BOOLEAN;
     function  IS_GENERIC_FORMAL_OBJECT  ( DEFN		:TREE )		return BOOLEAN;
     function  IS_GENERIC_FORMAL_SUBPROGRAM( ID		:TREE )		return BOOLEAN;
@@ -297,6 +331,10 @@ is
     procedure CODE_HEADER		( HEADER :TREE );
     procedure CODE_PACKAGE_SPEC	( PACKAGE_SPEC :TREE );
     procedure CODE_GENERIC_DECL	( GENERIC_DECL :TREE );
+    procedure CODE_INIT_DESCRIPTEURS	( REC_TYPE :TREE; OBJ_LVL :LEVEL_NUM; OBJ_VAR :STRING );		--| option B : descripteurs et __TAILLE de l'objet
+												--| dont l'adresse est dans la variable OBJ_VAR
+    procedure CODE_OBJET_DYNAMIQUE	( REC_TYPE :TREE; DSCRMT_EXP_S :SEQ_TYPE; SUR_LE_TAS :BOOLEAN );	--| option B : pile -> @objet neuf (discriminants de
+												--| DSCRMT_EXP_S, descripteurs, bloc de __TAILLE octets)
 
 
   private
