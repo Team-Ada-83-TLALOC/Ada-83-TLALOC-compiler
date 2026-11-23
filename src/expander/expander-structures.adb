@@ -288,7 +288,7 @@ is
 	      GOBJ_TYPE := D( SM_TYPE_SPEC, GOBJ_TYPE );
 	    end loop;
 
-	    if  GOBJ_TYPE.TY in CLASS_SCALAR  or else  GOBJ_TYPE.TY = DN_ACCESS  then
+	    if  GOBJ_TYPE.TY in CLASS_SCALAR  or else  CODI.EST_ACCES( GOBJ_TYPE )  then
 	         -- Objet formel scalaire :
 	         -- slot unique X_ofs, utilisé par LVA , -X_ofs
 	         --

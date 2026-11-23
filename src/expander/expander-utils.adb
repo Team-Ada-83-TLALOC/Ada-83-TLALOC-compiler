@@ -174,7 +174,7 @@ is					-----
 
   begin
     case TYPE_SPEC.TY is
-    when DN_ACCESS			=> return ADDR_SIZE;
+    when DN_ACCESS | DN_CONSTRAINED_ACCESS			=> return ADDR_SIZE;
     when DN_RECORD
 	=> return ( DI( CD_IMPL_SIZE, TYPE_SPEC ) + STORAGE_UNIT - 1 ) / STORAGE_UNIT;
     when DN_CONSTRAINED_RECORD
@@ -241,12 +241,86 @@ is					-----
       elsif R.TY = DN_INCOMPLETE then
         R := D( XD_FULL_TYPE_SPEC, R );
 
+      elsif R.TY = DN_CONSTRAINED_ACCESS then
+			--| Sous-type d'acces contraint (LRM 3.8) : representation du
+			--| type de base.  La contrainte ne sert qu'aux CONTROLES, lus sur
+			--| la vue brute (CODE_RANGE_CHECK -> CODE_ACCESS_CONSTRAINT_CHECK).
+        R := D( SM_BASE_TYPE, R );
+
       else
         return R;
       end if;
     end loop;
 
   end	FULL_TYPE_VIEW;
+	--------------
+
+
+			--^^^^^^^^^--
+  function		  EST_ACCES		( T : TREE )	return BOOLEAN
+  is			-----------
+	-- Type d'acces, ou SOUS-TYPE d'acces contraint (meme representation :
+	-- une adresse).  Les attributs de representation (CD_LEVEL, CD_IMPL_SIZE)
+	-- vivent sur la base : passer par FULL_TYPE_VIEW pour les lire.
+  begin
+    return  T.TY = DN_ACCESS  or else  T.TY = DN_CONSTRAINED_ACCESS;
+  end	EST_ACCES;
+	---------
+
+
+			--^^^^^^^^^^^^^^^^^^^^--
+  function		  TABLEAU_DESIGNE		( ACC_TYPE : TREE )	return TREE
+  is			----------------------
+	-- Q1b : designe du TYPE DE BASE d'un acces (vue complete), ou TREE_VOID
+	-- si ACC_TYPE n'est pas un acces.
+    A		: TREE	:= FULL_TYPE_VIEW( ACC_TYPE );
+  begin
+    if  A = TREE_VOID  or else  not EST_ACCES( A )  then
+      return TREE_VOID;
+    end if;
+    return FULL_TYPE_VIEW( D( SM_DESIG_TYPE, A ) );
+  end	TABLEAU_DESIGNE;
+	---------------
+
+
+			--^^^^^^^^^^^^^^^^^^^^--
+  function		  EST_ACCES_TABLEAU_NC	( ACC_TYPE : TREE )	return BOOLEAN
+  is			----------------------
+	-- Q1b : l'objet designe porte ses bornes dans un EN-TETE place devant
+	-- ses donnees (bloc info ordinaire), la valeur d'acces restant l'@donnees.
+	-- Decide par le designe du TYPE DE BASE : un sous-type contraint d'un tel
+	-- acces garde l'en-tete ; un acces a tableau contraint n'en a pas.
+    DES		: TREE	:= TABLEAU_DESIGNE( ACC_TYPE );
+  begin
+    return  DES /= TREE_VOID  and then  DES.TY = DN_ARRAY;
+  end	EST_ACCES_TABLEAU_NC;
+	--------------------
+
+
+			--^^^^^^^^^^^^^^^^^^^^--
+  function		  TAILLE_INFO_TABLEAU	( ARR : TREE )		return NATURAL
+  is			----------------------
+	-- Bloc info a n dimensions : SIZ, puis COMP_SIZ FST_n LST_n, puis
+	-- SIZ_k FST_k LST_k pour k = n-1 .. 1 (USEINFO_OFFSETS) : 4 + 12 n.
+    IDX_S		: SEQ_TYPE	:= LIST( D( SM_INDEX_S, ARR ) );
+    IDX		: TREE;
+    N		: NATURAL		:= 0;
+  begin
+    while  not IS_EMPTY( IDX_S )  loop
+      POP( IDX_S, IDX );
+      N := N + 1;
+    end loop;
+    return 4 + 12 * N;
+  end	TAILLE_INFO_TABLEAU;
+	-------------------
+
+
+			--^^^^^^^^^^^^^^--
+  function		  TAILLE_EN_TETE	( ARR : TREE )		return NATURAL
+  is			----------------
+  begin
+    return ( ( TAILLE_INFO_TABLEAU( ARR ) + 7 ) / 8 ) * 8;					-- 16, 32, 40 ...
+  end	TAILLE_EN_TETE;
 	--------------
 
 
@@ -277,7 +351,7 @@ is					-----
 
       begin
         case TYPE_SPEC.TY is
-        when DN_ACCESS =>
+        when DN_ACCESS | DN_CONSTRAINED_ACCESS =>
 	return 'A';
 
         when DN_ENUMERATION =>
@@ -369,7 +443,7 @@ is					-----
   function		  OPER_SIZ_CHAR		( DEFN :TREE )		return CHARACTER
   is			--=============--
   begin
-    if  DEFN.TY = DN_FLOAT  or  DEFN.TY = DN_ACCESS  then return 'Q'; end if;
+    if  DEFN.TY = DN_FLOAT  or  EST_ACCES( DEFN )  then return 'Q'; end if;
 
     declare
       TS		: TREE		:= DEFN;
@@ -415,7 +489,7 @@ is					-----
 
   begin
     -- Les flottants sont toujours en double IEEE 754 = 64 bits = qword
-    if  EXP_TYPE.TY = DN_FLOAT  or  EXP_TYPE.TY = DN_ACCESS then return 'Q'; end if;
+    if  EXP_TYPE.TY = DN_FLOAT  or  EST_ACCES( EXP_TYPE ) then return 'Q'; end if;
     declare
       SIZ		: NATURAL		:= DI( CD_IMPL_SIZE, EXP_TYPE );
     begin
@@ -595,7 +669,7 @@ is					-----
 
 	PUT_LINE( tab & "LA " & IMAGE( CODI.GENERIC_BASE_LEVEL + 1 ) & "," & tab & "-GFP_ofs" );
 
-	if  OBJ_TYPE.TY in CLASS_SCALAR  or else  OBJ_TYPE.TY = DN_ACCESS  then
+	if  OBJ_TYPE.TY in CLASS_SCALAR  or else  EST_ACCES( OBJ_TYPE )  then
 	  PUT_LINE( tab & OPER_LOAD_STR( OBJ_TYPE ) & " ," & tab & "-" & DEFN_STR & "_ofs" );
 
 	else
@@ -608,7 +682,7 @@ is					-----
 
     if  DEFN.TY in CLASS_PARAM_NAME  then								-- in_id in_out_id out_id
       if  (DEFN.TY = DN_IN_ID) and (D( SM_OBJ_TYPE, DEFN ).TY in CLASS_SCALAR
-			or else D( SM_OBJ_TYPE, DEFN ).TY = DN_ACCESS)	then
+			or else EST_ACCES( D( SM_OBJ_TYPE, DEFN ) ))	then
 
 				-------------------
 				SCALAR_IN_PARAMETER:
@@ -621,7 +695,7 @@ is					-----
 			-------------------
 
       elsif  D( SM_OBJ_TYPE, DEFN ).TY in CLASS_SCALAR
-	or else  D( SM_OBJ_TYPE, DEFN ).TY = DN_ACCESS  then						-- out/in_out SCALAIRE lu en expression :
+	or else  EST_ACCES( D( SM_OBJ_TYPE, DEFN ) )  then						-- out/in_out SCALAIRE lu en expression :
 
 				--------------------							-- le slot contient l'ADRESSE, dereferencer
 				SCALAR_REF_PARAMETER:							-- (meme geste que la re-passe out->in de
@@ -656,7 +730,7 @@ is					-----
 	  OBJ_STR		: constant STRING	:= PRINT_NAME( D( LX_SYMREP, DEFN ) );
 	begin
 
-	  if  OBJ_TYPE.TY in CLASS_SCALAR  or else OBJ_TYPE.TY = DN_ACCESS  then
+	  if  OBJ_TYPE.TY in CLASS_SCALAR  or else EST_ACCES( OBJ_TYPE )  then
 	    PUT( tab & OPER_LOADI_STR( OBJ_TYPE ) & tab & IMAGE( OBJ_LEVEL ) & ", " );
 	    REGIONS_PATH( DEFN );
 	    PUT_LINE( OBJ_STR & "_disp, 0" );
@@ -670,7 +744,7 @@ is					-----
 			---------------
         end if;
 
-        if  OBJ_TYPE.TY in CLASS_SCALAR  or else OBJ_TYPE.TY = DN_ACCESS  then
+        if  OBJ_TYPE.TY in CLASS_SCALAR  or else EST_ACCES( OBJ_TYPE )  then
 	declare
 	  DEFN_LVL	: INTEGER		:= DI( CD_LEVEL, DEFN );
 
@@ -1067,8 +1141,12 @@ end	SUBPROGRAM_ORIGIN;
     end if;
     RESULT_TS := FULL_TYPE_VIEW( RESULT_TS );
 
+    if  EST_RECORD_DYNAMIQUE( RESULT_TS )  then							-- option B, etape 3 : l'appele alloue le
+      return "UNLINK";										-- resultat sur SA co-pile (contrat d'evasion)
+    end if;
+
     if  RESULT_TS.TY in CLASS_SCALAR
-    or else  RESULT_TS.TY = DN_ACCESS
+    or else  EST_ACCES( RESULT_TS )
     or else  RESULT_TS.TY = DN_RECORD
     or else  RESULT_TS.TY = DN_CONSTRAINED_RECORD
     then
@@ -1118,8 +1196,52 @@ end	SUBPROGRAM_ORIGIN;
 
 
 		--^^^^^^^^^^^^^^^^^^^^^^^--
+  function	  EST_COMPOSANT_REGULIER	( COMP_ID :TREE )	return BOOLEAN
+  is		----------------------
+	-- Composant tableau dont les bornes, NON statiques, ne dependent d'aucun
+	-- discriminant : evaluees UNE fois a l'elaboration du sous-type nomme ou
+	-- du type record (bloc info _<comp>__type).  Marque posee par
+	-- CODE_RECORD_DECL : CD_ALIGNMENT( sous-type ) = 2.  Traite comme un
+	-- composant dynamique de l'option B (descripteur dans l'objet).
+    T		: TREE;
+  begin
+    if  COMP_ID.TY /= DN_COMPONENT_ID  then
+      return  FALSE;
+    end if;
+    T := D( SM_OBJ_TYPE, COMP_ID );
+    return  T.TY = DN_CONSTRAINED_ARRAY  and then  MARQUE_ALIGNEMENT( T ) = 2;
+  end	EST_COMPOSANT_REGULIER;
+	----------------------
+
+
+		--^^^^^^^^^^^^^^^^^--
+  function	  MARQUE_ALIGNEMENT	( T :TREE )	return INTEGER
+  is		-----------------
+	-- CD_ALIGNMENT sert de MARQUE a l'expanseur (inutilise sinon) : 1 =
+	-- contrainte de discriminants elaboree, 2 = composant regulier.  Jamais
+	-- pose sur certains noeuds : valeur vierge (pas un entier) -> -1.
+    V		: TREE	:= D( CD_ALIGNMENT, T );
+  begin
+    if  V.PT = HI  and then  V.NOTY = DN_NUM_VAL  then
+      return  DI( CD_ALIGNMENT, T );
+    end if;
+    return  -1;
+  end	MARQUE_ALIGNEMENT;
+	-----------------
+
+
+		--^^^^^^^^^^^^^^^^^^^^^^^--
   function	  EST_COMPOSANT_DYNAMIQUE	( COMP_ID :TREE )	return BOOLEAN
   is		---------------------------
+  begin
+    return  EST_COMPOSANT_DISCR( COMP_ID )  or else  EST_COMPOSANT_REGULIER( COMP_ID );
+  end	EST_COMPOSANT_DYNAMIQUE;
+	-----------------------
+
+
+		--^^^^^^^^^^^^^^^^^^^--
+  function	  EST_COMPOSANT_DISCR	( COMP_ID :TREE )	return BOOLEAN
+  is		-------------------
 	-- Composant de sous-type tableau dont une borne d'indice (SM_RANGE des
 	-- sous-types d'indice, la ou CODE_EXP butait) reference un discriminant.
     T		: TREE;
@@ -1146,8 +1268,8 @@ end	SUBPROGRAM_ORIGIN;
     end loop;
     return  FALSE;
 
-  end	EST_COMPOSANT_DYNAMIQUE;
-	-----------------------
+  end	EST_COMPOSANT_DISCR;
+	-------------------
 
 
 		--^^^^^^^^^^^^^^^^^^^^--

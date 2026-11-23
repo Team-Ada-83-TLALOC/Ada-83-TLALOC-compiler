@@ -1,0 +1,5 @@
+#!/bin/bash
+# diana.bin for T1 is incompatible with diana.bin for TLALOC. Remove, will be regenerated form diana.tbl
+rm diana.bin
+# simplest form : COMPILE source_name
+./T2.exe <<< "$*"

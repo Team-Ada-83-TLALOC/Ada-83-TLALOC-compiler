@@ -48,6 +48,36 @@ is
 
     elsif  TYPE_SPEC.TY = DN_ACCESS		then  CODE_ACCESS_DECL	     ( TYPE_DECL );
 
+    elsif  TYPE_SPEC.TY = DN_CONSTRAINED_ACCESS  then
+			--| type T is access R (e) : l'analyse donne un sous-type d'acces
+			--| contraint d'une base anonyme.  Contrainte du designe evaluee
+			--| UNE fois, controlee, rangee (<type>.__D_x) -- LRM 3.3.2, 3.7.2
+      declare
+        TYPE_STR	:constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, TYPE_NAME ) );
+        DES	: TREE		:= D( SM_DESIG_TYPE, TYPE_SPEC );
+      begin
+        DI( CD_LEVEL,    TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );
+        DB( CD_COMPILED, TYPE_SPEC, TRUE );
+        PUT_LINE( TYPE_STR & " = '" & TYPE_STR & "'" );
+        PUT_LINE( "namespace " & TYPE_STR );
+        PUT_LINE( "VAR use__info, Q" );								-- patron d'acces (comme
+        PUT_LINE( "VAR SIZ__, D" );									-- CODE_ACCESS_DECL) : lu par
+        PUT_LINE( tab & "LVA" & tab & IMAGE( CODI.CUR_LEVEL ) & ", SIZ__" );				-- les actuels generiques
+        PUT_LINE( tab & "SA"  & tab & IMAGE( CODI.CUR_LEVEL ) & ", use__info" );
+        PUT_LINE( tab & "LI"  & tab & IMAGE( CODI.ADDR_SIZE * CODI.STORAGE_UNIT ) );
+        PUT_LINE( tab & "SD"  & tab & IMAGE( CODI.CUR_LEVEL ) & ", SIZ__" );
+        PUT_LINE( "VAR DESIG__u, Q" );
+        PUT_LINE( tab & "LI" & tab & "0" );								-- designe anonyme : pas de patron
+        PUT_LINE( tab & "SA" & tab & IMAGE( CODI.CUR_LEVEL ) & ", DESIG__u" );
+        if  DES.TY = DN_CONSTRAINED_RECORD
+	and then  not ( D( XD_SOURCE_NAME, DES ).TY = DN_SUBTYPE_ID
+		    and then  D( SM_TYPE_SPEC, D( XD_SOURCE_NAME, DES ) ) = DES )
+        then
+	EXPRESSIONS.ELABORER_DISCRIMINANTS( DES );
+        end if;
+        PUT_LINE( "end namespace" );
+      end;
+
 			-- PRIVATE / LIMITED PRIVATE / INCOMPLETE TYPES
 
     elsif  TYPE_SPEC.TY = DN_PRIVATE  or  TYPE_SPEC.TY = DN_L_PRIVATE  then
@@ -643,7 +673,7 @@ is
         RAW	: INTEGER;
 
       begin
-        if  TS.TY = DN_ACCESS  or else  TS.TY = DN_FLOAT  then
+        if  CODI.EST_ACCES( TS )  or else  TS.TY = DN_FLOAT  then
           return  CODI.ADDR_SIZE * CODI.STORAGE_UNIT;
 
         elsif  TS.TY = DN_CONSTRAINED_ARRAY  then
@@ -950,7 +980,7 @@ is
 	--------------------
 
   begin
-    if  COMP_TYPE.TY = DN_ACCESS  or else  COMP_TYPE.TY in CLASS_SCALAR  then
+    if  CODI.EST_ACCES( COMP_TYPE )  or else  COMP_TYPE.TY in CLASS_SCALAR  then
       IS_STATIC := TRUE;
     else
       COMP_SIZE_TREE := D( CD_IMPL_SIZE, COMP_TYPE );
@@ -1374,7 +1404,7 @@ is
         return  0;											-- INTENTIONNEL : vue vide -> non statique
       end if;
 
-      if  TS.TY = DN_ACCESS  then
+      if  CODI.EST_ACCES( TS )  then
         return  CODI.ADDR_SIZE * CODI.STORAGE_UNIT;
 
       elsif  TS.TY = DN_RECORD  then
@@ -1473,6 +1503,78 @@ is
       return;
     end if;
 
+			-------------------------
+			MARQUER_LES_REGULIERS:
+    declare
+	-- Composant tableau a bornes NON statiques, hors discriminant (A : S
+	-- avec S IS ARR (1 .. F (X)), ou A : ARR (1 .. F (X))) : ses bornes
+	-- sont elaborees UNE fois au type (patron du sous-type nomme, ou bloc
+	-- local _<comp>__type ci-dessous) ; l'objet le porte comme un composant
+	-- DYNAMIQUE de l'option B.  Marque CD_ALIGNMENT( sous-type ) = 2.
+		-------------
+      procedure	MARQUER_LISTE	( CL :TREE )
+      is		-------------
+        DECL_S	: SEQ_TYPE;
+        DECL	: TREE;
+        ID_S	: SEQ_TYPE;
+        ID	: TREE;
+        T	: TREE;
+      begin
+        if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+	return;
+        end if;
+        DECL_S := LIST( D( AS_DECL_S, CL ) );
+        while  not IS_EMPTY( DECL_S )  loop
+	POP( DECL_S, DECL );
+	if  DECL.TY /= DN_NULL_COMP_DECL  then
+	  ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	  while  not IS_EMPTY( ID_S )  loop
+	    POP( ID_S, ID );
+	    T := D( SM_OBJ_TYPE, ID );
+	    if  T.TY = DN_CONSTRAINED_ARRAY
+	      and then  not CODI.EST_COMPOSANT_DISCR( ID )
+	      and then  STATIC_TYPE_SIZE_BITS( T ) = 0
+	    then
+	      declare
+	        IDX_S	: SEQ_TYPE	:= LIST( D( SM_INDEX_SUBTYPE_S, T ) );
+	        IDX	: TREE;
+	        ELEM	: TREE		:= FULL_TYPE_VIEW( D( SM_COMP_TYPE, D( SM_BASE_TYPE, T ) ) );
+	      begin
+	        POP( IDX_S, IDX );
+	        if  IS_EMPTY( IDX_S )								-- 1 dimension (descripteur 1-dim)
+		and then  ( CODI.EST_ACCES( ELEM )  or else  ELEM.TY = DN_FLOAT
+			  or else  ( D( CD_IMPL_SIZE, ELEM ) /= TREE_VOID
+				   and then  DI( CD_IMPL_SIZE, ELEM ) > 0 ) )		-- element de taille statique
+	        then
+		DI( CD_ALIGNMENT, T, 2 );
+	        end if;
+	      end;
+	    end if;
+	  end loop;
+	end if;
+        end loop;
+        declare
+	VP	: TREE	:= D( AS_VARIANT_PART, CL );
+	VAR_S	: SEQ_TYPE;
+	VAR_E	: TREE;
+        begin
+	if  VP /= TREE_VOID  and then  VP /= TREE_NIL  then
+	  VAR_S := LIST( D( AS_VARIANT_S, VP ) );
+	  while  not IS_EMPTY( VAR_S )  loop
+	    POP( VAR_S, VAR_E );
+	    if  VAR_E.TY = DN_VARIANT  then
+	      MARQUER_LISTE( D( AS_COMP_LIST, VAR_E ) );
+	    end if;
+	  end loop;
+	end if;
+        end;
+      end	MARQUER_LISTE;
+	-------------
+    begin
+      MARQUER_LISTE( D( SM_COMP_LIST, TYPE_SPEC ) );
+    end	MARQUER_LES_REGULIERS;
+	---------------------
+
     EST_DYNAMIQUE := CODI.EST_RECORD_DYNAMIQUE( TYPE_SPEC );
 
     DI( CD_LEVEL,	  TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );
@@ -1563,7 +1665,7 @@ is
 	        LOCAL_INFO_STR	:constant STRING	:= '_' & COMP_ID_STR & "__type";
 
 	      begin
-	        if  CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
+	        if  CODI.EST_COMPOSANT_DISCR( COMP_ID )  then					--| (un composant REGULIER garde son bloc info :
 		--| Option B : bornes propres a chaque OBJET -- elles vivent dans le
 		--| descripteur de l'objet (CODE_INIT_DESCRIPTEURS), pas dans un bloc
 		--| info de niveau type. CD_LEVEL pose pour les lecteurs (TYPE_LVL de
@@ -1613,7 +1715,7 @@ is
 
 	        else
 		PUT( "USEINFO " & LVL_STR & ", " & COMP_ID_STR & ", " );
-		PUT( tab & "LA " & IMAGE( DI( CD_LEVEL, COMP_TYPE ) ) & ", " );
+		PUT( tab & "LA " & IMAGE( DI( CD_LEVEL, FULL_TYPE_VIEW( COMP_TYPE ) ) ) & ", " );	--| ACR (F) : niveau de la base
 		REGIONS_PATH( COMP_TYPE_NAME );
 		PUT_LINE( COMP_TYPE_STR & ".use__info" );
 	        end if;
@@ -1826,7 +1928,8 @@ is
 
       if  IS_STATIC  and then  EST_DYNAMIQUE  then
         PUT_LINE( "STATOFS __TAILLE, 4, 4" );								--| taille totale de l'OBJET (octets)
-        STATIC_SIZE := ( ( STATIC_SIZE + 31 ) / 32 ) * 32 + 32;
+        PUT_LINE( "STATOFS __MUTABLE, 4, 4" );								--| /= 0 : objet NON CONTRAINT (taille max,
+        STATIC_SIZE := ( ( STATIC_SIZE + 31 ) / 32 ) * 32 + 64;						--| discriminants modifiables, LRM 3.7.1)
       end if;
 
       if  IS_STATIC  then
@@ -1962,6 +2065,10 @@ begin
   EMIT_BASE_PREFIX;
   PUT_LINE( ".SIZ__" );
 
+  PUT( "SIZ__ = " );								-- objet d'un sous-type NOMME :
+  EMIT_BASE_PREFIX;								-- COMPILE_RECORD_VAR lit <sous-type>.SIZ__
+  PUT_LINE( ".SIZ__" );
+
   PUT( "size = " );
   EMIT_BASE_PREFIX;
   PUT_LINE( ".size" );
@@ -1988,6 +2095,11 @@ begin
 
   -- Composants ordinaires et variants du record racine.
   EMIT_COMP_LIST_ALIASES( D( SM_COMP_LIST, BASE_REC ) );
+
+  -- LRM 3.7.2 : contrainte evaluee UNE fois, controlee, rangee (<vue>.__D_x)
+  if  TYPE_SPEC.TY = DN_CONSTRAINED_RECORD  and then  D( XD_SOURCE_NAME, TYPE_SPEC ) = TYPE_NAME  then
+    EXPRESSIONS.ELABORER_DISCRIMINANTS( TYPE_SPEC );
+  end if;
 
   PUT_LINE( "end namespace" );
 
@@ -2111,6 +2223,14 @@ begin
     end if;
 
     PUT_LINE( tab & "SA" & tab & LVL_STR & ", DESIG__u" );
+
+    -- access R (e) : contrainte ANONYME du designe, elaboree ici (<type>.__D_x)
+    if  RAW_DESIG_TYPE.TY = DN_CONSTRAINED_RECORD
+      and then  not ( D( XD_SOURCE_NAME, RAW_DESIG_TYPE ).TY = DN_SUBTYPE_ID
+		  and then  D( SM_TYPE_SPEC, D( XD_SOURCE_NAME, RAW_DESIG_TYPE ) ) = RAW_DESIG_TYPE )
+    then
+      EXPRESSIONS.ELABORER_DISCRIMINANTS( RAW_DESIG_TYPE );
+    end if;
     PUT_LINE( "end namespace" );
 
   end	CODE_ACCESS_DECL;
@@ -2137,6 +2257,55 @@ begin
         PUT_LINE( "; CODE_SUBTYPE_DECL : skip INCOMPLETE subtype " & SUBTYPE_STR & " (deferred to full type)" );
       end if;
       return;
+    end if;
+
+    if  TYPE_SPEC.TY = DN_RECORD  then
+			--| subtype SS is S, S record : TYPE_SPEC EST le noeud de S (aucun
+			--| noeud neuf).  Ne pas ecraser son CD_LEVEL ; exporter les alias
+			--| de la vue (<SS>.size, .SIZ__, .use__info, champs) que lisent
+			--| les sites qui nomment le sous-type (COMPILE_RECORD_VAR...).
+      declare
+        BASE	: TREE	:= D( SM_BASE_TYPE, TYPE_SPEC );
+        MARQUE	: TREE	:= D( AS_NAME, D( AS_SUBTYPE_INDICATION, SUBTYPE_DECL ) );
+        TYPE_ID	: TREE	:= TREE_VOID;
+      begin
+        if  MARQUE.TY = DN_USED_NAME_ID  or else  MARQUE.TY = DN_SELECTED  then
+	if  MARQUE.TY = DN_SELECTED  then
+	  MARQUE := D( AS_DESIGNATOR, MARQUE );
+	end if;
+	TYPE_ID := D( SM_DEFN, MARQUE );
+        end if;
+        if  D( XD_SOURCE_NAME, TYPE_SPEC ) = SUBTYPE_ID
+	and then  TYPE_ID /= TREE_VOID  and then  TYPE_ID.TY = DN_TYPE_ID
+	and then  D( SM_TYPE_SPEC, TYPE_ID ) = TYPE_SPEC
+        then											--| noeud du TYPE renomme au nom du sous-type
+	D( XD_SOURCE_NAME, TYPE_SPEC, TYPE_ID );						--| par l'analyse : rendre son nom au type
+        end if;
+
+        if  D( XD_SOURCE_NAME, TYPE_SPEC ) /= SUBTYPE_ID  then				--| noeud PARTAGE avec le type
+	declare
+	  NIVEAU	: INTEGER	:= DI( CD_LEVEL, TYPE_SPEC );
+	begin
+	  CODE_CONSTRAINED_RECORD_DECL( SUBTYPE_ID, TYPE_SPEC );
+	  DI( CD_LEVEL, TYPE_SPEC, NIVEAU );
+	end;
+	return;
+
+        elsif  BASE /= TREE_VOID  and then  BASE /= TYPE_SPEC  and then  BASE.TY = DN_RECORD  then	--| COPIE nommee du sous-type :
+	declare										--| alias vers la base
+	  NIVEAU	: INTEGER	:= DI( CD_LEVEL, BASE );
+	begin
+	  CODE_CONSTRAINED_RECORD_DECL( SUBTYPE_ID, BASE );
+	  DI( CD_LEVEL, BASE, NIVEAU );
+	  DI( CD_LEVEL, TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );
+	  DB( CD_COMPILED, TYPE_SPEC, TRUE );
+	  if  D( CD_IMPL_SIZE, BASE ) /= TREE_VOID  then
+	    DI( CD_IMPL_SIZE, TYPE_SPEC, DI( CD_IMPL_SIZE, BASE ) );
+	  end if;
+	end;
+	return;
+        end if;
+      end;
     end if;
 
     DI( CD_LEVEL,	  TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );
@@ -2326,6 +2495,23 @@ begin
 
     elsif  TYPE_SPEC.TY = DN_FIXED  then
       EMIT_FIXED_TYPE_INFO( SUBTYPE_STR, LVL_STR, TYPE_SPEC );
+
+    elsif  TYPE_SPEC.TY = DN_CONSTRAINED_ACCESS  then
+			--| subtype A3 is ACC (e) : contrainte du designe evaluee UNE
+			--| fois, controlee, rangee (<sous-type>.__D_x) -- LRM 3.3.2
+      PUT_LINE( SUBTYPE_STR & " = '" & SUBTYPE_STR & "'" );
+      PUT_LINE( "namespace " & SUBTYPE_STR );
+      declare
+        DES	: TREE	:= D( SM_DESIG_TYPE, TYPE_SPEC );
+      begin
+        if  DES.TY = DN_CONSTRAINED_RECORD
+	and then  not ( D( XD_SOURCE_NAME, DES ).TY = DN_SUBTYPE_ID
+		    and then  D( SM_TYPE_SPEC, D( XD_SOURCE_NAME, DES ) ) = DES )
+        then
+	EXPRESSIONS.ELABORER_DISCRIMINANTS( DES );					-- designe ANONYME seulement
+        end if;
+      end;
+      PUT_LINE( "end namespace" );
 
     else
       PUT_LINE( ";  CODE_SUBTYPE_DECL : TYPE_SPEC.TY PAS FAIT " & NODE_NAME'IMAGE( TYPE_SPEC.TY ) );

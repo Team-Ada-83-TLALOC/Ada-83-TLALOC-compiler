@@ -2355,9 +2355,9 @@ excep:
 endPRO
 end if
 
-if defined SIZE_OF_L119_
-PRO	SIZE_OF_L119
- hexa_show 'SIZE_OF_L119 ', $
+if defined SIZE_OF_L122_
+PRO	SIZE_OF_L122
+ hexa_show 'SIZE_OF_L122 ', $
 PRMS
 	PRM E_ofs
 	PRM result__ofs
@@ -8604,9 +8604,9 @@ excep:
 endPRO
 end if
 
-if defined ENCODE_L120_
-PRO	ENCODE_L120
- hexa_show 'ENCODE_L120 ', $
+if defined ENCODE_L123_
+PRO	ENCODE_L123
+ hexa_show 'ENCODE_L123 ', $
 PRMS
 	PRM E_ofs
 endPRMS
@@ -14725,7 +14725,7 @@ begin:
 VAR	ANON_1313_13_L942_G_data, Q
 VAR	ANON_1313_13_L942_G_info, Q
 VAR	ANON_1313_13_L942_G_len,  Q
-	LVA 2,	STANDARD.TARGET_CODE_L1.EMITS.RISCV64_TARGET.ENCODE_L120.M_disp
+	LVA 2,	STANDARD.TARGET_CODE_L1.EMITS.RISCV64_TARGET.ENCODE_L123.M_disp
 	DUP
 	LA  ,  0
 	SA  3, ANON_1313_13_L942_G_data
@@ -16907,9 +16907,9 @@ excep:
 endPRO
 end if
 
-if defined PROLOGUE_L121_
-PRO	PROLOGUE_L121
- hexa_show 'PROLOGUE_L121 ', $
+if defined PROLOGUE_L124_
+PRO	PROLOGUE_L124
+ hexa_show 'PROLOGUE_L124 ', $
 ELB 2
  hexa_show 'var elab T0 ', $
 VAR T0_disp, D

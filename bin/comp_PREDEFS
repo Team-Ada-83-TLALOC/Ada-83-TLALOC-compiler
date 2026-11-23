@@ -11,7 +11,7 @@ then
   echo "          Compile PREDEF UNITS with T1"
   echo "          ----------------------------"
 else
-  AdaC="TLALOC COMPILE "
+  AdaC="T2 COMPILE "
   echo "          -------------------------------------"
   echo "          Compile PREDEF UNITS with TLALOC (T2)"
   echo "          -------------------------------------"

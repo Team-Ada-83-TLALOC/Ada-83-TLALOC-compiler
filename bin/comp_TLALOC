@@ -3,15 +3,15 @@ debutC=$(date +%s)
 
 if [ "${1:-}" = "T1" ]
 then
-  echo "          -----------------------------------------"
-  echo "          Compile TLALOC with T1 (gnat made TLALOC)"
-  echo "          -----------------------------------------"
+  echo "          ---------------------------------------------------"
+  echo "          Compile TLALOC with T1 (gnat made TLALOC) génère T2"
+  echo "          ---------------------------------------------------"
   AdaC="T1 COMPILE "
 else
-  echo "          -------------------------------"
-  echo "          Compile TLALOC with TLALOC (T2)"
-  echo "          -------------------------------"
-  AdaC="TLALOC COMPILE "
+  echo "          -----------------------------------------------------------"
+  echo "          Compile TLALOC with TLALOC (T2) génère TLALOC.x86exe aka T3"
+  echo "          -----------------------------------------------------------"
+  AdaC="T2 COMPILE "
 fi
 
 ./comp_PREDEFS $1
@@ -151,22 +151,44 @@ debutA=$(date +%s)
 
 if [ "${1:-}" = "T1" ]
 then
-  echo "          -------------------"
-  echo "          Assemble with fasmg"
-  echo "          -------------------"
+  echo "          ----------------------"
+  echo "          Assemble T2 with fasmg"
+  echo "          ----------------------"
   cd ./ADA__LIB
 
-  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T1.exe
-  chmod u+x ./T1.exe
-  mv ./T1.exe ../
+  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T2.exe
+  chmod u+x ./T2.exe
+  mv ./T2.exe ../
+  cd ..
 
-else
-  echo "          -------------------------"
-  echo "          Assemble with TLALOC CODE"
-  echo "          -------------------------"
+  echo "          ----------------------------"
+  echo "          Assemble T2 with TARGET_CODE"
+  echo "          ----------------------------"
 # PROBLEME A VOIR :
 #  ./TLALOC BIND TLALOC # Piege ici avec le fas modifié manuellement pour les withs non inclus recopie du .fas reference de bin/ADA__LIB
-  ./TLALOC CODE /TARGET_CPU=X86_64 TLALOC
+  ./T1 CODE /TARGET_CPU=X86_64 TLALOC
+  cd ./ADA__LIB
+  chmod u+x ./TLALOC.x86exe
+  mv ./TLALOC.x86exe ../T2t.exe
+
+else
+
+  echo "          ----------------------"
+  echo "          Assemble T3 with fasmg"
+  echo "          ----------------------"
+  cd ./ADA__LIB
+
+  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T3f.exe
+  chmod u+x ./T3f.exe
+  mv ./T3f.exe ../
+  cd ..
+
+  echo "          ----------------------------"
+  echo "          Assemble T3 with TARGET_CODE"
+  echo "          ----------------------------"
+# PROBLEME A VOIR :
+#  ./TLALOC BIND TLALOC # Piege ici avec le fas modifié manuellement pour les withs non inclus recopie du .fas reference de bin/ADA__LIB
+  ./T2 CODE /TARGET_CPU=X86_64 TLALOC
   cd ./ADA__LIB
   chmod u+x ./TLALOC.x86exe
   mv ./TLALOC.x86exe ../

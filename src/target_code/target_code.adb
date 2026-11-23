@@ -225,10 +225,10 @@ is					-----------
 
     IR_FAULT		: exception;								--| refus bruyant (doctrine R6)
 
-    ELT_MAX		:constant			:= 1_000_000;
+    ELT_MAX		:constant			:= 5_000_000;					--| 1_000_000 atteint par l'autocompilation (expandeur, nov. 2026)
     type ELT_ID		is range 0 .. ELT_MAX;
 
-    OPS_MAX		:constant			:= 5_000_000;
+    OPS_MAX		:constant			:= 7_500_000;					--| suit ELT_MAX
     DEFER_MAX		:constant			:= 200_000;
 
     type ELT_KIND		is ( MACRO_CALL,								--| toute macro LLIR (y compris STATOFS, db...)

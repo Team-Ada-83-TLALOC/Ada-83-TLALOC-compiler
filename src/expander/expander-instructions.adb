@@ -762,8 +762,22 @@ separate ( EXPANDER )
 
         INVERSE_RECURSE_ON_PARAMETERS;
 
+        if  FRM_PRM_ID.TY /= DN_IN_ID
+	and then  ACT_PRM.TY = DN_CONVERSION
+	and then  D( AS_EXP, ACT_PRM ).TY = DN_USED_OBJECT_ID
+	and then  CODI.EST_ACCES( CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ) )
+        then											--| out / in out : T (V), T et V d'acces (meme
+	ACT_PRM := D( AS_EXP, ACT_PRM );							--| representation) : passer V PAR REFERENCE ;
+        end if;											--| contraintes : avant / au retour (6.4.1)
+
         if  CODI.EST_SELECTION_DYNAMIQUE( ACT_PRM )  then						--| option B : doublet {donnees, descripteur}
 	EXPRESSIONS.CODE_DOUBLET_DYNAMIQUE( ACT_PRM, "SELARG_" & NEW_LABEL );			--| (par reference, tout mode)
+
+        elsif  ACT_PRM.TY = DN_ALL
+	and then  CODI.EST_ACCES_TABLEAU_NC( D( SM_EXP_TYPE, D( AS_NAME, ACT_PRM ) ) )
+        then											--| Q1b : doublet ( @donnees, en-tete ),
+	EXPRESSIONS.CODE_ARRAY_OPERAND( ACT_PRM, "ALLARG_" & NEW_LABEL,				--| par reference, tout mode
+				  CODI.TABLEAU_DESIGNE( D( SM_EXP_TYPE, D( AS_NAME, ACT_PRM ) ) ) );
 
         elsif  ACT_PRM.TY = DN_SELECTED  or else ACT_PRM.TY = DN_ALL  then
 
@@ -944,7 +958,7 @@ separate ( EXPANDER )
 		OBJ_TYPE := D( SM_TYPE_SPEC, OBJ_TYPE );
 	        end if;
 
-	        if  OBJ_TYPE.TY in CLASS_SCALAR  or else  OBJ_TYPE.TY = DN_ACCESS  then
+	        if  OBJ_TYPE.TY in CLASS_SCALAR  or else  CODI.EST_ACCES( OBJ_TYPE )  then
 	      -- out/inout -> in scalaire : dereferencement, charger la valeur pointee
 		  PUT_LINE( tab & OPER_LOADI_STR( OBJ_TYPE ) & ' ' & INTEGER'IMAGE( DI( CD_LEVEL, DEFN ) ) & ',' & tab
 			& '-' & DEFN_STR & "_ofs" );
@@ -1020,6 +1034,31 @@ separate ( EXPANDER )
 	  TYPE_NAME	: TREE		:= D( XD_SOURCE_NAME, TYPE_SPEC );
 	  TYPE_NAME_STR	:constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, TYPE_NAME ) );
 	begin
+	  if  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ).TY = DN_ARRAY  then			--| formel tableau NON contraint : bornes
+	    EXPRESSIONS.CODE_ARRAY_OPERAND( ACT_PRM, ANONYMOUS_STR,					--| de l'agregat (choix, ou S'FIRST en
+				      CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ) );	--| positionnel, LRM 4.3.2) -- le patron
+												--| du type de base n'en a pas (SIZ = -1)
+	  elsif  CODI.EST_RECORD_DYNAMIQUE( TYPE_SPEC )  then						--| option B : objet neuf sur la co-pile
+	    declare										--| (discriminants de l'agregat), doublet
+	      B_TYPE	: TREE	:= CODI.FULL_TYPE_VIEW( TYPE_SPEC );				--| use__info de la BASE (pilier 3.7)
+	    begin
+	      if  B_TYPE.TY = DN_CONSTRAINED_RECORD  then
+	        B_TYPE := CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, B_TYPE ) );
+	      end if;
+	      PUT_LINE( tab & "VAR " & ANONYMOUS_STR & "_disp, q" );
+	      PUT_LINE( tab & "VAR " & ANONYMOUS_STR & "__u, q" );
+	      DECLARATIONS.CODE_OBJET_DYNAMIQUE( TYPE_SPEC, LIST( D( SM_NORMALIZED_COMP_S, ACT_PRM ) ), SUR_LE_TAS => FALSE );
+	      PUT_LINE( tab & "DUP" );
+	      PUT_LINE( tab & "SA " & IMAGE( CODI.CUR_LEVEL ) & ", " & ANONYMOUS_STR & "_disp" );
+	      EXPRESSIONS.CODE_AGGREGATE( ACT_PRM, TYPE_SPEC );
+	      PUT( tab & "LA " & IMAGE( DI( CD_LEVEL, B_TYPE ) ) & ", " );
+	      CODI.REGIONS_PATH( D( XD_SOURCE_NAME, B_TYPE ) );
+	      PUT_LINE( TYPE_INFO_STR( B_TYPE ) & ".use__info" );
+	      PUT_LINE( tab & "SA " & IMAGE( CODI.CUR_LEVEL ) & ", " & ANONYMOUS_STR & "__u" );
+	      PUT_LINE( tab & "LVA " & IMAGE( CODI.CUR_LEVEL ) & ", " & ANONYMOUS_STR & "_disp" );
+	    end;
+
+	  else
 	  PUT_LINE( tab & "VAR " & ANONYMOUS_STR & "_disp, q" );
 	  PUT_LINE( tab & "VAR " & ANONYMOUS_STR & "__u, q" );
 	  PUT( tab & "VAR " & ANONYMOUS_STR & "__dat, " );
@@ -1037,6 +1076,7 @@ separate ( EXPANDER )
 	  PUT_LINE( tab & "LVA " & IMAGE( CODI.CUR_LEVEL ) & ", " & ANONYMOUS_STR & "__dat" );
 	  EXPRESSIONS.CODE_AGGREGATE( ACT_PRM, TYPE_SPEC );
 	  PUT_LINE( tab & "LVA " & IMAGE( CODI.CUR_LEVEL ) & ", " & ANONYMOUS_STR & "_disp" );
+	  end if;
 	end;
 
         elsif  ACT_PRM.TY = DN_INDEXED  then								-- COMPOSANT INDEXE EN ACTUAL
@@ -1059,11 +1099,61 @@ separate ( EXPANDER )
 	EXPRESSIONS.CODE_EXP( ACT_PRM );
         end if;
 
+	-- LRM 6.4.1 : formel de sous-type record CONTRAINT -> discriminants de
+	-- l'actuel egaux a ceux de la contrainte, tout mode.  Pile = @doublet
+	-- (rendu tel quel) ; [@doublet] = @donnees.
+        if  CODI.CHECKS_ENABLED
+	and then  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ).TY = DN_CONSTRAINED_RECORD
+        then
+	declare
+	  F_TYPE	: TREE		:= CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) );
+	  F_BASE	: TREE		:= CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, F_TYPE ) );
+	  ADR		:constant STRING	:= "__PRM" & NEW_LABEL;
+	  LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	  EXP_S		: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_DSCRMT_S, F_TYPE ) );
+	  EXP		: TREE;
+	  DECL_S	: SEQ_TYPE;
+	  DECL		: TREE;
+	begin
+	  if  F_BASE.TY = DN_RECORD  and then  not REPRESENTED_ITEMS.HAS_RECORD_REP( F_BASE )  then
+	    PUT_LINE( "VAR " & ADR & ", Q" );
+	    PUT_LINE( tab & "DUP" );
+	    PUT_LINE( tab & "LA" & tab & "-1, 0" );						-- @donnees de l'actuel
+	    PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & ADR );
+	    DECL_S := LIST( D( SM_DISCRIMINANT_S, F_BASE ) );
+	    while  not IS_EMPTY( DECL_S )  loop
+	      POP( DECL_S, DECL );
+	      declare
+	        ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	        ID	: TREE;
+	      begin
+	        while  not IS_EMPTY( ID_S )  and then  not IS_EMPTY( EXP_S )  loop
+		POP( ID_S, ID );
+		POP( EXP_S, EXP );
+		PUT( tab & OPER_LOADI_STR( D( SM_OBJ_TYPE, ID ) ) & tab & LVL_STR & ", " & ADR & ", " );
+		REGIONS_PATH( ID );  PUT_LINE( PRINT_NAME( D( LX_SYMREP, ID ) ) );
+		EXPRESSIONS.CODE_VALEUR_DISCRIMINANT( F_TYPE, TREE_VOID, ID, EXP );
+		PUT_LINE( tab & "CNE" );
+		PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+	        end loop;
+	      end;
+	    end loop;
+	  end if;
+	end;
+        end if;
+
 	-- E-D2 : gamme du SOUS-TYPE DU FORMEL (LRM 6.4.1), mode in seul.
 	-- Les modes out/in_out posent une ADRESSE : pas de check ici
 	-- (copy-back hors perimetre 1, consigne).
         if  FRM_PRM_ID.TY = DN_IN_ID  then
 	EXPRESSIONS.CODE_RANGE_CHECK( D( SM_OBJ_TYPE, FRM_PRM_ID ) );
+        elsif  FRM_PRM_ID.TY = DN_IN_OUT_ID
+	and then  D( SM_OBJ_TYPE, FRM_PRM_ID ).TY = DN_CONSTRAINED_ACCESS
+	and then  ( ACT_PRM.TY = DN_USED_OBJECT_ID  or else  ACT_PRM.TY = DN_CONVERSION )	--| conversion : son propre controle (4.6)
+        then											--| in out d'acces contraint (6.4.1) : la VALEUR
+	EXPRESSIONS.CODE_EXP( ACT_PRM );							--| de l'actuel, controlee avant l'appel
+	EXPRESSIONS.CODE_RANGE_CHECK( D( SM_OBJ_TYPE, FRM_PRM_ID ) );
+	PUT_LINE( tab & "DROP" );
         end if;
 
       end loop;
@@ -1095,6 +1185,40 @@ separate ( EXPANDER )
       PUT( tab & "CALL" & tab );
       CODI.REGIONS_PATH( PROC_ID );
       PUT_LINE( " ," & SUB_NAME & '_' & LABEL_STR( LBL ) );
+    end if;
+
+			--| LRM 6.4.1 : au RETOUR, un actuel out / in out de sous-type
+			--| d'acces CONTRAINT doit encore satisfaire sa contrainte.
+    if  CODI.CHECKS_ENABLED  then
+      declare
+        ACT_S	: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_PARAM_S, PROCEDURE_CALL ) );
+        GRP_S	: SEQ_TYPE	:= LIST( D( AS_PARAM_S, D( SM_SPEC, PROC_ID ) ) );
+        GRP	: TREE;
+        ID_S	: SEQ_TYPE;
+        ID	: TREE;
+        ACT	: TREE;
+      begin
+        while  not IS_EMPTY( GRP_S )  loop
+	POP( GRP_S, GRP );
+	ID_S := LIST( D( AS_SOURCE_NAME_S, GRP ) );
+	while  not IS_EMPTY( ID_S )  and then  not IS_EMPTY( ACT_S )  loop
+	  POP( ID_S, ID );
+	  POP( ACT_S, ACT );
+	  if  ACT.TY = DN_CONVERSION  then							--| T (V) en actuel : c'est V qui recoit
+	    ACT := D( AS_EXP, ACT );								--| la valeur au retour (6.4.1)
+	  end if;
+	  if  ( ID.TY = DN_OUT_ID  or else  ID.TY = DN_IN_OUT_ID )
+	    and then  ACT.TY = DN_USED_OBJECT_ID
+	    and then  ( D( SM_DEFN, ACT ).TY in CLASS_VC_NAME  or else  D( SM_DEFN, ACT ).TY in CLASS_PARAM_NAME )
+	    and then  D( SM_OBJ_TYPE, D( SM_DEFN, ACT ) ).TY = DN_CONSTRAINED_ACCESS
+	  then
+	    EXPRESSIONS.CODE_EXP( ACT );
+	    EXPRESSIONS.CODE_RANGE_CHECK( D( SM_OBJ_TYPE, D( SM_DEFN, ACT ) ) );
+	    PUT_LINE( tab & "DROP" );
+	  end if;
+	end loop;
+        end loop;
+      end;
     end if;
 
   end	CODE_PROCEDURE_CALL;
@@ -1158,11 +1282,10 @@ separate ( EXPANDER )
 	  FULL_TYPE := CODI.FULL_TYPE_VIEW( RETURN_SUBTYPE );						-- LRM 83 : conversion implicite
 	end if;
 
-	if  FULL_TYPE.TY in CLASS_SCALAR  or else  FULL_TYPE.TY = DN_ACCESS  then
+	if  FULL_TYPE.TY in CLASS_SCALAR  or else  CODI.EST_ACCES( FULL_TYPE )  then
 	  EXPRESSIONS.CODE_EXP( EXP );
-	  if  FULL_TYPE.TY /= DN_ACCESS  then								-- E-D3 : gamme du SOUS-TYPE DE RETOUR --
-	    EXPRESSIONS.CODE_RANGE_CHECK( RETURN_SUBTYPE );
-	  end if;
+	  EXPRESSIONS.CODE_RANGE_CHECK( RETURN_SUBTYPE );						-- E-D3 : gamme / contrainte d'acces du
+												-- SOUS-TYPE DE RETOUR
 
 --	  PUT_LINE( tab & "S" & CODI.OPER_SIZ_CHAR( FULL_TYPE ) & ' ' & INTEGER'IMAGE( ENCLOSING_LEVEL )
 --			& ',' & tab & "-result__ofs" );
@@ -1279,7 +1402,50 @@ separate ( EXPANDER )
 	      TN_STR	: constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, TYPE_NAME ) );
 	      LVL_STR	: constant STRING	:= INTEGER'IMAGE( ENCLOSING_LEVEL );
 	    begin
-	      if  EXP.TY = DN_AGGREGATE  then
+	      if  CODI.EST_RECORD_DYNAMIQUE( TYPE_SPEC )  then
+			--| Option B, etape 3 : objet resultat alloue sur la co-pile de
+			--| l'APPELE (gardee : EXIT_UNLINK_MNEMONIC -> UNLINK) ; son adresse
+			--| va dans data_ptr du doublet de l'appelant.  Resultat = valeur
+			--| CONTRAINTE : __MUTABLE := 0.
+	        declare
+		RES	:constant STRING	:= "__RES" & NEW_LABEL;
+		CUR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	        begin
+		PUT_LINE( "VAR " & RES & ", Q" );
+		if  EXP.TY = DN_AGGREGATE  then
+		  DECLARATIONS.CODE_OBJET_DYNAMIQUE( TYPE_SPEC, LIST( D( SM_NORMALIZED_COMP_S, EXP ) ), SUR_LE_TAS => FALSE );
+		  PUT_LINE( tab & "DUP" );
+		  PUT_LINE( tab & "SA" & tab & CUR & ", " & RES );
+		  EXPRESSIONS.CODE_AGGREGATE( EXP, TYPE_SPEC );
+		else
+		  declare
+		    SRC	:constant STRING	:= "__SRC" & NEW_LABEL;
+		  begin
+		    PUT_LINE( "VAR " & SRC & ", Q" );
+		    EXPRESSIONS.CODE_COMPOSITE_DATA_ADDRESS( EXP );
+		    PUT_LINE( tab & "SA" & tab & CUR & ", " & SRC );
+		    PUT( tab & "LID" & tab & CUR & ", " & SRC & ", " );
+		    CODI.REGIONS_PATH( TYPE_NAME );
+		    PUT_LINE( TN_STR & ".__TAILLE" );
+		    PUT_LINE( tab & "CO_VAR" );
+		    PUT_LINE( tab & "DUP" );
+		    PUT_LINE( tab & "SA" & tab & CUR & ", " & RES );					-- @DST
+		    PUT( tab & "LID" & tab & CUR & ", " & SRC & ", " );
+		    CODI.REGIONS_PATH( TYPE_NAME );
+		    PUT_LINE( TN_STR & ".__TAILLE" );						-- LEN
+		    PUT_LINE( tab & "LA" & tab & CUR & ", " & SRC );					-- @SRC
+		    PUT_LINE( tab & "BLKMOV" );
+		  end;
+		end if;
+		PUT_LINE( tab & "LI" & tab & "0" );
+		PUT( tab & "SID" & tab & CUR & ", " & RES & ", " );
+		CODI.REGIONS_PATH( TYPE_NAME );
+		PUT_LINE( TN_STR & ".__MUTABLE" );
+		PUT_LINE( tab & "LA" & tab & CUR & ", " & RES );						-- data_ptr := @objet
+		PUT_LINE( tab & "SIQ  " & LVL_STR & ", -result__ofs,  0" );
+	        end;
+
+	      elsif  EXP.TY = DN_AGGREGATE  then
 	      -- result__ofs contient l'adresse du doublet alloue par l'appelant
 	      -- Extraire data_ptr (offset 0 du doublet) pour CODE_AGGREGATE
 	        PUT_LINE( tab & "LA  " & LVL_STR & ',' & tab & "-result__ofs" );
@@ -1773,7 +1939,7 @@ separate ( EXPANDER )
         end if;
 
         case  TYPE_SPEC.TY  is
-        when  DN_ACCESS =>
+        when  DN_ACCESS | DN_CONSTRAINED_ACCESS =>
 	PUT_LINE( tab & "SA" );
 
         when  DN_ENUMERATION | DN_INTEGER | DN_FIXED | DN_FLOAT =>
@@ -1794,7 +1960,12 @@ separate ( EXPANDER )
         raise PROGRAM_ERROR;
       end if;
 
-      if  DST_NAME.TY = DN_ALL  then									-- AFFECTATION A UN ELEMENT POINTE
+      if  DST_NAME.TY = DN_ALL
+        and then  CODI.EST_ACCES_TABLEAU_NC( D( SM_EXP_TYPE, D( AS_NAME, DST_NAME ) ) )
+      then												--| Q1b : bornes dans l'en-tete
+        EXPRESSIONS.CODE_AFFECTATION_EN_TETE( DST_NAME, SRC_EXP );
+
+      elsif  DST_NAME.TY = DN_ALL  then									-- AFFECTATION A UN ELEMENT POINTE
         declare
 	DST_TYPE : TREE := D( SM_EXP_TYPE, DST_NAME );
         begin
@@ -1870,9 +2041,6 @@ separate ( EXPANDER )
 	if  CODI.EST_SELECTION_DYNAMIQUE( DST_NAME )  then
 			--| Option B : destination = donnees du composant, LEN = SIZ du
 			--| descripteur (bits -> octets), source = @data (regle n 112).
-	  if  SRC_EXP.TY = DN_AGGREGATE  then
-	    CODI.TROU( "CODE_ASSIGN agregat vers composant dynamique (etape 2)", SRC_EXP );
-	  end if;
 	  declare
 	    DESC	:constant STRING	:= "__DESC" & NEW_LABEL;
 	    LVL	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
@@ -1885,7 +2053,27 @@ separate ( EXPANDER )
 	    PUT_LINE( tab & "LID" & tab & LVL & ", " & DESC & "," & INTEGER'IMAGE( CODI.DESC_SIZ ) );
 	    PUT_LINE( tab & "LI" & tab & "3" );
 	    PUT_LINE( tab & "SAR" );									-- LEN
-	    EXPRESSIONS.CODE_COMPOSITE_DATA_ADDRESS( SRC_EXP );						-- @SRC
+	    if  SRC_EXP.TY = DN_AGGREGATE  then							--| agregat : doublet a bornes propres
+	      declare										--| (choix, ou S'FIRST) ; longueur
+	        SRCI	:constant STRING	:= "__AFI" & NEW_LABEL;					--| controlee (SIZ egales, 5.2.1)
+	      begin
+	        PUT_LINE( "VAR " & SRCI & ", Q" );
+	        EXPRESSIONS.CODE_ARRAY_OPERAND( SRC_EXP, "AFDYN_" & NEW_LABEL,
+					  CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, D( SM_EXP_TYPE, DST_NAME ) ) ) );
+	        PUT_LINE( tab & "DUP" );
+	        PUT_LINE( tab & "LA" & tab & "-1, 8" );
+	        PUT_LINE( tab & "SA" & tab & LVL & ", " & SRCI );
+	        PUT_LINE( tab & "LA" & tab & "-1, 0" );						-- @SRC
+	        if  CODI.CHECKS_ENABLED  then
+		PUT_LINE( tab & "LID" & tab & LVL & ", " & SRCI & ", 0" );
+		PUT_LINE( tab & "LID" & tab & LVL & ", " & DESC & "," & INTEGER'IMAGE( CODI.DESC_SIZ ) );
+		PUT_LINE( tab & "CNE" );
+		PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+	        end if;
+	      end;
+	    else
+	      EXPRESSIONS.CODE_COMPOSITE_DATA_ADDRESS( SRC_EXP );					-- @SRC
+	    end if;
 	    PUT_LINE( tab & "BLKMOV" );
 	  end;
 	  return;
@@ -2062,8 +2250,11 @@ separate ( EXPANDER )
 		--------------
 	end if;
 
-	if  NAME_TYPE.TY = DN_ACCESS  then								-- OBJET ASSIGNE DE TYPE ACCES
+	if  CODI.EST_ACCES( NAME_TYPE )  then								-- OBJET ASSIGNE DE TYPE ACCES
 	  EXPRESSIONS.CODE_EXP( SRC_EXP );
+	  if  DEFN.TY in CLASS_VC_NAME  or else  DEFN.TY in CLASS_PARAM_NAME  then
+	    EXPRESSIONS.CODE_RANGE_CHECK( D( SM_OBJ_TYPE, DEFN ) );					-- sous-type d'acces contraint (3.8)
+	  end if;
 	  CODI.STORE( DEFN );
 
 	elsif  NAME_TYPE.TY = DN_ARRAY  or  NAME_TYPE.TY = DN_CONSTRAINED_ARRAY  then				-- OBJET ASSIGNE TABLEAU

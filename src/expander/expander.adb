@@ -162,6 +162,11 @@ is
     function  TYPE_SIZE		( TYPE_SPEC :TREE )			return NATURAL;
     function  TYPE_INFO_STR		( TYPE_SPEC :TREE )			return STRING;
     function  FULL_TYPE_VIEW		( T : TREE )			return TREE;
+    function  EST_ACCES		( T : TREE )			return BOOLEAN;			--| DN_ACCESS ou DN_CONSTRAINED_ACCESS (3.8)
+    function  EST_ACCES_TABLEAU_NC	( ACC_TYPE : TREE )		return BOOLEAN;			--| Q1b : designe de base = tableau NON contraint
+    function  TABLEAU_DESIGNE		( ACC_TYPE : TREE )		return TREE;			--| Q1b : ce DN_ARRAY de base
+    function  TAILLE_INFO_TABLEAU	( ARR : TREE )			return NATURAL;			--| Q1b : 4 + 12 n octets (bloc info a n dimensions)
+    function  TAILLE_EN_TETE		( ARR : TREE )			return NATURAL;			--| Q1b : idem arrondi a 8 = @donnees - @info
     function  CODE_DATA_TYPE_OF	( EXP_OR_TYPE_SPEC :TREE )		return CHARACTER;
 
     procedure LOAD_MEM		( DEFN :TREE );
@@ -200,8 +205,13 @@ is
     DESC_LST_1			: constant		:= 12;
     DESC_OFS			: constant		:= 16;
     DESC_TAILLE			: constant		:= 20;						--| taille d'un descripteur
+    LIMITE_COMPOSANT		: constant		:= 64 * 1024 * 1024;				--| octets ; au-dela : STORAGE_ERROR (taille
+												--| max d'un discriminant NATURAL...)
 
     function  CONTIENT_DISCRIMINANT	( EXP :TREE )			return BOOLEAN;			--| EXP reference un discriminant (bornes, LRM 3.7.1)
+    function  MARQUE_ALIGNEMENT	( T :TREE )			return INTEGER;			--| CD_ALIGNMENT si pose (entier), sinon -1
+    function  EST_COMPOSANT_DISCR	( COMP_ID :TREE )			return BOOLEAN;			--| bornes dependant d'un discriminant
+    function  EST_COMPOSANT_REGULIER	( COMP_ID :TREE )			return BOOLEAN;			--| bornes non statiques elaborees au TYPE (marque)
     function  EST_COMPOSANT_DYNAMIQUE	( COMP_ID :TREE )			return BOOLEAN;			--| composant tableau contraint par un discriminant
     function  EST_RECORD_DYNAMIQUE	( REC_TYPE :TREE )		return BOOLEAN;			--| record (vue quelconque) a composant(s) dynamique(s)
     procedure DESC_VERS_DONNEES	( COMP_ID :TREE );							--| pile : @descripteur -> @donnees du composant
@@ -250,6 +260,10 @@ is
     procedure CODE_COMPOSITE_DATA_ADDRESS( EXP : TREE );
     procedure CODE_DOUBLET_DYNAMIQUE	( SELECTED :TREE; ANON :STRING );					--| option B : R.A dynamique -> @doublet {donnees, descripteur}
     procedure CODE_COPIE_RECORD_DYNAMIQUE	( SRC_EXP :TREE; REC_TYPE :TREE );					--| option B : pile @DST -> (copie de __TAILLE(source) octets)
+    procedure CODE_VALEUR_COMPOSANT_DYNAMIQUE ( COMP_ID, VALEUR :TREE );						--| pile : @descripteur ; valeur -> donnees du composant
+    procedure ELABORER_DISCRIMINANTS	( C :TREE );								--| 3.7.2 : evaluation unique + compatibilite, a l'elaboration
+    procedure CODE_VALEUR_DISCRIMINANT	( C, ACCES, DISCR_ID, EXP :TREE );						--| valeur elaboree (ou expression statique)
+    procedure CODE_AFFECTATION_EN_TETE	( DST_ALL, SRC_EXP :TREE );						--| Q1b : X.all := V, X acces a tableau non contraint
     procedure CODE_ARRAY_OPERAND	( E :TREE; ANON :STRING; CONTEXT_TYPE :TREE;
 				  CONTRAINTE_APPLICABLE :BOOLEAN := FALSE );					--| LRM 4.3.2 : CONTEXT_TYPE contraint fournit les bornes
     function  IS_GENERIC_FORMAL_TYPE	( TYPE_DEFN	:TREE )		return BOOLEAN;
@@ -331,10 +345,13 @@ is
     procedure CODE_HEADER		( HEADER :TREE );
     procedure CODE_PACKAGE_SPEC	( PACKAGE_SPEC :TREE );
     procedure CODE_GENERIC_DECL	( GENERIC_DECL :TREE );
+    procedure CODE_BORNE_SOUS_TYPE	( T :TREE; IS_LAST :BOOLEAN );						--| empile FIRST / LAST d'un sous-type discret
     procedure CODE_INIT_DESCRIPTEURS	( REC_TYPE :TREE; OBJ_LVL :LEVEL_NUM; OBJ_VAR :STRING );		--| option B : descripteurs et __TAILLE de l'objet
 												--| dont l'adresse est dans la variable OBJ_VAR
-    procedure CODE_OBJET_DYNAMIQUE	( REC_TYPE :TREE; DSCRMT_EXP_S :SEQ_TYPE; SUR_LE_TAS :BOOLEAN );	--| option B : pile -> @objet neuf (discriminants de
-												--| DSCRMT_EXP_S, descripteurs, bloc de __TAILLE octets)
+    procedure CODE_OBJET_DYNAMIQUE	( REC_TYPE :TREE; DSCRMT_EXP_S :SEQ_TYPE; SUR_LE_TAS :BOOLEAN;
+				  MUTABLE :BOOLEAN := FALSE );						--| option B : pile -> @objet neuf (discriminants de
+												--| DSCRMT_EXP_S, descripteurs, bloc de __TAILLE
+												--| octets ; MUTABLE : bloc de taille MAXIMALE)
 
 
   private
