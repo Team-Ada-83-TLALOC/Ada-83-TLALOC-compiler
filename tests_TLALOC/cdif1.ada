@@ -1,0 +1,20 @@
+WITH REPORT; USE REPORT;
+PROCEDURE CDIF1 IS
+     PACKAGE P IS
+          TYPE T IS PRIVATE;
+          C : CONSTANT T;
+          FUNCTION F (X : T) RETURN INTEGER;
+     PRIVATE
+          TYPE T IS RANGE 1 .. 10;
+          C : CONSTANT T := 7;
+     END P;
+     USE P;
+     V : T := C;
+     PACKAGE BODY P IS
+          FUNCTION F (X : T) RETURN INTEGER IS BEGIN RETURN INTEGER (X); END F;
+     END P;
+BEGIN
+     TEST ("CDIF1", "CONSTANTE DIFFEREE");
+     IF F (C) /= 7 OR F (V) /= 7 THEN FAILED ("C"); END IF;
+     RESULT;
+END CDIF1;

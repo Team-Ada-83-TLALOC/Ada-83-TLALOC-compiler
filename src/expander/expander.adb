@@ -173,6 +173,7 @@ is
     procedure STORE			( DEST_DEFN :TREE );
 
     function  SUBPROGRAM_ORIGIN	( DEFN :TREE )			return TREE;
+    function  ORIGINE_EGALITE	( DEFN :TREE )			return TREE;			-- "/=" implicite -> origine de son "="
 
     procedure SET_GENERIC_ACTUAL_TYPE	( FORMAL_NAME : STRING; ACTUAL_SPEC : TREE );
     function  GENERIC_ACTUAL_TYPE_OF	( FORMAL_NAME : STRING )		return TREE;			-- TREE_VOID si absent

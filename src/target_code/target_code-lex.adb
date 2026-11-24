@@ -298,11 +298,11 @@ is					---
 	if  LINE( I ) not in '0' .. '9'  then
 	  FAULT( "litteral entier mal forme" );
 	end if;
-	V := V * 10 + LONG_INTEGER( CHARACTER'POS( LINE( I ) ) - CHARACTER'POS( '0' ) );
-	I := I + 1;
-        end loop;
+	V := V * 10 - LONG_INTEGER( CHARACTER'POS( LINE( I ) ) - CHARACTER'POS( '0' ) );		--| cumul NEGATIF : -2**63 representable,
+	I := I + 1;											--| +2**63 non (LONG_INTEGER'FIRST emis
+        end loop;											--| en -09223372036854775808)
 
-        if  NEG  then
+        if  not NEG  then
 	V := -V;
         end if;
 

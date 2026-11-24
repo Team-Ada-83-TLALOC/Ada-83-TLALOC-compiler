@@ -320,9 +320,10 @@ procedure V_SUB ( A :VECTOR; R :in out VECTOR ) is		--| ON SUPPOSE |A| <= |R| !!
   TEMP	: UDIGIT;
   BORROW  : UDIGIT := 0;
 begin
-  if A.L = R.L and then A = R then
-    R.L := 1;
-    R.D( 1 ) := 0;
+  if V_EQUAL( A, R ) then				--| |A| = |R| : RESTE NUL, ET RIEN A SOUSTRAIRE.
+    R.L := 1;					--| (L'EGALITE DE RECORDS COMPARAIT AUSSI LES
+    R.D( 1 ) := 0;				--| CHIFFRES NON INITIALISES AU-DELA DE L, ET LA
+    return;					--| BOUCLE SOUSTRAYAIT ENSUITE A DU ZERO : 0 - A)
   end if;
          
   for I in 1 .. A.L loop

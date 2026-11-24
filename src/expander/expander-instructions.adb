@@ -672,7 +672,9 @@ separate ( EXPANDER )
   is
     NORM_ACT_PRM_S  : SEQ_TYPE	:= LIST( D( SM_NORMALIZED_PARAM_S, PROCEDURE_CALL ) );
 
-    PROC_ID	: TREE		:= SUBPROGRAM_ORIGIN( D( SM_DEFN, USED_NAME_ID ) );
+    ORIGINE	: TREE		:= SUBPROGRAM_ORIGIN( D( SM_DEFN, USED_NAME_ID ) );
+    NEGATION	:constant BOOLEAN	:= D( SM_UNIT_DESC, ORIGINE ).TY = DN_IMPLICIT_NOT_EQ;		--| "/=" implicite : appel du "=", puis NOT
+    PROC_ID	: TREE		:= ORIGINE_EGALITE( ORIGINE );
     SUB_NAME	:constant STRING	:= LETTERED_SUBNAME( PRINT_NAME( D( LX_SYMREP, PROC_ID ) ) );
     LBL		: LABEL_TYPE	:= LABEL_TYPE( DI( CD_LABEL, PROC_ID ) );
 
@@ -1185,6 +1187,11 @@ separate ( EXPANDER )
       PUT( tab & "CALL" & tab );
       CODI.REGIONS_PATH( PROC_ID );
       PUT_LINE( " ," & SUB_NAME & '_' & LABEL_STR( LBL ) );
+    end if;
+
+    if  NEGATION  then										--| "/=" implicite : NOT du resultat booleen
+      PUT_LINE( tab & "LI" & tab & "1" );								--| du "=" (LRM 6.7)
+      PUT_LINE( tab & "OUX" );
     end if;
 
 			--| LRM 6.4.1 : au RETOUR, un actuel out / in out de sous-type

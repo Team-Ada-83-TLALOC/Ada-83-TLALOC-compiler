@@ -166,6 +166,8 @@ then
   echo "          ----------------------------"
 # PROBLEME A VOIR :
 #  ./TLALOC BIND TLALOC # Piege ici avec le fas modifié manuellement pour les withs non inclus recopie du .fas reference de bin/ADA__LIB
+  # ceci pour la pile de gnat
+  ulimit -s 1048576
   ./T1 CODE /TARGET_CPU=X86_64 TLALOC
   cd ./ADA__LIB
   chmod u+x ./TLALOC.x86exe

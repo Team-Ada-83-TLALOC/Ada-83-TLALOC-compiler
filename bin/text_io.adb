@@ -2068,6 +2068,14 @@ is					-------
       --
       -- puis on calcule la significande binaire par division entiere
       -- multiprecision, avec arrondi au plus proche, ties-to-even.
+      --
+      -- Syntaxe acceptee (LRM 2.4, 14.3.8) : litteral decimal ou base
+      -- (BASE#CHIFFRES[.CHIFFRES]#[EXPOSANT], BASE de 2 a 16, '#' ou
+      -- son remplacant ':' -- LRM 2.10), chiffres etendus A..F ou
+      -- a..f, soulignes isoles entre deux chiffres, E ou e. Dans un
+      -- litteral base, l'exposant est une puissance de la BASE.
+      -- Le traitement exact ci-dessous est ecrit pour une base RADIX
+      -- quelconque : 10 pour un litteral decimal.
       ------------------------------------------------------------------
 
       BASE : constant INTEGER := 32768;       -- 2**15
@@ -2075,12 +2083,13 @@ is					-------
       -- STATIQUE (nombre nomme) : le composant D du record BIG est
       -- ainsi contraint statiquement -- offsets record statiques.
       --
-      -- Dimensionnement, au pire cas passant les gardes DEC_TOP :
-      --   SIG <= 10**SIG_DIGITS_MAX                    ~ 2659 bits
-      --   A   <= 10**1025                              ~ 3406 bits
-      --   B   <= 10**(1074 + SIG_DIGITS_MAX)           ~ 6227 bits
-      --   decalages 2**K de la localisation de E       ~ 6240 bits
-      -- soit au plus ~420 limbs de 15 bits ; 600 laisse une marge.
+      -- Dimensionnement, au pire cas passant les gardes DEC_TOP
+      -- (R = RADIX, L = LOG2_R = partie entiere de log2 R) :
+      --   SIG <= R**SIG_DIGITS_MAX                     <= 3200 bits
+      --   A   <= max( SIG, R**(1 + 1024/L) )           <= 3200 bits
+      --   B   <= R**(SIG_DIGITS_MAX + 1075/L)          <= 4530 bits
+      --   decalages 2**K de la localisation de E       <= 4600 bits
+      -- soit au plus ~310 limbs de 15 bits ; 600 laisse une marge.
       MAX_LIMBS : constant := 600;
 
       -- Nombre maximal de chiffres significatifs absorbes dans SIG.
@@ -2157,6 +2166,15 @@ is					-------
 
       DIG             : INTEGER;
 
+      -- Base du litteral : 10, ou BASE d'un litteral base. LOG2_R est
+      -- la partie entiere de log2 RADIX (gardes DEC_TOP).
+      RADIX           : INTEGER := 10;
+      LOG2_R          : INTEGER := 3;
+      BASED           : BOOLEAN := FALSE;
+      DELIM           : CHARACTER := '#';
+      SCAN            : INTEGER;
+      BASE_VAL        : INTEGER := 0;
+
       SIG             : BIG := ( N => 0, D => ( others => 0 ) );
       A               : BIG := ( N => 0, D => ( others => 0 ) );
       B               : BIG := ( N => 0, D => ( others => 0 ) );
@@ -2172,6 +2190,27 @@ is					-------
       TWO_P           : LONG_INTEGER;
 
       V               : NUM;
+
+      ------------------------------------------------------------------
+      -- Valeur d'un chiffre etendu (LRM 2.4.2) ; 16 si C n'en est pas
+      -- un. Un chiffre est valide dans la base RADIX si sa valeur est
+      -- inferieure a RADIX.
+      ------------------------------------------------------------------
+
+      function DIGIT_VALUE ( C : CHARACTER ) return INTEGER
+      is
+      begin
+        if C >= '0' and then C <= '9' then
+          return CHARACTER'POS(C) - CHARACTER'POS('0');
+        elsif C >= 'A' and then C <= 'F' then
+          return CHARACTER'POS(C) - CHARACTER'POS('A') + 10;
+        elsif C >= 'a' and then C <= 'f' then
+          return CHARACTER'POS(C) - CHARACTER'POS('a') + 10;
+        else
+          return 16;
+        end if;
+      end DIGIT_VALUE;
+
 
       ------------------------------------------------------------------
       -- Outils BIG
@@ -2481,6 +2520,10 @@ is					-------
       -- SIG_DIGITS_MAX >= 768 (borne de Gay pour binary64), cet ecart
       -- ne peut pas faire franchir un demi-ulp binaire : seule
       -- l'egalite exacte C = 0 doit etre corrigee.
+      -- Pour une base puissance de 2, un point milieu s'ecrit en au
+      -- plus 55 chiffres : meme conclusion. Pour les autres bases
+      -- (3, 5 .. 7, 9, 11 .. 15), seul un litteral de plus de
+      -- SIG_DIGITS_MAX chiffres significatifs pourrait etre mal arrondi.
       ------------------------------------------------------------------
 
       function ROUNDED_QUOTIENT
@@ -2644,20 +2687,86 @@ is					-------
 
 
       ----------------------------------------------------------------
+      -- Base eventuelle : numeral decimal (soulignes admis) suivi de
+      -- '#' ou de ':'. BASE_VAL cesse de croitre au-dela de 16.
+      ----------------------------------------------------------------
+
+      SCAN := POS;
+
+      while SCAN <= FROM'LAST loop
+
+        CH := FROM(SCAN);
+
+        if CH >= '0' and then CH <= '9' then
+
+          if BASE_VAL <= 16 then
+            BASE_VAL := BASE_VAL * 10 + DIGIT_VALUE( CH );
+          end if;
+
+          SCAN := SCAN + 1;
+
+        elsif CH = '_'
+          and then SCAN > POS
+          and then SCAN < FROM'LAST
+          and then DIGIT_VALUE( FROM(SCAN + 1) ) < 10
+        then
+
+          SCAN := SCAN + 1;
+
+        else
+
+          exit;
+
+        end if;
+
+      end loop;
+
+
+      if SCAN > POS
+        and then SCAN <= FROM'LAST
+        and then ( FROM(SCAN) = '#' or else FROM(SCAN) = ':' )
+      then
+
+        if BASE_VAL >= 2 and then BASE_VAL <= 16 then
+
+          BASED  := TRUE;
+          RADIX  := BASE_VAL;
+          DELIM  := FROM(SCAN);
+          POS    := SCAN + 1;
+
+          LOG2_R := 0;
+          DIG    := RADIX;
+
+          while DIG >= 2 loop
+            LOG2_R := LOG2_R + 1;
+            DIG    := DIG / 2;
+          end loop;
+
+        elsif FROM(SCAN) = '#' then
+
+          -- Litteral base de base illegale.
+
+          raise DATA_ERROR;
+
+        end if;
+
+      end if;
+
+
+      ----------------------------------------------------------------
       -- Mantisse
       ----------------------------------------------------------------
 
       while POS <= FROM'LAST loop
 
-        CH := FROM(POS);
+        CH  := FROM(POS);
+        DIG := DIGIT_VALUE( CH );
 
-        if CH >= '0' and then CH <= '9' then
-
-          DIG := CHARACTER'POS(CH) - CHARACTER'POS('0');
+        if DIG < RADIX then
 
           if SIG_COUNT < SIG_DIGITS_MAX then
 
-            MUL_SMALL( SIG, 10 );
+            MUL_SMALL( SIG, RADIX );
             ADD_SMALL( SIG, DIG );
 
             if NONZERO_SEEN then
@@ -2675,7 +2784,7 @@ is					-------
           else
 
             -- Chiffre au-dela de la capacite : il ne modifie ni SIG
-            -- ni FRAC_COUNT. Avant le point il vaut un facteur 10 ;
+            -- ni FRAC_COUNT. Avant le point il vaut un facteur RADIX ;
             -- partout il alimente le bit sticky.
 
             if not POINT_SEEN then
@@ -2693,6 +2802,17 @@ is					-------
           LAST := POS;
           POS  := POS + 1;
 
+        elsif CH = '_'
+          and then POS > FROM'FIRST
+          and then DIGIT_VALUE( FROM(POS - 1) ) < RADIX
+          and then POS < FROM'LAST
+          and then DIGIT_VALUE( FROM(POS + 1) ) < RADIX
+        then
+
+          -- Souligne isole entre deux chiffres : sans valeur.
+
+          POS := POS + 1;
+
         elsif CH = '.' and then not POINT_SEEN then
 
           POINT_SEEN := TRUE;
@@ -2700,13 +2820,9 @@ is					-------
           LAST := POS;
           POS  := POS + 1;
 
-
-        elsif CH = 'E' or else CH = 'e' then
-
-          exit;
-
-
         else
+
+          -- Fin de mantisse ('E', delimiteur de base, autre).
 
           exit;
 
@@ -2717,6 +2833,23 @@ is					-------
 
       if not HAVE_DIGIT then
         raise DATA_ERROR;
+      end if;
+
+
+      ----------------------------------------------------------------
+      -- Delimiteur fermant d'un litteral base : le meme qu'a
+      -- l'ouverture.
+      ----------------------------------------------------------------
+
+      if BASED then
+
+        if POS > FROM'LAST or else FROM(POS) /= DELIM then
+          raise DATA_ERROR;
+        end if;
+
+        LAST := POS;
+        POS  := POS + 1;
+
       end if;
 
 
@@ -2750,6 +2883,17 @@ is					-------
         while POS <= FROM'LAST loop
 
           CH := FROM(POS);
+
+          -- Souligne isole entre deux chiffres de l'exposant.
+
+          if CH = '_'
+            and then EXP_DIGIT
+            and then POS < FROM'LAST
+            and then DIGIT_VALUE( FROM(POS + 1) ) < 10
+          then
+            POS := POS + 1;
+            CH  := FROM(POS);
+          end if;
 
           exit when CH < '0' or else CH > '9';
 
@@ -2823,9 +2967,9 @@ is					-------
 
 
       ----------------------------------------------------------------
-      -- Valeur decimale exacte :
+      -- Valeur exacte (DEC_EXP est un exposant de la base RADIX) :
       --
-      --   SIG * 10**DEC_EXP
+      --   SIG * RADIX**DEC_EXP
       ----------------------------------------------------------------
 
       if EXP_NEG then
@@ -2836,19 +2980,27 @@ is					-------
 
 
       ----------------------------------------------------------------
-      -- Ordre de grandeur decimal.
+      -- Ordre de grandeur dans la base RADIX :
       --
-      -- Ce test est volontairement tres conservateur. Il evite
+      --   RADIX**DEC_TOP <= |x| < RADIX**(DEC_TOP+1)
+      --
+      -- et 2**LOG2_R <= RADIX, d'ou, pour les puissances de 2 :
+      --   DEC_TOP >= 0     : |x| >= 2**(LOG2_R*DEC_TOP)
+      --   DEC_TOP + 1 <= 0 : |x| <  2**(LOG2_R*(DEC_TOP+1))
+      --
+      -- Ces tests sont volontairement conservateurs. Ils evitent
       -- seulement de construire des BIG absurdes.
       ----------------------------------------------------------------
 
       DEC_TOP := SIG_COUNT + DEC_EXP - 1;
 
-      if DEC_TOP > MAX_NORMAL_E + 1 then
+      if LOG2_R * DEC_TOP > MAX_NORMAL_E + 1 then
         raise DATA_ERROR;
       end if;
 
-      if DEC_TOP < MIN_SUB_E - 1 then
+      -- |x| < 2**(MIN_SUB_E-1) : moins d'un demi plus petit subnormal.
+
+      if LOG2_R * ( DEC_TOP + 1 ) < MIN_SUB_E then
 
         if NEG then
           ITEM := -0.0;
@@ -2870,13 +3022,13 @@ is					-------
       if DEC_EXP > 0 then
 
         for I in 1 .. DEC_EXP loop
-          MUL_SMALL( A, 10 );
+          MUL_SMALL( A, RADIX );
         end loop;
 
       elsif DEC_EXP < 0 then
 
         for I in 1 .. -DEC_EXP loop
-          MUL_SMALL( B, 10 );
+          MUL_SMALL( B, RADIX );
         end loop;
 
       end if;

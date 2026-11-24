@@ -442,11 +442,14 @@ is					-----
 			--=============--
   function		  OPER_SIZ_CHAR		( DEFN :TREE )		return CHARACTER
   is			--=============--
+
+    VUE		:constant TREE	:= FULL_TYPE_VIEW( DEFN );						--| taille de la vue PLEINE : un type prive
+												--| (ou incomplet) n'a pas de CD_IMPL_SIZE
   begin
-    if  DEFN.TY = DN_FLOAT  or  EST_ACCES( DEFN )  then return 'Q'; end if;
+    if  VUE.TY = DN_FLOAT  or  EST_ACCES( VUE )  then return 'Q'; end if;
 
     declare
-      TS		: TREE		:= DEFN;
+      TS		: TREE		:= VUE;
       SIZ		: NATURAL;
     begin
       if  TS.TY = DN_INTEGER  or else  TS.TY = DN_ENUMERATION  then						-- la representation vit sur la BASE (RM83) ;
@@ -663,9 +666,7 @@ is					-----
 	PUT_LINE( tab & "CALLI" );
 
         else
-	while  OBJ_TYPE.TY = DN_PRIVATE  or else  OBJ_TYPE.TY = DN_L_PRIVATE  loop
-	  OBJ_TYPE := D( SM_TYPE_SPEC, OBJ_TYPE );
-	end loop;
+	OBJ_TYPE := FULL_TYPE_VIEW( OBJ_TYPE );								--| vue pleine (prive derive hors paquetage : SM_DERIVED)
 
 	PUT_LINE( tab & "LA " & IMAGE( CODI.GENERIC_BASE_LEVEL + 1 ) & "," & tab & "-GFP_ofs" );
 
@@ -718,9 +719,7 @@ is					-----
       declare
         OBJ_TYPE	:TREE	:= D( SM_OBJ_TYPE, DEFN );
       begin
-        while  OBJ_TYPE.TY = DN_PRIVATE  or  OBJ_TYPE.TY = DN_L_PRIVATE  loop
-	OBJ_TYPE := D( SM_TYPE_SPEC, OBJ_TYPE );
-        end loop;
+        OBJ_TYPE := FULL_TYPE_VIEW( OBJ_TYPE );								--| vue pleine (prive derive hors paquetage : SM_DERIVED)
 
         if DEFN.TY in CLASS_VC_NAME  and then  DB( SM_RENAMES_OBJ, DEFN )  then
 				---------------
@@ -785,9 +784,7 @@ is					-----
 
   begin
 
-    while  TYPE_SPEC.TY = DN_L_PRIVATE  or  TYPE_SPEC.TY = DN_PRIVATE  loop
-      TYPE_SPEC := D( SM_TYPE_SPEC, TYPE_SPEC );
-    end loop;
+    TYPE_SPEC := FULL_TYPE_VIEW( TYPE_SPEC );								--| vue pleine (prive derive hors paquetage : SM_DERIVED)
 
     SIZ_CHAR := OPER_SIZ_CHAR( TYPE_SPEC );
 
@@ -826,7 +823,101 @@ is					-----
 		-- SM_UNIT_DESC = DN_RENAMES_UNIT jusqu'au premier id porteur
 		-- d'un vrai corps.  Meme prudence que EXCEPTION_ID_OF : la
 		-- representation reelle est a confirmer au dump.
+		-- LRM 3.4 : un sous-programme DERIVE (SM_UNIT_DESC =
+		-- DN_DERIVED_SUBPROG) est une copie sans corps de l'id parent
+		-- (SM_DERIVABLE) ; son appel equivaut a celui du parent, avec
+		-- conversions des parametres et du resultat entre type derive et
+		-- type parent.  Representation partagee : conversions sans effet,
+		-- on appelle le parent.  Sauf changement de representation
+		-- (LRM 13.6) : TROU, plutot qu'un code faux en silence.
     RESULT	: TREE	:= DEFN;
+
+		------------------------
+    function	CHANGE_DE_REPRESENTATION	( T :TREE )	return BOOLEAN
+    is		------------------------
+		--| VRAI si le type T (vue pleine, ramenee a sa base) est un
+		--| record ou une enumeration DERIVE(E) dont la representation
+		--| differe de celle de son parent : clause de record propre, ou
+		--| codes de litteraux propres.
+      F		: TREE	:= FULL_TYPE_VIEW( T );
+      P		: TREE;
+      LF, LP	: SEQ_TYPE;
+      XF, XP	: TREE;
+    begin
+      if  F.TY = DN_CONSTRAINED_RECORD  or else  F.TY = DN_ENUMERATION  then
+        if  D( SM_BASE_TYPE, F ) /= TREE_VOID  and then  D( SM_BASE_TYPE, F ) /= TREE_NIL  then
+	F := FULL_TYPE_VIEW( D( SM_BASE_TYPE, F ) );
+        end if;
+      end if;
+      if  F.TY /= DN_RECORD  and then  F.TY /= DN_ENUMERATION  then
+        return FALSE;
+      end if;
+      P := D( SM_DERIVED, F );
+      if  P = TREE_VOID  or else  P = TREE_NIL  then
+        return FALSE;
+      end if;
+      P := FULL_TYPE_VIEW( P );
+      if  ( P.TY = DN_CONSTRAINED_RECORD  or else  P.TY = DN_ENUMERATION )
+        and then  D( SM_BASE_TYPE, P ) /= TREE_VOID  and then  D( SM_BASE_TYPE, P ) /= TREE_NIL
+      then
+        P := FULL_TYPE_VIEW( D( SM_BASE_TYPE, P ) );
+      end if;
+      if  P.TY /= F.TY  then
+        return FALSE;
+      end if;
+
+      if  F.TY = DN_RECORD  then
+        return  D( SM_REPRESENTATION, F ) /= D( SM_REPRESENTATION, P );
+      end if;
+
+      LF := LIST( D( SM_LITERAL_S, F ) );
+      LP := LIST( D( SM_LITERAL_S, P ) );
+      while  not IS_EMPTY( LF )  and then  not IS_EMPTY( LP )  loop
+        POP( LF, XF );
+        POP( LP, XP );
+        if  DI( SM_REP, XF ) /= DI( SM_REP, XP )  then
+	return TRUE;
+        end if;
+      end loop;
+      return FALSE;
+
+    end	CHANGE_DE_REPRESENTATION;
+	------------------------
+
+		--------------------
+    procedure	GARDE_REPRESENTATION	( DERIVE :TREE )
+    is		--------------------
+		--| Types des parametres et du resultat du sous-programme derive.
+      SPEC	: TREE		:= D( SM_SPEC, DERIVE );
+      DECL_S	: SEQ_TYPE	:= LIST( D( AS_PARAM_S, SPEC ) );
+      DECL	: TREE;
+      ID_S	: SEQ_TYPE;
+      ID		: TREE;
+      MARQUE	: TREE;
+    begin
+      while  not IS_EMPTY( DECL_S )  loop
+        POP( DECL_S, DECL );
+        ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
+        while  not IS_EMPTY( ID_S )  loop
+	POP( ID_S, ID );
+	if  CHANGE_DE_REPRESENTATION( D( SM_OBJ_TYPE, ID ) )  then
+	  TROU( "appel de sous-programme derive avec changement de representation (LRM 13.6)", DERIVE );
+	end if;
+        end loop;
+      end loop;
+
+      if  SPEC.TY = DN_FUNCTION_SPEC  then
+        MARQUE := D( AS_NAME, SPEC );
+        if  MARQUE.TY = DN_USED_NAME_ID
+	and then  D( SM_DEFN, MARQUE ).TY in CLASS_TYPE_NAME
+	and then  CHANGE_DE_REPRESENTATION( D( SM_TYPE_SPEC, D( SM_DEFN, MARQUE ) ) )
+        then
+	TROU( "appel de fonction derivee avec changement de representation (LRM 13.6)", DERIVE );
+        end if;
+      end if;
+
+    end	GARDE_REPRESENTATION;
+	--------------------
 
   begin
     loop
@@ -834,22 +925,48 @@ is					-----
         UD	: TREE	:= D( SM_UNIT_DESC, RESULT );
       begin
         exit when  UD = TREE_VOID  or else  UD = TREE_NIL
-	or else  UD.TY /= DN_RENAMES_UNIT;
+	or else  ( UD.TY /= DN_RENAMES_UNIT  and then  UD.TY /= DN_DERIVED_SUBPROG );
 
-        declare
-	NAME	: TREE	:= D( AS_NAME, UD );
-        begin
-	while  NAME.TY = DN_SELECTED  loop
-	  NAME := D( AS_DESIGNATOR, NAME );
-	end loop;
-	RESULT := D( SM_DEFN, NAME );
-        end;
+        if  UD.TY = DN_DERIVED_SUBPROG  then
+	GARDE_REPRESENTATION( RESULT );
+	RESULT := D( SM_DERIVABLE, UD );								--| le parent (lui-meme derive ou renomme : on boucle)
+
+        else
+	declare
+	  NAME	: TREE	:= D( AS_NAME, UD );
+	begin
+	  while  NAME.TY = DN_SELECTED  loop
+	    NAME := D( AS_DESIGNATOR, NAME );
+	  end loop;
+	  RESULT := D( SM_DEFN, NAME );
+	end;
+        end if;
       end;
     end loop;
     return  RESULT;
 
 end	SUBPROGRAM_ORIGIN;
 	-----------------
+
+
+		--^^^^^^^^^^^^^^^--
+  function	  ORIGINE_EGALITE		( DEFN :TREE )	return TREE
+  is		-----------------
+		-- LRM 6.7 : le "/=" implicite qui accompagne un "=" declare
+		-- par l'utilisateur (SM_UNIT_DESC = DN_IMPLICIT_NOT_EQ) n'a
+		-- pas de corps ; il vaut NOT ( "=" ).  Rend l'origine de ce
+		-- "=" (SM_EQUAL) ; DEFN inchange dans tout autre cas.  A
+		-- l'appelant d'emettre la negation.
+    UD	: TREE	:= D( SM_UNIT_DESC, DEFN );
+
+  begin
+    if  UD /= TREE_VOID  and then  UD /= TREE_NIL  and then  UD.TY = DN_IMPLICIT_NOT_EQ  then
+      return  SUBPROGRAM_ORIGIN( D( SM_EQUAL, UD ) );
+    end if;
+    return  DEFN;
+
+  end	ORIGINE_EGALITE;
+	---------------
 
 
 			--^^^^^^^^^^^^^^^^^^^^^^^--

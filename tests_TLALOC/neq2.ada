@@ -1,0 +1,20 @@
+WITH REPORT; USE REPORT;
+PROCEDURE NEQ2 IS
+     PACKAGE P IS
+          TYPE T IS RECORD A, B : INTEGER; END RECORD;
+          FUNCTION "=" (L, R : T) RETURN BOOLEAN;
+     END P;
+     TYPE D IS NEW P.T;
+     FUNCTION DIFF (L, R : P.T) RETURN BOOLEAN RENAMES P."/=";
+     X : D := (1, 2);
+     Y : P.T := (3, 4);
+     PACKAGE BODY P IS
+          FUNCTION "=" (L, R : T) RETURN BOOLEAN IS BEGIN RETURN L.A = R.A; END "=";
+     END P;
+BEGIN
+     TEST ("NEQ2", "'/=' IMPLICITE : DERIVE, RENOMME, FORME D'APPEL");
+     IF X /= (1, 99) OR NOT (X /= (2, 2)) THEN FAILED ("/= DERIVE"); END IF;
+     IF DIFF (Y, (3, 0)) OR NOT DIFF (Y, (4, 4)) THEN FAILED ("/= RENOMME"); END IF;
+     IF P."/=" (Y, (3, 7)) THEN FAILED ("P.""/="" EN FORME D'APPEL"); END IF;
+     RESULT;
+END NEQ2;

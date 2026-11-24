@@ -1852,10 +1852,21 @@ is
         DESIGNATOR_DEFN	: TREE		:= D( SM_DEFN, DESIGNATOR );
         DESIGNATOR_LEVEL	: INTEGER;
 
+		----------
+        function	DESIG_TYPE	return TREE
+        is		----------
+		--| Vue pleine du type du designateur (lue a l'usage : un nom de
+		--| sous-programme n'a pas de SM_EXP_TYPE). Composant de type
+		--| PRIVE a vue pleine scalaire : VALEUR, comme les objets (lot 10).
+        begin
+	return  CODI.FULL_TYPE_VIEW( D( SM_EXP_TYPE, DESIGNATOR ) );
+        end	DESIG_TYPE;
+		----------
+
       begin
         if  DESIGNATOR_DEFN.TY = DN_VARIABLE_ID  then
 
-	if  ( D( SM_EXP_TYPE, DESIGNATOR ).TY in CLASS_SCALAR  or else  CODI.EST_ACCES( D( SM_EXP_TYPE, DESIGNATOR ) ) )
+	if  ( DESIG_TYPE.TY in CLASS_SCALAR  or else  CODI.EST_ACCES( DESIG_TYPE ) )
 		and then  not IS_SOURCE
 	then
 	-- DESTINATION scalaire (ou access) : pousser l'ADRESSE du slot, pas
@@ -1869,9 +1880,9 @@ is
 	  REGIONS_PATH( DESIGNATOR_DEFN );
 	  PUT_LINE( DESIGNATOR_STR & "_disp" );
 
-	elsif  D( SM_EXP_TYPE, DESIGNATOR ).TY in CLASS_SCALAR  then
+	elsif  DESIG_TYPE.TY in CLASS_SCALAR  then
 	  DESIGNATOR_LEVEL := DI( CD_LEVEL, DESIGNATOR_DEFN );
-	  PUT( tab & OPER_LOAD_STR( D( SM_EXP_TYPE, DESIGNATOR ) ) & tab & IMAGE( DESIGNATOR_LEVEL ) & ", " );
+	  PUT( tab & OPER_LOAD_STR( DESIG_TYPE ) & tab & IMAGE( DESIGNATOR_LEVEL ) & ", " );
 	  REGIONS_PATH( DESIGNATOR_DEFN );
 	  PUT_LINE( DESIGNATOR_STR & "_disp" );
 
@@ -1929,10 +1940,10 @@ is
 		& '-' & PRINT_NAME( D(LX_SYMREP, NAME ) ) & "_ofs" );
 	    end if;
 
-	    if  ( D( SM_EXP_TYPE, DESIGNATOR ).TY in CLASS_SCALAR
-			  or else CODI.EST_ACCES( D( SM_EXP_TYPE, DESIGNATOR ) ) )
+	    if  ( DESIG_TYPE.TY in CLASS_SCALAR
+			  or else CODI.EST_ACCES( DESIG_TYPE ) )
 			  and  IS_SOURCE  then
-	      PUT( tab & OPER_LOADI_STR( D( SM_EXP_TYPE, DESIGNATOR ) ) );
+	      PUT( tab & OPER_LOADI_STR( DESIG_TYPE ) );
 
 	    else
 	      PUT( tab & "LIVA " );
@@ -1943,10 +1954,10 @@ is
 	    PUT_LINE( DESIGNATOR_STR );
 
 	  else
-	    if	( D( SM_EXP_TYPE, DESIGNATOR ).TY in CLASS_SCALAR
-			  or else CODI.EST_ACCES( D( SM_EXP_TYPE, DESIGNATOR ) ) )
+	    if	( DESIG_TYPE.TY in CLASS_SCALAR
+			  or else CODI.EST_ACCES( DESIG_TYPE ) )
 			  and  IS_SOURCE  then
-	      PUT( tab & OPER_LOADI_STR( D( SM_EXP_TYPE, DESIGNATOR ) ) );
+	      PUT( tab & OPER_LOADI_STR( DESIG_TYPE ) );
 	    else
 	      PUT( tab & "LIVA " );
 	    end	if;
@@ -1961,11 +1972,11 @@ is
 
 	else
 	    -- NAME est une expression composite resolue en adresse directe sur la pile
-	  if  ( D( SM_EXP_TYPE, DESIGNATOR ).TY in CLASS_SCALAR
-		   or else CODI.EST_ACCES( D( SM_EXP_TYPE, DESIGNATOR ) ) )
+	  if  ( DESIG_TYPE.TY in CLASS_SCALAR
+		   or else CODI.EST_ACCES( DESIG_TYPE ) )
 		   and  IS_SOURCE  then
 	      -- Champ scalaire terminal : load direct depuis l'adresse en sommet de pile
-	    PUT( tab & OPER_LOAD_STR( D( SM_EXP_TYPE, DESIGNATOR ) ) );
+	    PUT( tab & OPER_LOAD_STR( DESIG_TYPE ) );
 	    PUT( tab & ", " );
 	    REGIONS_PATH( DESIGNATOR_DEFN );
 	    PUT_LINE( DESIGNATOR_STR );
@@ -5720,7 +5731,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         if  OP_DEFN.TY = DN_OPERATOR_ID  then
 	OP_DEFN := SUBPROGRAM_ORIGIN( OP_DEFN );						-- renames d'un predefini : viser l'origine (LRM 8.5)
         end if;
-        if  OP_DEFN.TY = DN_OPERATOR_ID  then
+        if  OP_DEFN.TY = DN_OPERATOR_ID  or else  OP_DEFN.TY = DN_FUNCTION_ID  then			--| FUNCTION "+" ( .. ) RENAMES G : l'origine
 			--| OPDEF_TEST (8/08, bootstrap _standrd, spin INTEGER_POW sur le
 			--| 2**15 de SHORT_INTEGER) : un operateur DEFINI PAR L'UTILISATEUR
 			--| (DN_OPERATOR_ID a vrai corps -- "**" d'UARITH sur TREE) etait
@@ -9337,8 +9348,15 @@ SCAN_IDS:
     -- les bornes du base serait vide de toute facon : ELISION par comparaison des
     -- NOEUDS de nom. La contrainte anonyme reste NON CONTROLEE : dette consignee
     -- (NOTE_MODELE_CHECKS, restrictions).
+    -- Le PREMIER sous-type d'un type a intervalle propre (TYPE INT IS RANGE 1 .. 100)
+    -- partage son XD_SOURCE_NAME avec sa base anonyme, mais il EST le sous-type
+    -- designe par ce nom (SM_TYPE_SPEC du nom) : bornes _INT.FST/LST elaborees,
+    -- controle du. Seul le sous-type vraiment anonyme est elide.
     if  D( XD_SOURCE_NAME, TYPE_SPEC )
-      = D( XD_SOURCE_NAME, D( SM_BASE_TYPE, TYPE_SPEC ) )  then
+      = D( XD_SOURCE_NAME, D( SM_BASE_TYPE, TYPE_SPEC ) )
+      and then  ( D( XD_SOURCE_NAME, TYPE_SPEC ).TY not in CLASS_TYPE_NAME
+		or else  D( SM_TYPE_SPEC, D( XD_SOURCE_NAME, TYPE_SPEC ) ) /= TYPE_SPEC )
+    then
       return;
     end if;
 

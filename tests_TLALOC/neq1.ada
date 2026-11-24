@@ -1,0 +1,16 @@
+WITH REPORT; USE REPORT;
+PROCEDURE NEQ1 IS
+     PACKAGE P IS
+          TYPE T IS RECORD A, B : INTEGER; END RECORD;
+          FUNCTION "=" (L, R : T) RETURN BOOLEAN;
+     END P;
+     USE P;
+     X : T := (1, 2);
+     PACKAGE BODY P IS
+          FUNCTION "=" (L, R : T) RETURN BOOLEAN IS BEGIN RETURN L.A = R.A; END "=";
+     END P;
+BEGIN
+     TEST ("NEQ1", "'/=' IMPLICITE D'UN '=' UTILISATEUR");
+     IF NOT (X = (1, 99)) OR X /= (1, 77) THEN FAILED ("= ET /="); END IF;
+     RESULT;
+END NEQ1;

@@ -1,0 +1,28 @@
+WITH REPORT; USE REPORT;
+PROCEDURE DER4 IS
+     PACKAGE P IS
+          TYPE T IS RECORD A, B : INTEGER; END RECORD;
+          FUNCTION "=" (L, R : T) RETURN BOOLEAN;
+          PROCEDURE INC (X : IN OUT T; N : INTEGER := 1);
+          FUNCTION "+" (X : T) RETURN T;
+     END P;
+     TYPE D IS NEW P.T;
+     TYPE E IS NEW D;
+     X : D := (1, 2);
+     Y : E := (5, 0);
+     PACKAGE BODY P IS
+          FUNCTION "=" (L, R : T) RETURN BOOLEAN IS BEGIN RETURN L.A = R.A; END "=";
+          PROCEDURE INC (X : IN OUT T; N : INTEGER := 1) IS BEGIN X.A := X.A + N; END INC;
+          FUNCTION "+" (X : T) RETURN T IS BEGIN RETURN (X.A * 10, X.B); END "+";
+     END P;
+BEGIN
+     TEST ("DER4", "SOUS-PROGRAMMES DERIVES : RECORD, IN OUT, DEFAUT, OPERATEURS, '=' ET '/=', DOUBLE DERIVATION");
+     INC (X); INC (X, 3);
+     IF X.A /= 5 THEN FAILED ("INC"); END IF;
+     IF NOT (X = (5, 99)) OR X /= (5, 77) THEN FAILED ("= ET /= DERIVES"); END IF;
+     X := +X;
+     IF X.A /= 50 THEN FAILED ("+"); END IF;
+     INC (Y, 2);
+     IF Y.A /= 7 OR Y /= (7, 1) THEN FAILED ("E : DOUBLE DERIVATION"); END IF;
+     RESULT;
+END DER4;

@@ -425,6 +425,10 @@ begin
     EMITS.P3_EMIT( 1, IR.ELT_ID( IR.ELT_COUNT ), IDL.LIB_PATH( 1 .. IDL.LIB_PATH_LENGTH ) & UNIT_NAME & EXE_EXT );
     NEW_LINE;
 
+    if  GENERATE_BINARY_MAP  then										--| CODE /MAP : valeur, classe et chemin de
+      SYMBOLS.DUMP_MAP;											--| chaque symbole (adresses des labels de
+    end if;												--| procedure : diagnostic d'un executable)
+
     PUT_LINE( "CARTO capacites :" );
     PUT_LINE( "  elements " & NATURAL'IMAGE( IR.ELT_COUNT )
 		& " /" & INTEGER'IMAGE( IR.ELT_MAX )

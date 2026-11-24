@@ -1336,12 +1336,8 @@ is
         PUT_LINE( TYPE_NAME_STR & ".SIZ__" );
         PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & VC_STR & "__u" );
 
-        DI( CD_LEVEL, VC_NAME, INTEGER( LVL ) );
-
-        if  VC_NAME.TY = DN_CONSTANT_ID  and then  D( SM_FIRST, VC_NAME ) /= VC_NAME  then			-- Cas de differe
-	DI( CD_LEVEL, D( SM_FIRST, VC_NAME ), INTEGER( LVL ) );
-        end if;
-        DB( CD_COMPILED,  VC_NAME, TRUE );
+        DI( CD_LEVEL, VC_NAME, INTEGER( LVL ) );									--| constante differee : recopie sur SM_FIRST
+        DB( CD_COMPILED,  VC_NAME, TRUE );										--| a la fin de CODE_VC_NAME (toutes sortes)
 
         if  INIT_EXP /= TREE_VOID  and then  CODI.EST_RECORD_DYNAMIQUE( TYPE_SPEC )  then
 			--| Option B : objet dynamique INITIALISE.
@@ -1690,6 +1686,11 @@ is
         PUT_LINE( "; ERREUR CODE_VC_NAME, TYPE_SPEC.TY = " & NODE_NAME'IMAGE( TYPE_SPEC.TY ) );
         raise PROGRAM_ERROR;
       end case;
+
+      if  VC_NAME.TY = DN_CONSTANT_ID  and then  D( SM_FIRST, VC_NAME ) /= VC_NAME  then				--| constante DIFFEREE (LRM 7.4.3) : les usages
+        DI( CD_LEVEL, D( SM_FIRST, VC_NAME ), DI( CD_LEVEL, VC_NAME ) );						--| designent la declaration de la partie
+        DB( CD_COMPILED, D( SM_FIRST, VC_NAME ), TRUE );							--| visible (SM_FIRST de la declaration
+      end if;													--| complete) : meme niveau, meme nom
     end;
     NEW_LINE;
 
@@ -2757,7 +2758,31 @@ is
 			--| fossile ne tenait que si le prologue RELAIE le slot -- le LI 0
 			--| d'origine donnait un slot nul au modele (segfault a son
 			--| CODE_RETURN). Relais pose au prologue pour DN_ARRAY.
-	    null;											--| INTENTIONNEL (cf. ci-dessus)
+			--| AMENDEMENT (lot 15, temoin GEN1) : pour un resultat SCALAIRE
+			--| ou d'ACCES d'un modele PARTAGE, le prologue pose LI 0 : le
+			--| modele ecrit dans CE slot, laisse au sommet par son RTD
+			--| prm_siz-8 -- il faut le rapatrier dans le result__ofs du
+			--| wrapper, sinon la fonction instanciee rend 0.  Modele SANS
+			--| parametre declare : son RTD est nu (NO_SUBP_PARAMS) et laisse
+			--| aussi GFP au sommet -- DROP d'abord.  On ne touche pas a cet
+			--| epilogue : CODE_RETURN d'un resultat TABLEAU ecrit a -8, soit
+			--| dans le slot GFP, et compte sur ce RTD nu (ENUMERATION_IO).
+	    declare
+	      MODELE		: TREE		:= D( SM_DEFN, CODI.INSTANTIATION_MODEL_NAME );
+	      RES_TYPE		: TREE		:= CODI.FULL_TYPE_VIEW( D( SM_TYPE_SPEC, D( SM_DEFN, D( AS_NAME, HEADER ) ) ) );
+	    begin
+	      if  not ( MODELE.TY = DN_GENERIC_ID
+		    and then  PRINT_NAME( D( LX_SYMREP, MODELE ) ) = "UNCHECKED_CONVERSION" )
+	        and then  ( RES_TYPE.TY in CLASS_SCALAR  or else  CODI.EST_ACCES( RES_TYPE ) )
+	      then
+	        if  IS_EMPTY( LIST( D( AS_PARAM_S, D( SM_SPEC, SOURCE_NAME ) ) ) )  then		--| modele SANS parametre declare : son
+		PUT_LINE( tab & "DROP" );							--| RTD nu laisse GFP au-dessus du resultat
+	        end if;
+	        PUT( tab & 'S' & OPER_SIZ_CHAR( RES_TYPE ) & tab & LEVEL_NUM'IMAGE( CODI.CUR_LEVEL ) & ", -result__ofs" );
+	        if  CODI.DEBUG  then PUT( tab50 & "; retour resultat du modele partage" ); end if;
+	        NEW_LINE;
+	      end if;
+	    end;
 	  end if;
 	end if;
 
