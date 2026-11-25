@@ -682,6 +682,14 @@ separate ( EXPANDER )
     FRM_PRM_GRP	: TREE;
     SPEC_PRM_ID_S	: SEQ_TYPE;
 
+    MAX_COPIES	:constant	:= 64;									--| LRM 6.2 : scalaires et acces out / in out PAR
+    type T_COPIE	is record									--| COPIE, cote appelant (note conception_copie_
+		  FRM, ACT	: TREE;								--| parametres) : l'appele recoit l'adresse d'une
+		  LBL		: LABEL_TYPE;							--| cellule __CP<n> ; __CA<n> garde l'adresse de
+		end record;									--| l'actuel pour la recopie au retour normal
+    COPIES	: array( 1 .. MAX_COPIES ) of T_COPIE;
+    NB_COPIES	: NATURAL	:= 0;
+
 
 		---------------------
     function	IS_IN_CURRENT_GENERIC	( ID : TREE ) return BOOLEAN
@@ -706,11 +714,72 @@ separate ( EXPANDER )
     end	IS_IN_CURRENT_GENERIC;
 	---------------------
 
+		----------------
+    function	COPIE_PAR_VALEUR	( FRM, ACT :TREE ) return BOOLEAN
+    is		----------------
+	-- Formel out / in out scalaire ou d'acces, actuel NOMME dont l'adresse est empilee
+	-- par INVERSE_RECURSE_ON_PARAMETERS.  Hors corps generiques (lot ulterieur) ; hors
+	-- conversion en actuel (sauf T (V) d'acces, deja ramene a V) ; hors renommage.
+      F_TYPE	: TREE;
+      DEFN	: TREE;
+    begin
+      if  CODI.IN_GENERIC_BODY
+        or else  ( FRM.TY /= DN_OUT_ID  and then  FRM.TY /= DN_IN_OUT_ID )
+      then
+        return FALSE;
+      end if;
+      F_TYPE := CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM ) );
+      if  not ( F_TYPE.TY in CLASS_SCALAR  or else  CODI.EST_ACCES( F_TYPE ) )
+        or else  EXPRESSIONS.IS_GENERIC_FORMAL_TYPE( D( XD_SOURCE_NAME, D( SM_OBJ_TYPE, FRM ) ) )
+        or else  CODI.EST_SELECTION_DYNAMIQUE( ACT )
+      then
+        return FALSE;
+      end if;
+      if  ACT.TY = DN_USED_OBJECT_ID  then
+        DEFN := D( SM_DEFN, ACT );
+        if  DEFN.TY = DN_VARIABLE_ID  then
+	return  not DB( SM_RENAMES_OBJ, DEFN );
+        end if;
+        return  DEFN.TY = DN_OUT_ID  or else  DEFN.TY = DN_IN_OUT_ID;
+      end if;
+      return  ACT.TY = DN_INDEXED  or else  ACT.TY = DN_SELECTED  or else  ACT.TY = DN_ALL;
+
+    end	COPIE_PAR_VALEUR;
+	----------------
+
+		--------------
+    function	VUE_CONTROLE	( T :TREE ) return TREE
+    is		--------------
+	-- Vue a CONTROLER : la vue privee est percee, mais un sous-type d'acces contraint
+	-- reste tel quel (FULL_TYPE_VIEW le ramenerait a sa base, sans contrainte).
+    begin
+      if  T.TY = DN_PRIVATE  or else  T.TY = DN_L_PRIVATE  then
+        return  CODI.FULL_TYPE_VIEW( T );
+      end if;
+      return  T;
+
+    end	VUE_CONTROLE;
+	--------------
+
+		----------------
+    function	SOUS_TYPE_ACTUEL	( ACT :TREE ) return TREE
+    is		----------------
+	-- Sous-type de l'actuel, contre lequel la valeur rendue est controlee (LRM 6.4.1).
+    begin
+      if  ACT.TY = DN_USED_OBJECT_ID  then
+        return  VUE_CONTROLE( D( SM_OBJ_TYPE, D( SM_DEFN, ACT ) ) );
+      end if;
+      return  VUE_CONTROLE( D( SM_EXP_TYPE, ACT ) );
+
+    end	SOUS_TYPE_ACTUEL;
+	----------------
+
 			-----------------------------
     procedure		INVERSE_RECURSE_ON_PARAMETERS
     is			-----------------------------
       ACT_PRM	: TREE;
       FRM_PRM_ID	: TREE;
+      COPIE	: BOOLEAN	:= FALSE;							--| actuel passe par COPIE (cellule __CP<n>)
 
 		------------------------------
       procedure	WRAP_COMPOSITE_ACTUAL_DOUBLET		( FRM_PRM_ID, ACT_PRM :TREE )
@@ -860,8 +929,11 @@ separate ( EXPANDER )
 	    end;
 
 	  else
-	    if  FRM_PRM_ID.TY = DN_IN_ID  then
-	      EXPRESSIONS.CODE_SELECTED( ACT_PRM );							-- in : rvalue (historique, couvre aussi DN_ALL)
+	    if  FRM_PRM_ID.TY = DN_IN_ID  and then  ACT_PRM.TY = DN_ALL  then				--| in : X.ALL scalaire ou d'acces, rvalue par
+	      EXPRESSIONS.CODE_EXP( ACT_PRM );								--| CODE_EXP (CODE_SELECTED lit AS_DESIGNATOR, absent
+												--| de DN_ALL : c41303o)
+	    elsif  FRM_PRM_ID.TY = DN_IN_ID  then
+	      EXPRESSIONS.CODE_SELECTED( ACT_PRM );							-- in : rvalue (historique)
 	    else
 	      EXPRESSIONS.CODE_OBJECT_ADDRESS( ACT_PRM );							-- out / in out : adresse seule
 	    end if;
@@ -1101,6 +1173,33 @@ separate ( EXPANDER )
 	EXPRESSIONS.CODE_EXP( ACT_PRM );
         end if;
 
+	-- LRM 6.2 / 6.4.1 : out / in out scalaire ou d'acces PAR COPIE.  Pile = @actuel ;
+	-- on la range dans __CA<n>, on copie la valeur dans __CP<n> (in out : controlee
+	-- contre le sous-type du formel ; out : copiee sans controle, l'appele peut la
+	-- relire -- tolerance C3) et on passe @__CP<n>.  Recopie apres le CALL.
+        if  COPIE_PAR_VALEUR( FRM_PRM_ID, ACT_PRM )  and then  NB_COPIES < MAX_COPIES  then
+	declare
+	  LBL		: LABEL_TYPE	:= NEW_LABEL;
+	  LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	  CA		:constant STRING	:= "__CA" & LABEL_STR( LBL );
+	  CP		:constant STRING	:= "__CP" & LABEL_STR( LBL );
+	  F_TYPE	: TREE		:= D( SM_OBJ_TYPE, FRM_PRM_ID );
+	begin
+	  COPIE := TRUE;
+	  NB_COPIES := NB_COPIES + 1;
+	  COPIES( NB_COPIES ) := ( FRM_PRM_ID, ACT_PRM, LBL );
+	  PUT_LINE( "VAR " & CA & ", Q" );
+	  PUT_LINE( "VAR " & CP & ", " & OPER_SIZ_CHAR( F_TYPE ) );
+	  PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & CA );					-- @actuel
+	  PUT_LINE( tab & OPER_LOADI_STR( F_TYPE ) & tab & LVL_STR & ", " & CA & ", 0" );		-- valeur de l'actuel
+	  if  FRM_PRM_ID.TY = DN_IN_OUT_ID  then
+	    EXPRESSIONS.CODE_RANGE_CHECK( VUE_CONTROLE( F_TYPE ) );			-- avant l'appel : sous-type du formel
+	  end if;
+	  PUT_LINE( tab & 'S' & OPER_SIZ_CHAR( F_TYPE ) & tab & LVL_STR & ", " & CP );
+	  PUT_LINE( tab & "LVA" & tab & LVL_STR & ", " & CP );					-- @copie, passee a l'appele
+	end;
+        end if;
+
 	-- LRM 6.4.1 : formel de sous-type record CONTRAINT -> discriminants de
 	-- l'actuel egaux a ceux de la contrainte, tout mode.  Pile = @doublet
 	-- (rendu tel quel) ; [@doublet] = @donnees.
@@ -1144,12 +1243,11 @@ separate ( EXPANDER )
 	end;
         end if;
 
-	-- E-D2 : gamme du SOUS-TYPE DU FORMEL (LRM 6.4.1), mode in seul.
-	-- Les modes out/in_out posent une ADRESSE : pas de check ici
-	-- (copy-back hors perimetre 1, consigne).
+	-- E-D2 : gamme du SOUS-TYPE DU FORMEL (LRM 6.4.1), mode in.  Les in out copies
+	-- (COPIE) sont controles ci-dessus ; reste ici l'acces contraint non copie.
         if  FRM_PRM_ID.TY = DN_IN_ID  then
 	EXPRESSIONS.CODE_RANGE_CHECK( D( SM_OBJ_TYPE, FRM_PRM_ID ) );
-        elsif  FRM_PRM_ID.TY = DN_IN_OUT_ID
+        elsif  FRM_PRM_ID.TY = DN_IN_OUT_ID  and then  not COPIE
 	and then  D( SM_OBJ_TYPE, FRM_PRM_ID ).TY = DN_CONSTRAINED_ACCESS
 	and then  ( ACT_PRM.TY = DN_USED_OBJECT_ID  or else  ACT_PRM.TY = DN_CONVERSION )	--| conversion : son propre controle (4.6)
         then											--| in out d'acces contraint (6.4.1) : la VALEUR
@@ -1194,6 +1292,20 @@ separate ( EXPANDER )
       PUT_LINE( tab & "OUX" );
     end if;
 
+			--| LRM 6.2 / 6.4.1 : retour NORMAL seulement (une exception de l'appele
+			--| saute ce code : l'actuel reste intact).  Valeur controlee contre le
+			--| sous-type de l'ACTUEL, puis rangee a l'adresse gardee dans __CA<n>.
+    for  K in 1 .. NB_COPIES  loop
+      declare
+        LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+        F_TYPE	: TREE		:= D( SM_OBJ_TYPE, COPIES( K ).FRM );
+      begin
+        PUT_LINE( tab & OPER_LOAD_STR( F_TYPE ) & tab & LVL_STR & ", __CP" & LABEL_STR( COPIES( K ).LBL ) );
+        EXPRESSIONS.CODE_RANGE_CHECK( SOUS_TYPE_ACTUEL( COPIES( K ).ACT ) );
+        PUT_LINE( tab & "SI" & OPER_SIZ_CHAR( F_TYPE ) & tab & LVL_STR & ", __CA" & LABEL_STR( COPIES( K ).LBL ) & ", 0" );
+      end;
+    end loop;
+
 			--| LRM 6.4.1 : au RETOUR, un actuel out / in out de sous-type
 			--| d'acces CONTRAINT doit encore satisfaire sa contrainte.
     if  CODI.CHECKS_ENABLED  then
@@ -1215,6 +1327,7 @@ separate ( EXPANDER )
 	    ACT := D( AS_EXP, ACT );								--| la valeur au retour (6.4.1)
 	  end if;
 	  if  ( ID.TY = DN_OUT_ID  or else  ID.TY = DN_IN_OUT_ID )
+	    and then  not COPIE_PAR_VALEUR( ID, ACT )						--| deja controle par la recopie
 	    and then  ACT.TY = DN_USED_OBJECT_ID
 	    and then  ( D( SM_DEFN, ACT ).TY in CLASS_VC_NAME  or else  D( SM_DEFN, ACT ).TY in CLASS_PARAM_NAME )
 	    and then  D( SM_OBJ_TYPE, D( SM_DEFN, ACT ) ).TY = DN_CONSTRAINED_ACCESS
@@ -2010,6 +2123,27 @@ separate ( EXPANDER )
 	elsif  DST_TYPE.TY = DN_ARRAY or else DST_TYPE.TY = DN_CONSTRAINED_ARRAY  then
 	  if  SRC_EXP.TY = DN_AGGREGATE  then
 	    EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, DST_TYPE );
+	  elsif  DST_TYPE.TY = DN_CONSTRAINED_ARRAY						--| designe tableau contraint NOMME : BLKMOV,
+	    and then  ( D( XD_SOURCE_NAME, DST_TYPE ).TY = DN_TYPE_ID				--| LEN = SIZ du patron du type (comme la voie
+		      or else  D( XD_SOURCE_NAME, DST_TYPE ).TY = DN_SUBTYPE_ID )			--| variable) ; c41303b/j
+	  then
+	    PUT( tab & "LD" & tab & IMAGE( DI( CD_LEVEL, DST_TYPE ) ) & ", " );
+	    CODI.REGIONS_PATH( D( XD_SOURCE_NAME, DST_TYPE ) );
+	    PUT_LINE( CODI.TYPE_INFO_STR( DST_TYPE ) & ".SIZ__" );					-- SIZ (bits)
+	    PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+	    PUT_LINE( tab & "DIV" );									-- LEN en octets
+	    if  SRC_EXP.TY = DN_STRING_LITERAL  then
+	      EXPRESSIONS.CODE_STRING_LITERAL( SRC_EXP, IDL.ANONYMOUS_NAME_AT( SRC_EXP ) );
+	      PUT_LINE( tab & "LCA" & tab & IDL.ANONYMOUS_NAME_AT( SRC_EXP ) & ".data_ptr" );
+	      PUT_LINE( tab & "LA" );									-- @SRC = data_ptr
+	    elsif  SRC_EXP.TY = DN_SLICE  then
+	      EXPRESSIONS.CODE_SLICE( SRC_EXP, IS_DESTINATION => TRUE );				-- @src, len_src
+	      PUT_LINE( tab & "DROP" );								-- longueur = celle de la destination
+	    else
+	      EXPRESSIONS.CODE_COMPOSITE_DATA_ADDRESS( SRC_EXP );
+	    end if;
+	    PUT_LINE( tab & "BLKMOV" );
+
 	  else
 	    PUT_LINE( "; CODE_ASSIGN DN_ALL array source non aggregate a completer" );
 	    raise PROGRAM_ERROR;
@@ -2267,7 +2401,12 @@ separate ( EXPANDER )
 	elsif  NAME_TYPE.TY = DN_ARRAY  or  NAME_TYPE.TY = DN_CONSTRAINED_ARRAY  then				-- OBJET ASSIGNE TABLEAU
 
 	  if  SRC_EXP.TY = DN_AGGREGATE  then
-	    CODE_OBJECT( DEFN );									-- @DST (data) — chemin valide, inchange
+	    if  DEFN.TY in CLASS_PARAM_NAME  then							--| formel tableau : @donnees lues dans le
+	      CODI.LOAD_MEM( DEFN );									--| doublet, comme la voie BLKMOV ci-dessous
+	      PUT_LINE( tab & "LA" );									--| (CODE_OBJECT emettait LVA niv, ARR :
+	    else											--| symbole introuvable, c64109)
+	      CODE_OBJECT( DEFN );									-- @DST (data) — chemin valide, inchange
+	    end if;
 	    EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, NAME_TYPE );
 
 	  else

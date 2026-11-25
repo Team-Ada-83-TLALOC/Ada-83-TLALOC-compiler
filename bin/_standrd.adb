@@ -46,8 +46,11 @@ is				--------
 
 
 			-------------
-  function		INTEGER_IMAGE	( ITEM :INTEGER )	return STRING
+  function		INTEGER_IMAGE	( ITEM :LONG_INTEGER )	return STRING
   is			-------------
+			--| ITEM et N en LONG_INTEGER : la valeur arrive sur 64 bits pour tout
+			--| type entier ; en INTEGER, LONG_INTEGER'IMAGE (2**32) rendait " 0",
+			--| y compris dans T2 (constantes de fixes de CODE_STATIC_FIXED_VALUE).
 
     LEN	: INTEGER;
 
@@ -55,7 +58,7 @@ is				--------
 		-------------------
 		INTEGER_IMAGE_WIDTH:
     declare
-      N	: INTEGER := ITEM;
+      N	: LONG_INTEGER := ITEM;
 
     begin
       LEN := 1;
@@ -79,7 +82,7 @@ is				--------
     declare
       BUF : STRING (1 .. LEN);
       POS : INTEGER := LEN;
-      N	: INTEGER := ITEM;
+      N	: LONG_INTEGER := ITEM;
       DIG : INTEGER;
     begin
       if N = 0 then
@@ -93,7 +96,7 @@ is				--------
         end if;
 
         while N /= 0 loop
-	DIG := -(N rem 10);
+	DIG := INTEGER (-(N rem 10));
 	BUF(POS) := CHARACTER'VAL(CHARACTER'POS('0') + DIG);
 	POS := POS - 1;
 	N := N / 10;

@@ -15,30 +15,6 @@ END_BLOC_DEF 1, 0, 1
 	LCA	SIZ
 	SA	0, use__info
 end namespace
-_SHORT_INTEGER = '_SHORT_INTEGER'
-namespace _SHORT_INTEGER
-VAR use__info, Q
-VAR SIZ__, D
-	LVA	0, SIZ__
-	SA	0, use__info
-VAR FST, W
-VAR LST, W
-	LI	16
-	SD	0, SIZ__
-	LI	2
-	LI	15
-	DEC
-	SHL
-	NEG
-	SW	0, FST
-	LI	2
-	LI	15
-	DEC
-	SHL
-	LI	1
-	SUB
-	SW	0, LST
-end namespace
 _INTEGER = '_INTEGER'
 namespace _INTEGER
 VAR use__info, Q
@@ -62,6 +38,30 @@ VAR LST, D
 	LI	1
 	SUB
 	SD	0, LST
+end namespace
+_SHORT_INTEGER = '_SHORT_INTEGER'
+namespace _SHORT_INTEGER
+VAR use__info, Q
+VAR SIZ__, D
+	LVA	0, SIZ__
+	SA	0, use__info
+VAR FST, W
+VAR LST, W
+	LI	16
+	SD	0, SIZ__
+	LI	2
+	LI	15
+	DEC
+	SHL
+	NEG
+	SW	0, FST
+	LI	2
+	LI	15
+	DEC
+	SHL
+	LI	1
+	SUB
+	SW	0, LST
 end namespace
 _LONG_INTEGER = '_LONG_INTEGER'
 namespace _LONG_INTEGER
@@ -1030,9 +1030,9 @@ begin:
 namespace	INTEGER_IMAGE_WIDTH
 ELB 2
  hexa_show 'var elab N ', $
-VAR N_disp, D
-	LD  1,	-ITEM_ofs
-	SD  2,	N_disp
+VAR N_disp, Q
+	LQ  1,	-ITEM_ofs
+	SQ  2,	N_disp
 
  hexa_show ' disp ', N_disp
 
@@ -1040,7 +1040,7 @@ begin:
 	LI	1
 	SD  1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
 
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	0
 	CEQ
 	BF	L17
@@ -1049,18 +1049,18 @@ begin:
 	BRA	L16
 L17:
 
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	0
 	CGT
 	BF	L19
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	NEG
-	SD  2,	N_disp
+	SQ  2,	N_disp
 	BRA	L18
 L19:
 L18:
 LOOP__2:
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	0
 	CNE
 	BF	L20
@@ -1068,14 +1068,14 @@ LOOP__2:
 	LI	1
 	ADD
 	SD  1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	10
 	DUP
 	LI	0
 	CEQ
 	BT	STANDARD.ne_raise_
 	DIV
-	SD  2,	N_disp
+	SQ  2,	N_disp
 	BRA	LOOP__2
 L20:
 L16:
@@ -1134,9 +1134,9 @@ VAR POS_disp, D
 
  hexa_show ' disp ', POS_disp
  hexa_show 'var elab N ', $
-VAR N_disp, D
-	LD  1,	-ITEM_ofs
-	SD  2,	N_disp
+VAR N_disp, Q
+	LQ  1,	-ITEM_ofs
+	SQ  2,	N_disp
 
  hexa_show ' disp ', N_disp
  hexa_show 'var elab DIG ', $
@@ -1146,7 +1146,7 @@ VAR DIG_disp, D
 
 begin:
 
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	0
 	CEQ
 	BF	L24
@@ -1176,22 +1176,22 @@ begin:
 	BRA	L23
 L24:
 
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	0
 	CGT
 	BF	L26
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	NEG
-	SD  2,	N_disp
+	SQ  2,	N_disp
 	BRA	L25
 L26:
 L25:
 LOOP__3:
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	0
 	CNE
 	BF	L27
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	10
 	DUP
 	LI	0
@@ -1225,19 +1225,19 @@ LOOP__3:
 	LI	1
 	SUB
 	SD  2,	POS_disp
-	LD 2,	N_disp
+	LQ 2,	N_disp
 	LI	10
 	DUP
 	LI	0
 	CEQ
 	BT	STANDARD.ne_raise_
 	DIV
-	SD  2,	N_disp
+	SQ  2,	N_disp
 	BRA	LOOP__3
 L27:
 L23:
 
-	LD  1,	-ITEM_ofs
+	LQ  1,	-ITEM_ofs
 	LI	0
 	CLT
 	BF	L29
@@ -1472,16 +1472,16 @@ VAR IMG__u, Q
 	LI	1
 	MUL
 	ADD
-namespace ANON_141_39
-VAR ANON_141_39_disp, Q
-VAR ANON_141_39__u, Q
+namespace ANON_144_39
+VAR ANON_144_39_disp, Q
+VAR ANON_144_39__u, Q
 VAR SIZ__, D
 VAR COMP_SIZ, D
 VAR _FST_1, D
 VAR _LST_1, D
-	SA	2, ANON_141_39_disp
+	SA	2, ANON_144_39_disp
 	LVA	2, SIZ__
-	SA	2, ANON_141_39__u
+	SA	2, ANON_144_39__u
 	LI	8
 	SD	2, COMP_SIZ
 	LD 1,	STANDARD.ENUM_IMAGE_L31.I_disp
@@ -1502,7 +1502,7 @@ VAR _LST_1, D
 	LI	8
 	MUL
 	SD	2, SIZ__
-	LVA	2, ANON_141_39_disp
+	LVA	2, ANON_144_39_disp
 end namespace
 	LA
 	BLKMOV

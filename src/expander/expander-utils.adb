@@ -206,6 +206,12 @@ is					-----
   begin
     if  SRC.TY in CLASS_VC_NAME  then
       return  NAME_STR & "__type";
+    elsif  TYPE_SPEC.TY = DN_ENUMERATION							--| base ANONYME d'une enumeration derivee
+      and then  SRC.TY = DN_TYPE_ID								--| contrainte (TYPE T IS NEW P RANGE A .. B) :
+      and then  D( SM_TYPE_SPEC, SRC ) /= TYPE_SPEC					--| le nom T designe le sous-type, la base a
+      and then  D( SM_BASE_TYPE, D( SM_TYPE_SPEC, SRC ) ) = TYPE_SPEC			--| son propre espace _T__base (table des
+    then											--| litteraux) -- note conception_derives_
+      return  NAME_STR & "__base";							--| contraints
     else
       return  NAME_STR;
     end if;

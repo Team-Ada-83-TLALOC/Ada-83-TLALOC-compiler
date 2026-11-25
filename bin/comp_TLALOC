@@ -151,6 +151,7 @@ debutA=$(date +%s)
 
 if [ "${1:-}" = "T1" ]
 then
+  rm -f T2.exe
   echo "          ----------------------"
   echo "          Assemble T2 with fasmg"
   echo "          ----------------------"

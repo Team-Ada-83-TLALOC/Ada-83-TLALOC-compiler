@@ -17,7 +17,7 @@ is
 
     procedure CODE_RECORD_DECL		( TYPE_DECL :TREE );
     procedure CODE_CONSTRAINED_RECORD_DECL	( TYPE_NAME : TREE; TYPE_SPEC : TREE );
-    procedure CODE_UNCONSTRAINED_ARRAY_DECL	( TYPE_DECL :TREE );
+    procedure CODE_UNCONSTRAINED_ARRAY_DECL	( TYPE_DECL :TREE;  MARQUER :BOOLEAN := TRUE );
     procedure CODE_CONSTRAINED_ARRAY_DECL	( TYPE_DECL :TREE );
     procedure CODE_ACCESS_DECL		( TYPE_DECL :TREE );
 
@@ -146,6 +146,7 @@ is
     TYPE_ID	: TREE		:= D( AS_SOURCE_NAME, TYPE_DECL );
     TYPE_SPEC	: TREE		:= D( SM_TYPE_SPEC, TYPE_ID );
     TYPE_STR	:constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, TYPE_ID ) );
+    BASE		: TREE		:= D( SM_BASE_TYPE, TYPE_SPEC );
     MAX_REP	: INTEGER		:= INTEGER'FIRST;
     MIN_REP	: INTEGER		:= INTEGER'LAST;
 
@@ -179,6 +180,53 @@ is
   begin
     DI( CD_LEVEL,	  TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );
     DB( CD_COMPILED,  TYPE_SPEC, TRUE );
+
+    if  BASE /= TREE_VOID  and then  BASE /= TYPE_SPEC  and then  BASE.TY = DN_ENUMERATION  then
+			--| Enumeration DERIVEE CONTRAINTE (TYPE T IS NEW P RANGE A .. B, ou NEW S,
+			--| S sous-type contraint) : SM_TYPE_SPEC (T) est un SOUS-TYPE de la base
+			--| derivee anonyme, qui porte aussi le nom T.  La table des litteraux va
+			--| dans _T__base (TYPE_INFO_STR de la base) ; _T est un patron de sous-type
+			--| (FST, LST elaborees, PARENT__u) -- note conception_derives_contraints.
+      DI( CD_LEVEL,    BASE, INTEGER( CODI.CUR_LEVEL ) );
+      DB( CD_COMPILED, BASE, TRUE );
+      declare
+        BASE_STR	:constant STRING	:= TYPE_INFO_STR( BASE );				-- _T__base
+        LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+        SIZE_CHAR	: CHARACTER	:= OPER_SIZ_CHAR( TYPE_SPEC );
+        RNG		: TREE		:= D( SM_RANGE, TYPE_SPEC );
+      begin
+        PUT_LINE( BASE_STR & " = '" & BASE_STR & "'" );
+        PUT_LINE( "namespace " & BASE_STR );
+        PUT_LINE( "VAR use__info, Q" );
+        PUT_LINE( "BEGIN_BLOC_DEF" );
+        CODE_ENUM_LITERAL_S( D( SM_LITERAL_S, BASE ) );
+        PUT_LINE( "END_BLOC_DEF " & IMAGE( DI( CD_IMPL_SIZE, BASE ) )
+			& ',' & INTEGER'IMAGE( MIN_REP ) & ',' & INTEGER'IMAGE( MAX_REP ) );
+        PUT_LINE( tab & "LCA" & tab & "SIZ" );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", use__info" );
+        PUT_LINE( "end namespace");
+
+        PUT_LINE( TYPE_STR & " = '" & TYPE_STR & "'" );					-- _T : patron de sous-type
+        PUT_LINE( "namespace " & TYPE_STR );						-- (meme forme qu'ENUMERATION_SUBTYPE)
+        PUT_LINE( "VAR use__info, Q" );
+        PUT_LINE( "VAR SIZ__, D" );
+        PUT_LINE( tab & "LVA" & tab & LVL_STR & ", SIZ__" );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", use__info" );
+        PUT_LINE( "VAR FST, " & SIZE_CHAR );
+        PUT_LINE( "VAR LST, " & SIZE_CHAR );
+        PUT_LINE( tab & "LI" & tab & IMAGE( DI( CD_IMPL_SIZE, BASE ) ) );
+        PUT_LINE( tab & "SD" & tab & LVL_STR & ", SIZ__" );
+        EXPRESSIONS.CODE_EXP( D( AS_EXP1, RNG ) );
+        PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", FST" );
+        EXPRESSIONS.CODE_EXP( D( AS_EXP2, RNG ) );
+        PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", LST" );
+        PUT_LINE( "VAR PARENT__u, Q" );
+        PUT_LINE( tab & "LA" & tab & LVL_STR & ", " & BASE_STR & ".use__info" );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", PARENT__u" );
+        PUT_LINE( "end namespace" );
+      end;
+      return;
+    end if;
 
     if  CODI.DEBUG  then NEW_LINE; PUT_LINE( tab50 & "; " & TYPE_STR & " ENUMERATION TYPE INFO" ); end if;
 
@@ -362,7 +410,7 @@ is
 
 
 			-----------------------------
-  procedure		CODE_UNCONSTRAINED_ARRAY_DECL		( TYPE_DECL :TREE )
+  procedure		CODE_UNCONSTRAINED_ARRAY_DECL		( TYPE_DECL :TREE;  MARQUER :BOOLEAN := TRUE )
   is			-----------------------------
 
     TYPE_ID		: TREE		:= D( AS_SOURCE_NAME, TYPE_DECL );
@@ -416,8 +464,10 @@ is
 	---------------
 
   begin
-    DI( CD_LEVEL,	  TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );
-    DB( CD_COMPILED,  TYPE_SPEC, TRUE );
+    if  MARQUER  then										--| FALSE : sous-type sans contrainte, noeud
+      DI( CD_LEVEL,	  TYPE_SPEC, INTEGER( CODI.CUR_LEVEL ) );				--| PARTAGE avec le type de base
+      DB( CD_COMPILED,  TYPE_SPEC, TRUE );
+    end if;
 
     if  CODI.DEBUG  then NEW_LINE; PUT_LINE( tab50 & "; " & TYPE_ID_STR & " UNCONSTRAINED ARRAY SUBTYPE INFO" ); end if;
     PUT_LINE( TYPE_ID_STR & " = '" & TYPE_ID_STR & "'" );
@@ -2503,7 +2553,23 @@ begin
       PUT_LINE( "namespace " & SUBTYPE_STR );
       declare
         DES	: TREE	:= D( SM_DESIG_TYPE, TYPE_SPEC );
+        BASE	: TREE	:= D( SM_BASE_TYPE, TYPE_SPEC );
       begin
+        PUT_LINE( "VAR use__info, Q" );								--| patron d'acces, comme le type (CODE_ACCESS_DECL) :
+        PUT_LINE( "VAR SIZ__, D" );								--| lu par un allocateur dont le designe est ce
+        PUT_LINE( tab & "LVA" & tab & LVL_STR & ", SIZ__" );					--| sous-type (NEW CA_UR'(...), c48009c)
+        PUT_LINE( tab & "SA"  & tab & LVL_STR & ", use__info" );
+        PUT_LINE( tab & "LI"  & tab & IMAGE( CODI.ADDR_SIZE * CODI.STORAGE_UNIT ) );
+        PUT_LINE( tab & "SD"  & tab & LVL_STR & ", SIZ__" );
+        PUT_LINE( "VAR DESIG__u, Q" );
+        if  BASE.TY = DN_ACCESS  and then  D( XD_SOURCE_NAME, BASE ).TY = DN_TYPE_ID  then		--| patron du designe : celui de la base nommee
+	  PUT( tab & "LA" & tab & IMAGE( DI( CD_LEVEL, BASE ) ) & ", " );
+	  REGIONS_PATH( D( XD_SOURCE_NAME, BASE ) );
+	  PUT_LINE( TYPE_INFO_STR( BASE ) & ".DESIG__u" );
+        else
+	  PUT_LINE( tab & "LI" & tab & "0" );
+        end if;
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", DESIG__u" );
         if  DES.TY = DN_CONSTRAINED_RECORD
 	and then  not ( D( XD_SOURCE_NAME, DES ).TY = DN_SUBTYPE_ID
 		    and then  D( SM_TYPE_SPEC, D( XD_SOURCE_NAME, DES ) ) = DES )
@@ -2513,6 +2579,9 @@ begin
       end;
       PUT_LINE( "end namespace" );
 
+    elsif  TYPE_SPEC.TY = DN_ARRAY  then							--| SUBTYPE STR IS STRING : le noeud est celui de la
+      CODE_UNCONSTRAINED_ARRAY_DECL( SUBTYPE_DECL, MARQUER => FALSE );				--| base ; patron _STR propre au nom (STR (5 .. 9)
+											--| y lit _STR.FST_1 ; c36205)
     else
       PUT_LINE( ";  CODE_SUBTYPE_DECL : TYPE_SPEC.TY PAS FAIT " & NODE_NAME'IMAGE( TYPE_SPEC.TY ) );
     end if;

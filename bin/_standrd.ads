@@ -12,8 +12,11 @@ is				--------
 
     type BOOLEAN			is (FALSE, TRUE);
 
-    type SHORT_INTEGER		is range -2**15 .. 2**15-1;
+--| INTEGER doit etre le PREMIER type entier de STANDARD : la generation des operateurs
+--| predefinis (PRE_FCNS) le prend pour l'exposant de "**" et l'operande entier de
+--| fixe * INTEGER (LRM 4.5.5, 4.5.6) ; SHORT_INTEGER en tete rendait INT ** N illegal.
     type INTEGER			is range -2**31 .. 2**31-1;
+    type SHORT_INTEGER		is range -2**15 .. 2**15-1;
 --    type LONG_INTEGER		is range -2**63 .. 2**63-1;
     type LONG_INTEGER		is range -16#7FFFFFFFFFFFFFFF# - 1 .. 16#7FFFFFFFFFFFFFFF#;			--| Evitement de debordement
 

@@ -3073,9 +3073,10 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	end if;
         end;
 
-        if  ( D( SM_EXP_TYPE, PREFIX_NAME ).TY = DN_CONSTRAINED_ARRAY )					-- UNE VARIABLE TABLEAU
+        if  PREFIX_DEFN.TY not in CLASS_PARAM_NAME							--| formel : voie du doublet ci-dessous (c64109d)
+        and then  ( ( D( SM_EXP_TYPE, PREFIX_NAME ).TY = DN_CONSTRAINED_ARRAY )				-- UNE VARIABLE TABLEAU
 	or ( D( SM_EXP_TYPE, PREFIX_NAME ).TY = DN_ARRAY  and  D( SM_DEFN, PREFIX_NAME ).TY = DN_CONSTANT_ID )
-	or ( D( SM_EXP_TYPE, PREFIX_NAME ).TY = DN_ARRAY  and  D( SM_DEFN, PREFIX_NAME ).TY = DN_VARIABLE_ID )	-- variable non contrainte (SC : STRING := "..") : __u -> descripteur local a bornes reelles
+	or ( D( SM_EXP_TYPE, PREFIX_NAME ).TY = DN_ARRAY  and  D( SM_DEFN, PREFIX_NAME ).TY = DN_VARIABLE_ID ) )	-- variable non contrainte (SC : STRING := "..") : __u -> descripteur local a bornes reelles
         then
 	declare
 	  ARRAY_LVL	: INTEGER		:= PREFIX_LVL;
@@ -3180,7 +3181,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	        end if;
 	      end;
 
-	    elsif PREFIX_DEFN.TY = DN_SUBTYPE_ID  and then
+	    elsif PREFIX_DEFN.TY = DN_SUBTYPE_ID  and then  not PREFIX_HAS_BASE  and then		--| S'BASE'FIRST : bornes de la BASE (ci-dessous)
 		( TYPE_SPEC.TY = DN_INTEGER  or else  TYPE_SPEC.TY = DN_ENUMERATION
 		  or else  TYPE_SPEC.TY = DN_FIXED )  then
 	      CODE_SCALAR_SUBTYPE_FIRST_LAST( SUBTYPE_ID=> PREFIX_DEFN, TYPE_SPEC=> TYPE_SPEC, IS_LAST=> IS_LAST );
@@ -3189,7 +3190,11 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	      declare
 	        PREFIX_TS	: TREE	:= D( SM_TYPE_SPEC, PREFIX_DEFN );
 	        TYPE_RANGE  : TREE;
+	        DIM		: INTEGER	:= 1;
 	      begin
+	        if  PREFIX_HAS_BASE  then							--| T'BASE'FIRST : la base (PREFIX_TYPE_SPEC),
+		PREFIX_TS := TYPE_SPEC;							--| pas le sous-type nomme (c34001c, c34002c)
+	        end if;
 	        -- Marque de sous-type de tableau CONTRAINT (VEC5'FIRST/'LAST) :
 	        -- le DN_CONSTRAINED_ARRAY ne porte pas SM_RANGE.  Les bornes sont
 	        -- dans les sous-types d'indice (SM_INDEX_SUBTYPE_S), qui portent
@@ -3209,18 +3214,43 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 		  for K in 1 .. NUM_DIM  loop			-- avancer jusqu'a la dimension
 		    POP( IDX_S, IDX_TYPE );
 		  end loop;
+		  DIM := NUM_DIM;
 		  TYPE_RANGE := D( SM_RANGE, IDX_TYPE );
 		end;
 	        else
 		TYPE_RANGE := D( SM_RANGE, PREFIX_TS ); -- scalaires : comportement d'origine
 	        end if;
 
-	        PUT( tab & "LI" & tab );
-	        if  IS_LAST  then
-		PUT_LINE( PRINT_NUM( D( SM_VALUE, D( AS_EXP2, TYPE_RANGE ) ) ) );
-	        else
-		PUT_LINE( PRINT_NUM( D( SM_VALUE, D( AS_EXP1, TYPE_RANGE ) ) ) );
-	        end if;
+	        declare
+		BORNE	: TREE	:= D( AS_EXP1, TYPE_RANGE );
+		SV	: TREE;
+	        begin
+		if  IS_LAST  then
+		  BORNE := D( AS_EXP2, TYPE_RANGE );
+		end if;
+		SV := D( SM_VALUE, BORNE );
+		if  ( SV.PT = HI  and then  SV.NOTY = DN_NUM_VAL )
+		  or else  ( SV.PT /= HI  and then  SV.TY = DN_NUM_VAL )
+		then
+		  PUT_LINE( tab & "LI" & tab & PRINT_NUM( SV ) );					-- borne statique
+
+		elsif  PREFIX_TS.TY = DN_CONSTRAINED_ARRAY  then					--| type tableau DERIVE a contrainte dynamique
+		  PUT( tab & "LD" & tab & IMAGE( DI( CD_LEVEL, PREFIX_TS ) ) & ", " );		--| (TYPE T IS NEW P (F (5) .. 7)) : borne
+		  REGIONS_PATH( D( XD_SOURCE_NAME, PREFIX_TS ) );					--| elaboree dans le patron, _T._FST_n
+		  if  IS_LAST  then								--| (c34005c)
+		    PUT_LINE( TYPE_INFO_STR( PREFIX_TS ) & "._LST_" & IMAGE( DIM ) );
+		  else
+		    PUT_LINE( TYPE_INFO_STR( PREFIX_TS ) & "._FST_" & IMAGE( DIM ) );
+		  end if;
+
+		elsif  PREFIX_TS.TY = DN_INTEGER  or else  PREFIX_TS.TY = DN_ENUMERATION  then	--| entier ou enumere DERIVE a contrainte dynamique
+		  CODE_SCALAR_SUBTYPE_FIRST_LAST( SUBTYPE_ID=> PREFIX_DEFN, TYPE_SPEC=> PREFIX_TS,	--| (TYPE I IS NEW INTEGER RANGE F (2) .. 9) :
+						  IS_LAST=> IS_LAST );				--| patron _I.FST / _I.LST
+
+		else										--| (enumere : _T.FST est une VAR depuis
+		  TROU( "CODE_FIRST_LAST borne non statique d'un type derive", PREFIX_TS );		--| le lot 18, base dans _T__base)
+		end if;
+	        end;
 	      end;
 	    end if;
 
@@ -3267,7 +3297,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         -- directement un doublet STRING, zero copie.
 	declare
 	  TYPE_NAME	: TREE		:= D( XD_SOURCE_NAME, TS );
-	  TYPE_NAME_STR	:constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, TYPE_NAME ) );
+	  TYPE_NAME_STR	:constant STRING	:= TYPE_INFO_STR( TS );			-- _T__base pour une derivee contrainte
 	begin
 	  PUT( tab & "LA " & IMAGE( DI( CD_LEVEL, TS ) ) & ", " );
 	  CODI.REGIONS_PATH( TYPE_NAME );
@@ -4923,6 +4953,123 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     end	OPERAND_DATA_ADDRESS;
 	--------------------
 
+		-----------------------
+    function	TROUS_DE_REMPLISSAGE	( REC : TREE )	return BOOLEAN
+    is		-----------------------
+	-- Record SANS variantes dont le layout STATOFS laisse des TROUS d'alignement
+	-- (I : INTEGER puis J : record, aligne a 8) : le remplissage n'est pas initialise,
+	-- un BLKCMP total le comparerait (c41301a).  Miroir de STATIC_TYPE_ALIGN_BYTES et
+	-- STATIC_RECORD_SIZE_BITS (types_decls).  Reponse PRUDENTE : TRUE seulement si un
+	-- trou est vu ET que chaque champ est comparable par EMIT_FIELD_CMP ; dans le doute,
+	-- FALSE (BLKCMP total, comportement anterieur).
+      CUMUL	: NATURAL	:= 0;
+      TROU	: BOOLEAN	:= FALSE;
+      OK	: BOOLEAN	:= TRUE;
+      DECL_S	: SEQ_TYPE;
+      DECL	: TREE;
+
+		------------
+      function	ALIGN_OCTETS	( T : TREE )	return NATURAL
+      is		------------
+        TS	: TREE	:= FULL_TYPE_VIEW( T );
+        B	: TREE;
+      begin
+        if  TS.TY = DN_INTEGER  or else  TS.TY = DN_ENUMERATION  or else  TS.TY = DN_FIXED  then
+	case  OPER_SIZ_CHAR( TS )  is
+	  when 'B'		=>  return 1;
+	  when 'W'		=>  return 2;
+	  when 'D'		=>  return 4;
+	  when others	=>  return 8;
+	end case;
+        elsif  TS.TY = DN_CONSTRAINED_ARRAY  or else  TS.TY = DN_ARRAY  then
+	B := D( SM_BASE_TYPE, TS );
+	if  B = TREE_VOID  or else  B = TREE_NIL  then
+	  B := TS;
+	end if;
+	if  B.TY = DN_ARRAY  and then  DB( SM_IS_PACKED, B )  then
+	  return 1;
+	end if;
+	return  ALIGN_OCTETS( D( SM_COMP_TYPE, B ) );
+        end if;
+        return 8;										-- flottant, acces, record
+      end	ALIGN_OCTETS;
+	------------
+
+		-----
+      procedure	CHAMP	( COMP_ID : TREE )
+      is		-----
+        TS	: TREE	:= FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) );
+        A	: NATURAL;
+        S	: NATURAL	:= 0;
+      begin
+        if  TS.TY = DN_CONSTRAINED_RECORD  then
+	TS := FULL_TYPE_VIEW( D( SM_BASE_TYPE, TS ) );
+        end if;
+        if  EST_ACCES( TS )  then
+	S := CODI.ADDR_SIZE;
+        elsif  TS.TY in CLASS_SCALAR  then							-- taille du conteneur (la base)
+	case  OPER_SIZ_CHAR( TS )  is
+	  when 'B'		=>  S := 1;
+	  when 'W'		=>  S := 2;
+	  when 'D'		=>  S := 4;
+	  when others	=>  S := 8;
+	end case;
+        elsif  ( TS.TY = DN_RECORD
+		    and then  ( D( AS_VARIANT_PART, D( SM_COMP_LIST, TS ) ) = TREE_VOID
+			      or else  D( AS_VARIANT_PART, D( SM_COMP_LIST, TS ) ) = TREE_NIL ) )
+	  or else  TS.TY = DN_CONSTRAINED_ARRAY
+        then
+	if  D( CD_IMPL_SIZE, TS ) /= TREE_VOID  and then  DI( CD_IMPL_SIZE, TS ) > 0  then
+	  S := ( DI( CD_IMPL_SIZE, TS ) + CODI.STORAGE_UNIT - 1 ) / CODI.STORAGE_UNIT;
+	end if;
+        end if;
+        if  S = 0  then									-- champ non comparable ou taille
+	OK := FALSE;									-- inconnue : garder le BLKCMP
+	return;
+        end if;
+        A := ALIGN_OCTETS( TS );
+        if  CUMUL mod A /= 0  then
+	TROU := TRUE;
+	CUMUL := ( ( CUMUL + A - 1 ) / A ) * A;
+        end if;
+        CUMUL := CUMUL + S;
+      end	CHAMP;
+	-----
+
+    begin
+      DECL_S := LIST( D( SM_DISCRIMINANT_S, REC ) );
+      while  OK  and then  not IS_EMPTY( DECL_S )  loop
+        POP( DECL_S, DECL );
+        declare
+	ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	ID	: TREE;
+        begin
+	while  OK  and then  not IS_EMPTY( ID_S )  loop
+	  POP( ID_S, ID );
+	  CHAMP( ID );
+	end loop;
+        end;
+      end loop;
+      DECL_S := LIST( D( AS_DECL_S, D( SM_COMP_LIST, REC ) ) );
+      while  OK  and then  not IS_EMPTY( DECL_S )  loop
+        POP( DECL_S, DECL );
+        if  DECL.TY /= DN_NULL_COMP_DECL  then
+	declare
+	  ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	  ID	: TREE;
+	begin
+	  while  OK  and then  not IS_EMPTY( ID_S )  loop
+	    POP( ID_S, ID );
+	    CHAMP( ID );
+	  end loop;
+	end;
+        end if;
+      end loop;
+      return  OK  and then  TROU;
+
+    end	TROUS_DE_REMPLISSAGE;
+	-----------------------
+
   begin
     if  BASE.TY = DN_CONSTRAINED_RECORD  then
       BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, BASE ) );					-- base PRIVEE possible (derive d'un prive)
@@ -5062,6 +5209,122 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	    end loop;
 	  end if;
 	end loop;
+        end;
+
+      elsif  ( VP_ROOT = TREE_VOID  or else  VP_ROOT = TREE_NIL )
+	and then  TROUS_DE_REMPLISSAGE( BASE )
+      then
+		-- Record SANS variantes a TROUS d'alignement : le remplissage n'est pas
+		-- initialise, BLKCMP total serait faux (c41301a).  Champ par champ,
+		-- ET cumules ; un champ record a trous est compare recursivement, les
+		-- autres champs composites par BLKCMP de leur taille.
+        declare
+	EQ_UID	:constant STRING	:= NEW_LABEL;
+	A_VAR	:constant STRING	:= "EQA_" & EQ_UID;
+	B_VAR	:constant STRING	:= "EQB_" & EQ_UID;
+
+			--------
+	procedure	COMPARER	( REC : TREE;  AV, BV : STRING )
+	is		--------
+	  REC_NAME	: TREE		:= D( XD_SOURCE_NAME, REC );
+	  REC_STR	:constant STRING	:= TYPE_INFO_STR( REC );
+	  DECL_S	: SEQ_TYPE;
+	  DECL		: TREE;
+
+			-----
+	  procedure	CHAMP	( COMP_ID : TREE )
+	  is		-----
+	    F_STR	:constant STRING	:= PRINT_NAME( D( LX_SYMREP, COMP_ID ) );
+	    F_TYPE	: TREE		:= FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) );
+
+			----------
+	    procedure	ADR_CHAMP	( V : STRING )					-- @V.F
+	    is		----------
+	    begin
+	      PUT_LINE( tab & "LA  " & LVL & ", " & V );
+	      PUT( tab & "LVA" & tab & ", " );  CODI.REGIONS_PATH( REC_NAME );  PUT_LINE( REC_STR & "." & F_STR );
+	    end	ADR_CHAMP;
+			----------
+	  begin
+	    if  F_TYPE.TY = DN_CONSTRAINED_RECORD  then
+	      F_TYPE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, F_TYPE ) );
+	    end if;
+
+	    if  F_TYPE.TY in CLASS_SCALAR  or else  EST_ACCES( F_TYPE )  then
+	      PUT( tab & OPER_LOADI_STR( F_TYPE ) & tab & LVL & ", " & AV & ", " );
+	      CODI.REGIONS_PATH( REC_NAME );  PUT_LINE( REC_STR & "." & F_STR );
+	      PUT( tab & OPER_LOADI_STR( F_TYPE ) & tab & LVL & ", " & BV & ", " );
+	      CODI.REGIONS_PATH( REC_NAME );  PUT_LINE( REC_STR & "." & F_STR );
+	      PUT_LINE( tab & "CEQ" );
+
+	    elsif  F_TYPE.TY = DN_RECORD  and then  TROUS_DE_REMPLISSAGE( F_TYPE )  then
+	      declare									--| record imbrique a trous : recursion
+	        AV2	:constant STRING	:= AV & "_" & NEW_LABEL;
+	        BV2	:constant STRING	:= BV & "_" & NEW_LABEL;
+	      begin
+	        PUT_LINE( "VAR" & tab & AV2 & ", Q" );
+	        PUT_LINE( "VAR" & tab & BV2 & ", Q" );
+	        ADR_CHAMP( AV );  PUT_LINE( tab & "SA  " & LVL & ", " & AV2 );
+	        ADR_CHAMP( BV );  PUT_LINE( tab & "SA  " & LVL & ", " & BV2 );
+	        PUT_LINE( tab & "LI" & tab & "1" );
+	        COMPARER( F_TYPE, AV2, BV2 );
+	      end;
+
+	    elsif  F_TYPE.TY = DN_RECORD  then							--| record sans trou : BLKCMP de sa taille
+	      ADR_CHAMP( AV );
+	      PUT( tab & "LI" & tab );  CODI.REGIONS_PATH( D( XD_SOURCE_NAME, F_TYPE ) );  PUT_LINE( TYPE_INFO_STR( F_TYPE ) & ".size" );
+	      ADR_CHAMP( BV );
+	      PUT_LINE( tab & "BLKCMP" );
+
+	    else										--| tableau contraint de taille statique
+	      ADR_CHAMP( AV );								--| (garanti par TROUS_DE_REMPLISSAGE)
+	      PUT_LINE( tab & "LI" & tab & IMAGE( ( DI( CD_IMPL_SIZE, F_TYPE ) + CODI.STORAGE_UNIT - 1 ) / CODI.STORAGE_UNIT ) );
+	      ADR_CHAMP( BV );
+	      PUT_LINE( tab & "BLKCMP" );
+	    end if;
+	    PUT_LINE( tab & "ET" );
+	  end	CHAMP;
+		-----
+
+	begin
+	  DECL_S := LIST( D( SM_DISCRIMINANT_S, REC ) );
+	  while  not IS_EMPTY( DECL_S )  loop
+	    POP( DECL_S, DECL );
+	    declare
+	      ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	      ID	: TREE;
+	    begin
+	      while  not IS_EMPTY( ID_S )  loop
+	        POP( ID_S, ID );  CHAMP( ID );
+	      end loop;
+	    end;
+	  end loop;
+	  DECL_S := LIST( D( AS_DECL_S, D( SM_COMP_LIST, REC ) ) );
+	  while  not IS_EMPTY( DECL_S )  loop
+	    POP( DECL_S, DECL );
+	    if  DECL.TY /= DN_NULL_COMP_DECL  then
+	      declare
+	        ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	        ID	: TREE;
+	      begin
+	        while  not IS_EMPTY( ID_S )  loop
+		  POP( ID_S, ID );  CHAMP( ID );
+	        end loop;
+	      end;
+	    end if;
+	  end loop;
+	end	COMPARER;
+		--------
+
+        begin
+	PUT_LINE( "VAR" & tab & A_VAR & ", Q" );
+	PUT_LINE( "VAR" & tab & B_VAR & ", Q" );
+	OPERAND_DATA_ADDRESS( PRM_1 );
+	PUT_LINE( tab & "SA  " & LVL & ", " & A_VAR );
+	OPERAND_DATA_ADDRESS( PRM_2 );
+	PUT_LINE( tab & "SA  " & LVL & ", " & B_VAR );
+	PUT_LINE( tab & "LI" & tab & "1" );							-- accumulateur
+	COMPARER( BASE, A_VAR, B_VAR );
         end;
 
       elsif  VP_ROOT = TREE_VOID  or else  VP_ROOT = TREE_NIL  then
@@ -5623,7 +5886,36 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
 	elsif OP_STR = """**""" then
 	  if  IS_FLOAT  then
-	    PUT_LINE( tab & "FEXP" );
+			--| LRM 4.5.6 : A ** N, N < 0  =  1.0 / (A ** (-N)).  FEXP (les trois
+			--| emetteurs et les macros fasmg) suppose N >= 0 : boucle de 2**64 tours
+			--| sinon (F ** (-3) : delai depasse).  Pile [A, N].
+	    declare
+	      FN	:constant STRING	:= "FEXPN_" & NEW_LABEL;
+	      FX	:constant STRING	:= "FEXPX_" & NEW_LABEL;
+	      POSITIF	:constant STRING	:= NEW_LABEL;
+	      FIN	:constant STRING	:= NEW_LABEL;
+	      LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	    begin
+	      PUT_LINE( "VAR" & tab & FN & ", Q" );
+	      PUT_LINE( "VAR" & tab & FX & ", Q" );
+	      PUT_LINE( tab & "SQ  " & LVL_STR & ", " & FN );					-- depiler N ; reste [A]
+	      PUT_LINE( tab & "LQ  " & LVL_STR & ", " & FN );
+	      PUT_LINE( tab & "LI" & tab & "0" );
+	      PUT_LINE( tab & "CLT" );
+	      PUT_LINE( tab & "BF" & tab & POSITIF );
+	      PUT_LINE( tab & "LQ  " & LVL_STR & ", " & FN );					-- N < 0 : [A, -N]
+	      PUT_LINE( tab & "NEG" );
+	      PUT_LINE( tab & "FEXP" );								-- [A ** (-N)]
+	      PUT_LINE( tab & "SQ  " & LVL_STR & ", " & FX );
+	      PUT_LINE( tab & "LIF" & tab & "1.0" );
+	      PUT_LINE( tab & "LQ  " & LVL_STR & ", " & FX );
+	      PUT_LINE( tab & "FDIV" );								-- [1.0 / (A ** (-N))]
+	      PUT_LINE( tab & "BRA" & tab & FIN );
+	      PUT_LINE( POSITIF & ':' );
+	      PUT_LINE( tab & "LQ  " & LVL_STR & ", " & FN );					-- N >= 0 : [A, N]
+	      PUT_LINE( tab & "FEXP" );
+	      PUT_LINE( FIN & ':' );
+	    end;
 
 	elsif  PRM_1.TY = DN_NUMERIC_LITERAL  and then  DI( SM_VALUE, PRM_1 ) = 2  then
 	  PUT_LINE( tab & "DEC" );
