@@ -15,6 +15,13 @@ is				--------
 			  NUMER, DENOM	: LONG_INTEGER;
 			end record;
 
+  type FLOAT_USE_INFO	is record							-- info d'un type flottant (EMIT_FLOAT_MODEL_INFO) :
+			  SIZ		: NATURAL;					-- grandeurs du MODELE (LRM 3.5.7, 3.5.8) lues par
+			  FST, LST	: LONG_FLOAT;					-- un corps generique pour un formel DIGITS <>
+			  NB_DIGITS, MANTISSA, SAFE_EMAX	: INTEGER;
+			  BASE_DIGITS, BASE_MANTISSA	: INTEGER;
+			end record;
+
 
 				-- EXCEPTIONS SERVICE
 

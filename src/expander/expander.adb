@@ -162,6 +162,7 @@ is
     function  TYPE_SIZE		( TYPE_SPEC :TREE )			return NATURAL;
     function  TYPE_INFO_STR		( TYPE_SPEC :TREE )			return STRING;
     function  FULL_TYPE_VIEW		( T : TREE )			return TREE;
+    function  MODELE_FLOTTANT	( T : TREE; QUOI : CHARACTER )	return INTEGER;			--| LRM 3.5.7/3.5.8 : 'D' DIGITS 'B' MANTISSA 'S' SAFE_EMAX 'd' 'b' de la base
     function  EST_ACCES		( T : TREE )			return BOOLEAN;			--| DN_ACCESS ou DN_CONSTRAINED_ACCESS (3.8)
     function  EST_ACCES_TABLEAU_NC	( ACC_TYPE : TREE )		return BOOLEAN;			--| Q1b : designe de base = tableau NON contraint
     function  TABLEAU_DESIGNE		( ACC_TYPE : TREE )		return TREE;			--| Q1b : ce DN_ARRAY de base

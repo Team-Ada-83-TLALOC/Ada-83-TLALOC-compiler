@@ -118,6 +118,22 @@ package body ATT_WALK is
     return RESULT;
   end GET_FLOAT_MANTISSA;
 
+  function IS_SHORT_FLOAT_BASE (TYPE_SPEC : TREE) return Boolean is
+				-- BASE FLOAT (IEEE SIMPLE) OU LONG_FLOAT (IEEE DOUBLE), CHOISIE PAR DEF_WALK
+  begin
+    return D (SM_ACCURACY, GET_BASE_STRUCT (TYPE_SPEC)) <= PREDEFINED_FLOAT_ACCURACY;
+  end IS_SHORT_FLOAT_BASE;
+
+  function GET_FLOAT_SAFE_EMAX (TYPE_SPEC : TREE) return TREE is
+				-- LRM 3.5.8 : CELUI DE LA BASE ; SAFE_SMALL = 2**(-SAFE_EMAX-1) RESTE UN NORMAL IEEE
+  begin
+    if IS_SHORT_FLOAT_BASE (TYPE_SPEC) then
+      return U_VAL (125);
+    else
+      return U_VAL (1_021);
+    end if;
+  end GET_FLOAT_SAFE_EMAX;
+
   function GET_FIXED_SMALL (CONSTRAINT : TREE) return TREE is
     SMALL : TREE := D (CD_IMPL_SMALL, CONSTRAINT);
   begin
@@ -670,26 +686,27 @@ package body ATT_WALK is
 	  case WHICH_ATTRIBUTE is
 	    when DIGITS_X =>
 	      ATTRIBUTE_VALUE := D (SM_ACCURACY, PREFIX_SUBSTRUCT);
-	    when EMAX =>
-	      ATTRIBUTE_VALUE := U_VAL (4) * D (SM_ACCURACY, PREFIX_SUBSTRUCT);
-	    when MACHINE_EMAX | SAFE_EMAX =>
-						    -- ($$$ HARD WIRED VALUES FOR MACHINE ATTRIBUTES)
-	      if PREFIX_TYPE = PREDEFINED_FLOAT then
-	        ATTRIBUTE_VALUE := U_VAL (126);
+	    when EMAX =>				-- LRM 3.5.7 : 4 * B
+	      ATTRIBUTE_VALUE := U_VAL (4) * GET_FLOAT_MANTISSA (PREFIX_SUBSTRUCT);
+	    when SAFE_EMAX =>
+	      ATTRIBUTE_VALUE := GET_FLOAT_SAFE_EMAX (PREFIX_TYPE);
+	    when MACHINE_EMAX =>			-- IEEE, MANTISSE DANS [0.5, 1) : VALEURS DE L'EXPANSEUR
+	      if IS_SHORT_FLOAT_BASE (PREFIX_TYPE) then
+	        ATTRIBUTE_VALUE := U_VAL (128);
 	      else
-	        ATTRIBUTE_VALUE := U_VAL (1_022);
+	        ATTRIBUTE_VALUE := U_VAL (1_024);
 	      end if;
 	    when MACHINE_EMIN =>
-	      if PREFIX_TYPE = PREDEFINED_FLOAT then
-	        ATTRIBUTE_VALUE := U_VAL (-126);
+	      if IS_SHORT_FLOAT_BASE (PREFIX_TYPE) then
+	        ATTRIBUTE_VALUE := U_VAL (-125);
 	      else
-	        ATTRIBUTE_VALUE := U_VAL (-1_022);
+	        ATTRIBUTE_VALUE := U_VAL (-1_021);
 	      end if;
-	    when MACHINE_MANTISSA =>
-	      if PREFIX_TYPE = PREDEFINED_FLOAT then
-	        ATTRIBUTE_VALUE := U_VAL (23);
+	    when MACHINE_MANTISSA =>			-- BIT CACHE COMPRIS
+	      if IS_SHORT_FLOAT_BASE (PREFIX_TYPE) then
+	        ATTRIBUTE_VALUE := U_VAL (24);
 	      else
-	        ATTRIBUTE_VALUE := U_VAL (51);
+	        ATTRIBUTE_VALUE := U_VAL (53);
 	      end if;
 	    when MACHINE_RADIX =>
 	      ATTRIBUTE_VALUE := U_VAL (2);
@@ -720,7 +737,7 @@ package body ATT_WALK is
         if PREFIX_ID.TY in CLASS_TYPE_NAME and then GET_BASE_STRUCT (PREFIX_TYPE).TY = DN_FLOAT then
 	PREFIX_SUBSTRUCT := GET_SUBSTRUCT (D (SM_TYPE_SPEC, PREFIX_ID));
 	if IS_STATIC_SUBTYPE (PREFIX_SUBSTRUCT) then
-	  ATTRIBUTE_VALUE := U_REAL (1) / (U_VAL (2)**GET_FLOAT_MANTISSA (PREFIX_SUBSTRUCT));
+	  ATTRIBUTE_VALUE := U_REAL (2) / (U_VAL (2)**GET_FLOAT_MANTISSA (PREFIX_SUBSTRUCT));	-- LRM 3.5.7 : 2**(1-B)
 	end if;
         else
 	PREFIX_ERROR := True;
@@ -735,18 +752,11 @@ package body ATT_WALK is
 	  case WHICH_ATTRIBUTE is
 	    when LARGE =>
 	      ATTRIBUTE_VALUE := (U_REAL (1) - U_REAL (1) / U_VAL (2)**GET_FLOAT_MANTISSA (PREFIX_SUBSTRUCT)) * U_VAL (16)**GET_FLOAT_MANTISSA (PREFIX_SUBSTRUCT);
-	    when SAFE_LARGE =>
-	      if GET_BASE_TYPE (PREFIX_TYPE) = PREDEFINED_INTEGER then
-	        ATTRIBUTE_VALUE := (U_REAL (1) - U_REAL (1) / U_VAL (2)**U_VAL (23)) * U_VAL (2)**U_VAL (126);
-	      else
-	        ATTRIBUTE_VALUE := (U_REAL (1) - U_REAL (1) / U_VAL (2)**U_VAL (51)) * U_VAL (2)**U_VAL (1_022);
-	      end if;
-	    when SAFE_SMALL =>
-	      if GET_BASE_TYPE (PREFIX_TYPE) = PREDEFINED_INTEGER then
-	        ATTRIBUTE_VALUE := (U_REAL (1, 2)) / U_VAL (2)**U_VAL (126);
-	      else
-	        ATTRIBUTE_VALUE := (U_REAL (1, 2)) / U_VAL (2)**U_VAL (1_022);
-	      end if;
+	    when SAFE_LARGE =>			-- LRM 3.5.8 : 2**SAFE_EMAX * (1 - 2**(-B DE LA BASE))
+	      ATTRIBUTE_VALUE := (U_REAL (1) - U_REAL (1) / U_VAL (2)**GET_FLOAT_MANTISSA (GET_BASE_STRUCT (PREFIX_TYPE)))
+				 * U_VAL (2)**GET_FLOAT_SAFE_EMAX (PREFIX_TYPE);
+	    when SAFE_SMALL =>			-- LRM 3.5.8 : 2**(-SAFE_EMAX-1)
+	      ATTRIBUTE_VALUE := (U_REAL (1, 2)) / U_VAL (2)**GET_FLOAT_SAFE_EMAX (PREFIX_TYPE);
 	    when SMALL =>
 	      ATTRIBUTE_VALUE := (U_REAL (1, 2)) / U_VAL (16)**GET_FLOAT_MANTISSA (PREFIX_SUBSTRUCT);
 	    when others =>

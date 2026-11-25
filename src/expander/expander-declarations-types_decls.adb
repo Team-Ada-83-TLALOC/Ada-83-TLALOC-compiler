@@ -360,6 +360,34 @@ is
 	---------------
 
 
+			---------------------
+  procedure		EMIT_FLOAT_MODEL_INFO	( LVL_STR :STRING; TYPE_SPEC :TREE )
+  is			---------------------
+	--| Suite du bloc d'info flottant, apres LST : les grandeurs entieres du MODELE (LRM 3.5.7, 3.5.8),
+	--| calculees a la compilation (UTILS.MODELE_FLOTTANT) ; NB_DIGITS car DIGITS est reserve.  Un corps generique PARTAGE en deduit les
+	--| attributs d'un formel DIGITS <> par T__u (CODE_ATTRIBUTE, STANDARD._FLOAT_USE_INFO).
+	--| Disposition identique a FLOAT_USE_INFO de _standrd.adb : SIZ, FST, LST, puis ces cinq entiers.
+
+			----
+    procedure		CHMP		( NOM :STRING; QUOI :CHARACTER )
+    is			----
+    begin
+      PUT_LINE( "VAR " & NOM & ", D" );
+      PUT_LINE( tab & "LI" & tab & IMAGE( MODELE_FLOTTANT( TYPE_SPEC, QUOI ) ) );
+      PUT_LINE( tab & "SD" & tab & LVL_STR & ", " & NOM );
+    end	CHMP;
+	----
+
+  begin
+    CHMP( "NB_DIGITS",	   'D' );
+    CHMP( "MANTISSA",	   'B' );
+    CHMP( "SAFE_EMAX",	   'S' );
+    CHMP( "BASE_DIGITS",   'd' );
+    CHMP( "BASE_MANTISSA", 'b' );
+  end	EMIT_FLOAT_MODEL_INFO;
+	---------------------
+
+
 			---------------
   procedure		CODE_FLOAT_DECL		( TYPE_DECL :TREE )
   is			---------------
@@ -401,6 +429,8 @@ is
 
       EXPRESSIONS.CODE_EXP( EXP_LST );
       PUT_LINE( tab & "SQ" & tab & LVL_STR & ", LST" );
+
+      EMIT_FLOAT_MODEL_INFO( LVL_STR, FLOAT_SPEC );						-- DIGITS .. BASE_MANTISSA
     end;
 
     PUT_LINE( "end namespace" );
@@ -2519,6 +2549,8 @@ begin
 
         EXPRESSIONS.CODE_EXP( EXP_LST );
         PUT_LINE( tab & "SQ" & tab & LVL_STR & ", LST" );
+
+        EMIT_FLOAT_MODEL_INFO( LVL_STR, TYPE_SPEC );						-- DIGITS .. BASE_MANTISSA, avant PARENT__u
 
         PUT_LINE( "VAR PARENT__u, Q" );
         PUT( tab & "LA " & IMAGE( DI( CD_LEVEL, BASE_TYPE ) ) & tab & ", " );

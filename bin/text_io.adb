@@ -1955,7 +1955,8 @@ is					-------
       end if;
 
       -- Arrondir la mantisse au nombre de chiffres demandes.
-      -- L'extraction ulterieure des chiffres est volontairement tronquee.
+      -- L'extraction ulterieure des chiffres est volontairement tronquee : floor(VAL), VAL >= 0.0,
+      -- car la conversion Ada INTEGER(VAL) arrondit au plus proche (LRM 4.6(7)).
       declare
         ROUNDING	: NUM	:= 0.5;
       begin
@@ -1993,6 +1994,7 @@ is					-------
 
       -- Chiffre avant le point decimal
       DIGIT := INTEGER( VAL );
+      if  NUM( DIGIT ) > VAL  then DIGIT := DIGIT - 1; end if;			-- floor
       if  DIGIT > 9  then DIGIT := 9; end if;				-- securite arrondi
       if  DIGIT < 0  then DIGIT := 0; end if;
       PUT( FILE, CHARACTER'VAL( CHARACTER'POS( '0' ) + DIGIT ) );
@@ -2004,6 +2006,7 @@ is					-------
       -- Chiffres apres le point
       for  I in 1 .. AFT  loop
         DIGIT := INTEGER( VAL );
+        if  NUM( DIGIT ) > VAL  then DIGIT := DIGIT - 1; end if;		-- floor
         if  DIGIT > 9  then DIGIT := 9; end if;
         if  DIGIT < 0  then DIGIT := 0; end if;
         PUT( FILE, CHARACTER'VAL( CHARACTER'POS( '0' ) + DIGIT ) );

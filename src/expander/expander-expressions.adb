@@ -2776,6 +2776,185 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     end	CODE_FLOAT_LARGE;
 	----------------
 
+		---------------
+    function	FORMEL_FLOTTANT	return TREE
+    is		---------------						--| prefixe : formel DIGITS <> d'un corps generique
+      PREFIX_DEFN	: TREE	:= D( SM_DEFN, PREFIX_NAME );			--| PARTAGE (T ou T'BASE) -> sa specification
+      T		: TREE;
+    begin
+      if  not CODI.IN_GENERIC_BODY  or else  PREFIX_DEFN.TY not in CLASS_TYPE_NAME  then
+        return  TREE_VOID;
+      end if;
+      T := D( SM_TYPE_SPEC, PREFIX_DEFN );
+      if  T /= TREE_VOID  and then  T.TY = DN_FLOAT
+        and then  IS_GENERIC_FORMAL_TYPE( D( XD_SOURCE_NAME, T ) )
+      then
+        return  T;
+      end if;
+      return  TREE_VOID;
+    end	FORMEL_FLOTTANT;
+	---------------
+
+		------------------
+    function	EST_FLOTTANT_MODELE	return BOOLEAN
+    is		------------------						--| attributs du modele traitables : prefixe flottant
+      T		: TREE	:= PREFIX_TYPE_SPEC;					--| non formel a precision connue, ou formel DIGITS <>
+    begin
+      if  FORMEL_FLOTTANT /= TREE_VOID  then
+        return  TRUE;
+      end if;
+      return  T /= TREE_VOID  and then  T.TY = DN_FLOAT
+	and then  not IS_GENERIC_FORMAL_TYPE( D( XD_SOURCE_NAME, T ) )
+	and then  D( SM_ACCURACY, T ) /= TREE_VOID;
+    end	EST_FLOTTANT_MODELE;
+	------------------
+
+		----------------
+    procedure	CODE_FLOAT_MODEL	( QUOI : CHARACTER )
+    is		----------------
+      --| Attributs du MODELE (LRM 3.5.7, 3.5.8) d'un type flottant de precision D :
+      --|   B = MANTISSA ; EMAX = 4 * B ; EPSILON = 2**(1-B) ; SMALL = 2**(-EMAX-1) ;
+      --|   LARGE = 2**EMAX * (1 - 2**(-B)) = 2**(4B) - 2**(3B) ;
+      --|   SAFE_EMAX (base), SAFE_SMALL = 2**(-SAFE_EMAX-1), SAFE_LARGE = 2**SAFE_EMAX - 2**(SAFE_EMAX - B de la base).
+      --| QUOI : 'D' DIGITS, 'M' MANTISSA, 'E' EMAX, 'P' EPSILON, 'S' SMALL, 'L' LARGE,
+      --|        'e' SAFE_EMAX, 's' SAFE_SMALL, 'l' SAFE_LARGE.
+      --| Type non formel : valeurs de la compilation (UTILS.MODELE_FLOTTANT) ; reels en litteraux de base 2,
+      --| convertis exactement par FLOAT_IO.GET (lot 7).
+      --| Formel DIGITS <> : entiers lus dans l'info de l'actuel (STANDARD._FLOAT_USE_INFO, par T__u),
+      --| reels construits par FEXP (2.0 ** N, N >= 0, exact pour une puissance de 2).
+      F		: TREE		:= FORMEL_FLOTTANT;
+      T		: TREE		:= PREFIX_TYPE_SPEC;
+
+			-----
+      function		EXPO		( E : INTEGER )	return STRING
+      is			-----
+      begin
+        if  E < 0  then  return  "-" & IMAGE( -E );
+        else  return  "+" & IMAGE( E );
+        end if;
+      end	EXPO;
+	-----
+
+			---------
+      procedure		PUISSANCE	( E : INTEGER )						--| 2**E
+      is			---------
+      begin
+        PUSH_FLOAT_LITERAL( "2#1.0#E" & EXPO( E ) );
+      end	PUISSANCE;
+	---------
+
+			----------
+      procedure		PLUS_GRAND	( NB_UNS, E : INTEGER )					--| 2**E * (1 - 2**(-NB_UNS))
+      is			----------
+        UNS	: STRING( 1 .. NB_UNS )	:= ( others => '1' );
+      begin
+        PUSH_FLOAT_LITERAL( "2#0." & UNS & "#E" & EXPO( E ) );
+      end	PLUS_GRAND;
+	----------
+
+			-----
+      procedure		CHAMP		( NOM : STRING )					--| formel : entier NOM de l'info de l'actuel
+      is			-----
+        TYPE_STR	:constant STRING	:= PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, F ) ) );
+      begin
+        PUT_LINE( tab & "LA " & IMAGE( GENERIC_BASE_LEVEL+1 ) & ',' & tab & "-GFP_ofs" );
+        PUT_LINE( tab & "LID , -" & TYPE_STR & "__u_ofs, STANDARD._FLOAT_USE_INFO." & NOM );
+      end	CHAMP;
+	-----
+
+			------
+      procedure		OP		( MNEMO : STRING )
+      is			------
+      begin
+        PUT_LINE( tab & MNEMO );
+      end	OP;
+	------
+
+			---
+      procedure		LI		( N : INTEGER )
+      is			---
+      begin
+        PUT_LINE( tab & "LI" & tab & IMAGE( N ) );
+      end	LI;
+	---
+
+    begin
+      if  F /= TREE_VOID  then
+			---------------
+			FORMEL_GENERIQUE:
+        declare
+	M	: constant STRING	:= "MANTISSA";
+	BM	: constant STRING	:= "BASE_MANTISSA";
+	MB	: constant BOOLEAN	:= PREFIX_HAS_BASE;
+        begin
+	case  QUOI  is
+	when 'D' =>
+	  if  MB  then  CHAMP( "BASE_DIGITS" );  else  CHAMP( "NB_DIGITS" );  end if;
+	when 'M' =>
+	  if  MB  then  CHAMP( BM );  else  CHAMP( M );  end if;
+	when 'E' =>
+	  if  MB  then  CHAMP( BM );  else  CHAMP( M );  end if;
+	  LI( 4 );  OP( "MUL" );
+	when 'P' =>										-- 1.0 / 2.0 ** (B - 1)
+	  PUSH_FLOAT_LITERAL( "1.0" );  PUSH_FLOAT_LITERAL( "2.0" );
+	  if  MB  then  CHAMP( BM );  else  CHAMP( M );  end if;
+	  LI( 1 );  OP( "SUB" );  OP( "FEXP" );  OP( "FDIV" );
+	when 'S' =>										-- 1.0 / 2.0 ** (4 B + 1)
+	  PUSH_FLOAT_LITERAL( "1.0" );  PUSH_FLOAT_LITERAL( "2.0" );
+	  if  MB  then  CHAMP( BM );  else  CHAMP( M );  end if;
+	  LI( 4 );  OP( "MUL" );  LI( 1 );  OP( "ADD" );  OP( "FEXP" );  OP( "FDIV" );
+	when 'L' =>										-- 2.0 ** (4 B) - 2.0 ** (3 B)
+	  PUSH_FLOAT_LITERAL( "2.0" );
+	  if  MB  then  CHAMP( BM );  else  CHAMP( M );  end if;
+	  LI( 4 );  OP( "MUL" );  OP( "FEXP" );
+	  PUSH_FLOAT_LITERAL( "2.0" );
+	  if  MB  then  CHAMP( BM );  else  CHAMP( M );  end if;
+	  LI( 3 );  OP( "MUL" );  OP( "FEXP" );  OP( "FSUB" );
+	when 'e' =>
+	  CHAMP( "SAFE_EMAX" );
+	when 's' =>										-- 1.0 / 2.0 ** (SAFE_EMAX + 1)
+	  PUSH_FLOAT_LITERAL( "1.0" );  PUSH_FLOAT_LITERAL( "2.0" );
+	  CHAMP( "SAFE_EMAX" );  LI( 1 );  OP( "ADD" );  OP( "FEXP" );  OP( "FDIV" );
+	when 'l' =>										-- 2.0 ** SE - 2.0 ** (SE - B de la base)
+	  PUSH_FLOAT_LITERAL( "2.0" );  CHAMP( "SAFE_EMAX" );  OP( "FEXP" );
+	  PUSH_FLOAT_LITERAL( "2.0" );  CHAMP( "SAFE_EMAX" );  CHAMP( BM );  OP( "SUB" );
+	  OP( "FEXP" );  OP( "FSUB" );
+	when others =>
+	  PUT_LINE( "; ANOMALIE CODE_FLOAT_MODEL : " & QUOI );
+	  raise PROGRAM_ERROR;
+	end case;
+        end	FORMEL_GENERIQUE;
+		---------------
+        return;
+      end if;
+
+			--------------
+			TYPE_NON_FORMEL:
+      declare
+        PREC	: INTEGER	:= MODELE_FLOTTANT( T, 'D' );
+        B	: INTEGER	:= MODELE_FLOTTANT( T, 'B' );
+        SE	: INTEGER	:= MODELE_FLOTTANT( T, 'S' );
+        B_BASE	: INTEGER	:= MODELE_FLOTTANT( T, 'b' );
+      begin
+        case  QUOI  is
+        when 'D' =>  LI( PREC );
+        when 'M' =>  LI( B );
+        when 'E' =>  LI( 4 * B );
+        when 'P' =>  PUISSANCE( 1 - B );
+        when 'S' =>  PUISSANCE( -( 4 * B ) - 1 );
+        when 'L' =>  PLUS_GRAND( B, 4 * B );
+        when 'e' =>  LI( SE );
+        when 's' =>  PUISSANCE( -SE - 1 );
+        when 'l' =>  PLUS_GRAND( B_BASE, SE );
+        when others =>
+	PUT_LINE( "; ANOMALIE CODE_FLOAT_MODEL : " & QUOI );
+	raise PROGRAM_ERROR;
+        end case;
+      end	TYPE_NON_FORMEL;
+		--------------
+    end	CODE_FLOAT_MODEL;
+	----------------
+
 		------------
     procedure	CODE_ADDRESS
     is		------------
@@ -3790,6 +3969,8 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
     when  'D' =>
       if  CHN_ATTR( 2 ) = 'E'  then CODE_FOLDED_ATTRIBUTE;				-- DELTA
+      elsif  FORMEL_FLOTTANT /= TREE_VOID  then				-- DIGITS d'un formel DIGITS <> (et 'BASE)
+        CODE_FLOAT_MODEL( 'D' );						-- : celui de l'actuel, par T__u
       else								-- DIGITS
         if  PREFIX_HAS_BASE  then
 	CODE_FLOAT_DIGITS;
@@ -3818,9 +3999,13 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
     when  'E' =>
       if  CHN_ATTR( 2 ) = 'M'  then
-        CODE_FLOAT_EMAX;										-- EMAX
+        if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'E' );						-- EMAX
+        else CODE_FLOAT_EMAX;
+        end if;
       else
-        CODE_FLOAT_EPSILON;										-- EPSILON
+        if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'P' );						-- EPSILON
+        else CODE_FLOAT_EPSILON;
+        end if;
       end if;
 
     when  'F' =>
@@ -3833,7 +4018,9 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
     when  'L' =>
       if  CHN_ATTR( 2 .. 3 ) = "AR"  then
-        CODE_FLOAT_LARGE;			-- LARGE
+        if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'L' );						-- LARGE
+        else CODE_FLOAT_LARGE;
+        end if;
       elsif  CHN_ATTR( 2 .. 3 ) = "AS"  then
         if  CHN_ATTR'LENGTH = 4  then									-- LAST
 	CODE_FIRST_LAST( IS_LAST => TRUE );
@@ -3846,7 +4033,9 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
     when  'M' =>
       if  CHN_ATTR( 3 ) = 'N'  then
-        CODE_FLOAT_MANTISSA;							-- MANTISSA
+        if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'M' );						-- MANTISSA
+        else CODE_FLOAT_MANTISSA;
+        end if;
       elsif  CHN_ATTR( 11 ) = 'A'  then
          CODE_FLOAT_EMAX;							-- MACHINE_EMAX
      elsif  CHN_ATTR( 11 ) =  'I'  then
@@ -3898,8 +4087,10 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         declare
 	T	: TREE	:= PREFIX_TYPE_SPEC;
         begin
-	if T /= TREE_VOID and then T.TY = DN_FLOAT then
-	  CODE_FLOAT_SMALL;							-- FLOAT'SMALL
+	if  EST_FLOTTANT_MODELE  then
+	  CODE_FLOAT_MODEL( 'S' );						-- FLOAT'SMALL du modele
+	elsif T /= TREE_VOID and then T.TY = DN_FLOAT then
+	  CODE_FLOAT_SMALL;							-- FLOAT'SMALL (formel : valeur machine)
 	else
 	  if  D( SM_VALUE, ATTRIBUTE ) /= TREE_VOID  then
 	    CODE_FOLDED_ATTRIBUTE;						-- FIXED'SMALL plie (cas normal)
@@ -3920,11 +4111,17 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         end if;
         PUT_LINE( tab & "INC" );
       elsif  CHN_ATTR( 6 ) = 'E'  then
-        CODE_FLOAT_EMAX;							-- SAFE_EMAX
+        if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'e' );						-- SAFE_EMAX
+        else CODE_FLOAT_EMAX;
+        end if;
       elsif  CHN_ATTR( 6 ) = 'L'  then
-        CODE_FLOAT_LARGE;							-- SAFE_LARGE
+        if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'l' );						-- SAFE_LARGE
+        else CODE_FLOAT_LARGE;
+        end if;
       elsif  CHN_ATTR( 6 ) = 'S'  then
-        CODE_FLOAT_SMALL;							-- SAFE_SMALL
+        if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 's' );						-- SAFE_SMALL
+        else CODE_FLOAT_SMALL;
+        end if;
       end if;
 
     when  'T' =>	TROU( "CODE_ATTRIBUTE 'STORAGE_SIZE (rep/tasking)" );		-- TERMINATED
@@ -8049,7 +8246,271 @@ SCAN_IDS:
 	-----------------------------
 
 
-				---------------
+					---------------------------
+  procedure		CONTROLE_CONVERSION_TABLEAU	( SRC_EXP, SRC_TYPE, TARGET_TYPE :TREE )
+  is			---------------------------
+	--| Conversion vers un type tableau (LRM 4.6 ; AI83-00313) : cible NON contrainte (lot 22),
+	--| cible CONTRAINTE (lot 23, plus bas : longueurs et nouveau doublet).
+	--| Pile : @doublet de l'operande [ @donnees | @info ], PRESERVE (le resultat est cet @doublet :
+	--| memes donnees, memes bornes ; les types d'indice sont convertibles a representation egale).
+	--| Controles, CONSTRAINT_ERROR :
+	--|   1. la contrainte du sous-type des composants est la meme pour l'operande et pour la cible ;
+	--|   2. pour chaque dimension NON NULLE de l'operande, ses bornes appartiennent au sous-type
+	--|      d'indice correspondant de la cible (CODE_RANGE_CHECK).
+	--| Bornes lues dans l'info de l'operande, aux offsets symboliques FST_k / LST_k du type cible
+	--| (disposition ne dependant que du nombre de dimensions : idiome CODE_FIRST_LAST, parametre).
+
+    SRC_BASE	: TREE		:= FULL_TYPE_VIEW( SRC_TYPE );
+    TGT		: TREE		:= FULL_TYPE_VIEW( TARGET_TYPE );
+    LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+    CVI		:constant STRING	:= "CVI_" & NEW_LABEL;					-- cellule : @info de l'operande
+    IDX_S	: SEQ_TYPE;
+    IDX	: TREE;
+    K		: INTEGER		:= 0;
+
+			-------------
+    procedure		BORNE_STATIQUE	( EXP :TREE;  OK :out BOOLEAN;  V :out LONG_INTEGER )
+    is			-------------
+      SV	: TREE;
+    begin
+      OK := FALSE;  V := 0;
+      if  EXP = TREE_VOID  or else  EXP.TY not in CLASS_EXP  then  return;  end if;
+      if  EXP.TY = DN_USED_NAME_ID  or else  EXP.TY = DN_USED_OP  then
+        return;										--| pas de sm_value (STATIC_BOUND_VALUE)
+      end if;
+      SV := D( SM_VALUE, EXP );
+      if  SV = TREE_VOID  then  return;  end if;
+      if  ( SV.PT = HI  and then  SV.NOTY = DN_NUM_VAL )  or else  SV.TY = DN_NUM_VAL  then
+        V := LONG_INTEGER'VALUE( PRINT_NUM( SV ) );  OK := TRUE;
+      end if;
+    end	BORNE_STATIQUE;
+	-------------
+
+			-------------
+    procedure		CHARGER_BORNE	( S :TREE;  IS_LAST :BOOLEAN )			--| idiome LOAD_BOUND de CODE_RANGE_CHECK
+    is			-------------
+      NOM	:constant TREE	:= D( XD_SOURCE_NAME, S );
+      NIV	:constant INTEGER	:= DI( CD_LEVEL, S );
+    begin
+      PUT( tab & OPER_LOAD_STR( S ) & tab & IMAGE( NIV ) & ", " );
+      if  NIV /= INTEGER( CODI.CUR_LEVEL )  or else  D( XD_REGION, NOM ).TY = DN_PACKAGE_ID  then
+        REGIONS_PATH( NOM );
+      end if;
+      PUT( TYPE_INFO_STR( S ) & "." );
+      if  IS_LAST  then  PUT_LINE( "LST" );  else  PUT_LINE( "FST" );  end if;
+    end	CHARGER_BORNE;
+	-------------
+
+			----------
+    function		A_SON_INFO	( S :TREE )	return BOOLEAN			--| bornes elaborees dans _S.FST / _S.LST :
+    is			----------						--| ni sous-type anonyme (piege n 80), ni base
+    begin
+      if  S = D( SM_BASE_TYPE, S )  then  return  FALSE;  end if;
+      return  not ( D( XD_SOURCE_NAME, S ) = D( XD_SOURCE_NAME, D( SM_BASE_TYPE, S ) )
+		and then  ( D( XD_SOURCE_NAME, S ).TY not in CLASS_TYPE_NAME
+			  or else  D( SM_TYPE_SPEC, D( XD_SOURCE_NAME, S ) ) /= S ) );
+    end	A_SON_INFO;
+	----------
+
+			-------------------
+    procedure		CONTROLE_COMPOSANTS	( CS0, CT0 :TREE )
+    is			-------------------
+      CS	: TREE	:= FULL_TYPE_VIEW( CS0 );
+      CT	: TREE	:= FULL_TYPE_VIEW( CT0 );
+      OK1, OK2, OK3, OK4	: BOOLEAN;
+      F1, L1, F2, L2		: LONG_INTEGER;
+    begin
+      if  CS0 = CT0  or else  CS = CT  then  return;  end if;				--| meme sous-type : rien a controler
+
+      if  ( CS.TY = DN_INTEGER  or else  CS.TY = DN_ENUMERATION )
+        and then  CS.TY = CT.TY
+      then
+        if  CS = D( SM_BASE_TYPE, CS )  and then  CT = D( SM_BASE_TYPE, CT )  then
+	return;										--| ni l'un ni l'autre contraint
+        end if;
+        BORNE_STATIQUE( D( AS_EXP1, D( SM_RANGE, CS ) ), OK1, F1 );
+        BORNE_STATIQUE( D( AS_EXP2, D( SM_RANGE, CS ) ), OK2, L1 );
+        BORNE_STATIQUE( D( AS_EXP1, D( SM_RANGE, CT ) ), OK3, F2 );
+        BORNE_STATIQUE( D( AS_EXP2, D( SM_RANGE, CT ) ), OK4, L2 );
+        if  OK1  and then  OK2  and then  OK3  and then  OK4  then
+	if  F1 /= F2  or else  L1 /= L2  then
+	  PUT_LINE( tab & "BRA" & tab & "STANDARD.ce_raise_" );			--| contraintes statiques differentes
+	end if;
+	return;
+        end if;
+        if  A_SON_INFO( CS )  and then  A_SON_INFO( CT )  then				--| contraintes dynamiques : bornes elaborees
+	CHARGER_BORNE( CS, IS_LAST => FALSE );  CHARGER_BORNE( CT, IS_LAST => FALSE );
+	PUT_LINE( tab & "CNE" );  PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+	CHARGER_BORNE( CS, IS_LAST => TRUE );   CHARGER_BORNE( CT, IS_LAST => TRUE );
+	PUT_LINE( tab & "CNE" );  PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+	return;
+        end if;
+      end if;
+
+      TROU( "CODE_CONVERSION vers tableau : contrainte des composants non comparable", CT );
+    end	CONTROLE_COMPOSANTS;
+	-------------------
+
+			----------
+    function		OFS_BORNE	( N, K :INTEGER;  IS_LAST :BOOLEAN )	return INTEGER
+    is			----------
+	--| Offset de FST_k (LST_k : + 4) dans un bloc info a N dimensions (USEINFO_OFFSETS) :
+	--| SIZ, COMP_SIZ, FST_N, LST_N, puis SIZ_k, FST_k, LST_k pour k = N-1 .. 1.
+      OFS	: INTEGER;
+    begin
+      if  K = N  then  OFS := 8;  else  OFS := 20 + 12 * ( N - 1 - K );  end if;
+      if  IS_LAST  then  OFS := OFS + 4;  end if;
+      return  OFS;
+    end	OFS_BORNE;
+	----------
+
+			----------------
+    procedure		CIBLE_CONTRAINTE
+    is			----------------
+	--| Lot 23 (LRM 4.6) : cible CONTRAINTE T.  Controles : composants (comme ci-dessus), puis
+	--| « for each component of the operand there is a matching component of the target subtype,
+	--| and vice versa » : longueurs egales dimension par dimension, sauf si l'operande et la cible
+	--| sont tous deux sans composant.  Resultat : NOUVEAU doublet { donnees de l'operande,
+	--| info de T } dans deux cellules de cadre -- les bornes du resultat sont celles de T
+	--| (glissement), pour tout consommateur (meme motif que WRAP_COMPOSITE_ACTUAL_DOUBLET).
+      CVD	:constant STRING	:= "CVD_" & NEW_LABEL;
+      SAUT	:constant STRING	:= NEW_LABEL;
+      NDIM	: INTEGER		:= 0;
+      TGT_NIV	:constant STRING	:= IMAGE( DI( CD_LEVEL, TGT ) );
+
+			-------
+      procedure		LG_OPER	( K :INTEGER )					--| longueur de la dimension K de l'operande
+      is			-------
+      begin
+        PUT_LINE( tab & "LA  " & LVL_STR & ", " & CVI );
+        PUT_LINE( tab & "LD" & tab & "," & INTEGER'IMAGE( OFS_BORNE( NDIM, K, IS_LAST => TRUE ) ) );
+        PUT_LINE( tab & "LA  " & LVL_STR & ", " & CVI );
+        PUT_LINE( tab & "LD" & tab & "," & INTEGER'IMAGE( OFS_BORNE( NDIM, K, IS_LAST => FALSE ) ) );
+        PUT_LINE( tab & "SUB" );  PUT_LINE( tab & "INC" );  PUT_LINE( tab & "CLAMP0" );
+      end	LG_OPER;
+	-------
+
+			-------
+      procedure		LG_CIBLE	( K :INTEGER )					--| longueur de la dimension K de T (_T._FST_k)
+      is			-------
+		-----
+        procedure	BORNE	( NOM :STRING )
+        is		-----
+        begin
+	PUT( tab & "LD  " & TGT_NIV & ", " );
+	REGIONS_PATH( D( XD_SOURCE_NAME, TGT ) );
+	PUT_LINE( TYPE_INFO_STR( TGT ) & "." & NOM & IMAGE( K ) );
+        end	BORNE;
+	-----
+      begin
+        BORNE( "_LST_" );  BORNE( "_FST_" );
+        PUT_LINE( tab & "SUB" );  PUT_LINE( tab & "INC" );  PUT_LINE( tab & "CLAMP0" );
+      end	LG_CIBLE;
+	-------
+
+    begin
+      if  SRC_EXP.TY /= DN_USED_OBJECT_ID  and then  SRC_EXP.TY /= DN_FUNCTION_CALL  then
+        return;										--| forme non recensee : identite (comportement
+      end if;										--| anterieur, sans controle ni glissement)
+
+      CONTROLE_COMPOSANTS( D( SM_COMP_TYPE, SRC_BASE ), D( SM_COMP_TYPE, FULL_TYPE_VIEW( D( SM_BASE_TYPE, TGT ) ) ) );
+
+      IDX_S := LIST( D( SM_INDEX_S, FULL_TYPE_VIEW( D( SM_BASE_TYPE, TGT ) ) ) );
+      while  not IS_EMPTY( IDX_S )  loop
+        POP( IDX_S, IDX );
+        NDIM := NDIM + 1;
+      end loop;
+
+      PUT_LINE( "VAR" & tab & CVI & ", Q" );
+      PUT_LINE( tab & "DUP" );
+      PUT_LINE( tab & "LA" & tab & "," & INTEGER'IMAGE( CODI.ADDR_SIZE ) );			-- @info = [@doublet + 8]
+      PUT_LINE( tab & "SA  " & LVL_STR & ", " & CVI );
+
+      for  K in 1 .. NDIM  loop								-- operande sans composant ?
+        LG_OPER( K );
+        if  K > 1  then  PUT_LINE( tab & "MUL" );  end if;
+      end loop;
+      PUT_LINE( tab & "LI" & tab & "0" );  PUT_LINE( tab & "CEQ" );
+      for  K in 1 .. NDIM  loop								-- cible sans composant ?
+        LG_CIBLE( K );
+        if  K > 1  then  PUT_LINE( tab & "MUL" );  end if;
+      end loop;
+      PUT_LINE( tab & "LI" & tab & "0" );  PUT_LINE( tab & "CEQ" );
+      PUT_LINE( tab & "ET" );
+      PUT_LINE( tab & "BT" & tab & SAUT );							-- les deux : appariement vide
+      for  K in 1 .. NDIM  loop								-- longueurs egales
+        LG_OPER( K );  LG_CIBLE( K );
+        PUT_LINE( tab & "CNE" );
+        PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+      end loop;
+      PUT_LINE( SAUT & ":" );
+
+      PUT_LINE( "VAR" & tab & CVD & "_disp, Q" );						-- nouveau doublet, 2 qwords adjacents
+      PUT_LINE( "VAR" & tab & CVD & "__u, Q" );
+      PUT_LINE( tab & "LA" & tab & ", 0" );							-- @donnees de l'operande
+      PUT_LINE( tab & "SA  " & LVL_STR & ", " & CVD & "_disp" );
+      PUT( tab & "LA  " & TGT_NIV & ", " );
+      REGIONS_PATH( D( XD_SOURCE_NAME, TGT ) );
+      PUT_LINE( TYPE_INFO_STR( TGT ) & ".use__info" );						-- info de T
+      PUT_LINE( tab & "SA  " & LVL_STR & ", " & CVD & "__u" );
+      PUT_LINE( tab & "LVA " & LVL_STR & ", " & CVD & "_disp" );
+    end	CIBLE_CONTRAINTE;
+	----------------
+
+  begin
+    if  SRC_BASE.TY = DN_CONSTRAINED_ARRAY  then
+      SRC_BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, SRC_BASE ) );
+    end if;
+
+    if  TGT.TY = DN_CONSTRAINED_ARRAY  then
+      CIBLE_CONTRAINTE;
+      return;
+    end if;
+
+    if  SRC_EXP.TY /= DN_USED_OBJECT_ID  and then  SRC_EXP.TY /= DN_FUNCTION_CALL  then
+      TROU( "CODE_CONVERSION vers tableau non contraint : forme d'operande", SRC_EXP );		--| @doublet non garanti
+    end if;
+
+    CONTROLE_COMPOSANTS( D( SM_COMP_TYPE, SRC_BASE ), D( SM_COMP_TYPE, TGT ) );		-- 1. composants
+
+    PUT_LINE( "VAR" & tab & CVI & ", Q" );							-- 2. bornes, dimension par dimension
+    PUT_LINE( tab & "DUP" );
+    PUT_LINE( tab & "LA" & tab & "," & INTEGER'IMAGE( CODI.ADDR_SIZE ) );			-- @info = [@doublet + 8]
+    PUT_LINE( tab & "SA  " & LVL_STR & ", " & CVI );
+    IDX_S := LIST( D( SM_INDEX_S, TGT ) );
+    while  not IS_EMPTY( IDX_S )  loop
+      POP( IDX_S, IDX );
+      K := K + 1;
+      if  IDX.TY = DN_INDEX  then  IDX := D( SM_TYPE_SPEC, IDX );  end if;
+      declare
+        SAUT	:constant STRING	:= NEW_LABEL;
+
+			-----
+        procedure	BORNE	( NOM :STRING )
+        is		-----
+        begin
+	PUT_LINE( tab & "LA  " & LVL_STR & ", " & CVI );
+	PUT( tab & "LD" & tab & ", " );
+	REGIONS_PATH( D( XD_SOURCE_NAME, TGT ) );
+	PUT_LINE( TYPE_INFO_STR( TGT ) & "." & NOM & IMAGE( K ) );
+        end	BORNE;
+	-----
+
+      begin
+        BORNE( "LST_" );  BORNE( "FST_" );
+        PUT_LINE( tab & "CLT" );								-- LST < FST : dimension nulle, pas de controle
+        PUT_LINE( tab & "BT" & tab & SAUT );
+        BORNE( "FST_" );  CODE_RANGE_CHECK( IDX );  PUT_LINE( tab & "DROP" );
+        BORNE( "LST_" );  CODE_RANGE_CHECK( IDX );  PUT_LINE( tab & "DROP" );
+        PUT_LINE( SAUT & ":" );
+      end;
+    end loop;
+
+  end	CONTROLE_CONVERSION_TABLEAU;
+	---------------------------
+
+
+		---------------
   procedure			CODE_CONVERSION		( CONVERSION :TREE )
   is				---------------
 
@@ -8128,7 +8589,8 @@ SCAN_IDS:
 				INTEGER_TARGET:
 	begin
 	  if  SRC_TYPE.TY = DN_FLOAT  then								-- Verifier si la source est flottante (conversion float -> entier)
-	    PUT_LINE( tab & "CVTFI" );								-- conversion double IEEE 754 -> entier (troncature)
+	    PUT_LINE( tab & "CVTFIR" );								-- double -> entier ARRONDI au plus proche (LRM 4.6(7) ; mi-chemin :
+										--| pair, admis par 4.6(7)) ; CVTFI tronquait (c46012a..k)
 
 	  elsif  SRC_TYPE.TY = DN_FIXED  then
 
@@ -8360,12 +8822,16 @@ SCAN_IDS:
 	null;											--| INTENTIONNEL (cf. ci-dessus)
 
         when DN_CONSTRAINED_ARRAY =>
-			--| INTENTIONNEL (chantier C1, recensement 28/07 -- 1 traversee,
-			--| idl.adb) : derivation, identite sur l'@doublet.  DETTE au
-			--| carnet (ETAT_PILIERS) : glissement de bornes + verification
-			--| d'index LRM 4.6(11) NON EMIS -- non exerce par le corpus
-			--| (conversion entre sous-types de MEME profil d'index).
-	null;											--| INTENTIONNEL (cf. ci-dessus)
+			--| Lot 23 : cible CONTRAINTE (LRM 4.6) -- controles des composants et des
+			--| longueurs, puis nouveau doublet { donnees, info de la cible } (glissement).
+			--| Remplace l'identite du chantier C1 (bornes de l'operande gardees : faux
+			--| des que les bornes different a longueur egale).
+	CONTROLE_CONVERSION_TABLEAU( SRC_EXP, SRC_TYPE, TARGET_TYPE );
+
+        when DN_ARRAY =>
+			--| Lot 22 : cible NON contrainte (LRM 4.6 ; AI83-00313) -- identite sur
+			--| l'@doublet de l'operande, controles des composants et des bornes.
+	CONTROLE_CONVERSION_TABLEAU( SRC_EXP, SRC_TYPE, TARGET_TYPE );
 
         when DN_ACCESS | DN_CONSTRAINED_ACCESS =>
 			--| LRM 4.6(13) : conversion entre types d'acces de MEME designe

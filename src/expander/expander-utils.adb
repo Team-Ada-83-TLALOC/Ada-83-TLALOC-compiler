@@ -262,6 +262,73 @@ is					-----
 	--------------
 
 
+			--^^^^^^^^^^^^^^^--
+  function		  MODELE_FLOTTANT		( T : TREE; QUOI : CHARACTER )	return INTEGER
+  is			-------------------
+    --| Grandeurs entieres du MODELE d'un type flottant T (LRM 3.5.7, 3.5.8), connues a la compilation :
+    --|   'D' : DIGITS ;
+    --|   'B' : MANTISSA = k + 1, k plus petit entier tel que 2**k >= 10**DIGITS (D * log2 10 n'est jamais entier) ;
+    --|   'S' : SAFE_EMAX, celui de la base : 125 pour FLOAT (IEEE simple), 1021 pour LONG_FLOAT (IEEE double),
+    --|         pour que SAFE_SMALL = 2**(-SAFE_EMAX-1) reste un nombre normal IEEE ;
+    --|   'd', 'b' : DIGITS et MANTISSA du type de base (FLOAT ou LONG_FLOAT, choisi par le frontal).
+    --| Precision absente (type derive d'un formel) : 0.
+    BASE		: TREE		:= D( SM_BASE_TYPE, T );
+    PREC		: INTEGER;
+    PREC_BASE	: INTEGER;
+
+			---------
+    function		PRECISION		( S : TREE )	return INTEGER
+    is			---------
+      ACC	: TREE	:= D( SM_ACCURACY, S );
+    begin
+      if  ACC = TREE_VOID  then  return 0;
+      elsif  ACC.PT = HI  then  return INTEGER( ACC.ABSS );
+      else  return INTEGER'VALUE( PRINT_NUM( ACC ) );
+      end if;
+    end	PRECISION;
+	---------
+
+			--------
+    function		MANTISSE		( P : INTEGER )	return INTEGER
+    is			--------
+      DIX	: LONG_INTEGER	:= 1;
+      PUIS	: LONG_INTEGER	:= 1;
+      K	: INTEGER		:= 0;
+    begin
+      if  P <= 0  then  return 0;  end if;
+      for  I in 1 .. P  loop
+        DIX := DIX * 10;
+      end loop;
+      while  PUIS < DIX  loop
+        PUIS := PUIS * 2;
+        K := K + 1;
+      end loop;
+      return  K + 1;
+    end	MANTISSE;
+	--------
+
+  begin
+    if  BASE = TREE_VOID  then  BASE := T;  end if;
+    PREC      := PRECISION( T );
+    PREC_BASE := PRECISION( BASE );
+    case  QUOI  is
+    when 'D' =>  return  PREC;
+    when 'B' =>  return  MANTISSE( PREC );
+    when 'd' =>  return  PREC_BASE;
+    when 'b' =>  return  MANTISSE( PREC_BASE );
+    when 'S' =>
+      if  PREC_BASE = 0  then  return 0;
+      elsif  PREC_BASE <= 6  then  return 125;
+      else  return 1021;
+      end if;
+    when others =>
+      PUT_LINE( "; ANOMALIE MODELE_FLOTTANT : " & QUOI );
+      raise PROGRAM_ERROR;
+    end case;
+  end	MODELE_FLOTTANT;
+	---------------
+
+
 			--^^^^^^^^^--
   function		  EST_ACCES		( T : TREE )	return BOOLEAN
   is			-----------
