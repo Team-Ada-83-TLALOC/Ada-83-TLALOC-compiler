@@ -272,6 +272,7 @@ is
     function  IS_GENERIC_FORMAL_OBJECT  ( DEFN		:TREE )		return BOOLEAN;
     function  IS_GENERIC_FORMAL_SUBPROGRAM( ID		:TREE )		return BOOLEAN;
     procedure CODE_DISCRETE_RANGE_BOUND ( DISCRETE_RANGE :TREE; IS_LAST :BOOLEAN );
+    procedure BORNES_CHOIX		( CH :TREE;  BAS, HAUT :out INTEGER;  OK :out BOOLEAN );		--| bornes statiques d'un choix de variante (lot 24)
     procedure CODE_RANGE_CHECK	( TYPE_SPEC	:TREE );						--| PILIER CHECKS : gamme scalaire, valeur au
     procedure CODE_ZERO_DIVIDE_CHECK;									--| PILIER CHECKS E-E : diviseur au sommet,
 
@@ -354,6 +355,12 @@ is
 				  MUTABLE :BOOLEAN := FALSE );						--| option B : pile -> @objet neuf (discriminants de
 												--| DSCRMT_EXP_S, descripteurs, bloc de __TAILLE
 												--| octets ; MUTABLE : bloc de taille MAXIMALE)
+    function  A_INIT_IMPLICITE	( REC_TYPE :TREE )		return BOOLEAN;				--| lot 25 : un composant recoit une valeur implicite
+    procedure CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING );				--| lot 25 : valeurs implicites des composants de l'objet
+												--| dont l'adresse est dans OBJ_VAR (discriminants poses)
+    function  A_INIT_IMPLICITE_TYPE	( T :TREE )		return BOOLEAN;				--| lot 26 : record ou tableau contraint a valeurs implicites
+    procedure CODE_INIT_IMPLICITE_TABLEAU ( ARR_TYPE :TREE;  DATA_VAR, LEN_VAR :STRING );		--| lot 26 : composants d'un tableau (donnees dans DATA_VAR,
+												--| longueur en octets dans LEN_VAR)
 
 
   private

@@ -1,6 +1,6 @@
 SET_DFLT = 'SET_DFLT'
-PRO	SET_DFLT_L2
- hexa_show 'SET_DFLT_L2 ', $
+PRO	SET_DFLT_L5
+ hexa_show 'SET_DFLT_L5 ', $
 PRMS
 	PRM NODE_ofs
 endPRMS

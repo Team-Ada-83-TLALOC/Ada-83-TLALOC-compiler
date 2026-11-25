@@ -1,0 +1,42 @@
+WITH REPORT; USE REPORT;
+PROCEDURE DEFARR1 IS
+     TYPE R IS RECORD C : CHARACTER := 'C'; N : INTEGER := 5; END RECORD;
+     TYPE V (E : INTEGER := 1) IS
+          RECORD
+               CASE E IS
+                    WHEN 1 => M : INTEGER := 6;
+                    WHEN OTHERS => Q : CHARACTER := 'Q';
+               END CASE;
+          END RECORD;
+     SUBTYPE V3 IS V (IDENT_INT (3));
+     TYPE A IS ARRAY (1 .. 3) OF R;
+     TYPE AV IS ARRAY (1 .. 2) OF V;
+     TYPE AV3 IS ARRAY (1 .. 2) OF V3;
+     TYPE AA IS ARRAY (1 .. 2) OF A;
+     TYPE M IS ARRAY (1 .. 2, 1 .. 3) OF R;
+     TYPE ACC IS ACCESS INTEGER;
+     TYPE TACC IS ARRAY (1 .. 2) OF ACC;
+     TYPE ENC IS RECORD X : INTEGER := 1; T : A; END RECORD;
+     TYPE PA IS ACCESS A;
+     X1 : A;
+     X2 : AV;
+     X3 : AV3;
+     X4 : AA;
+     X5 : M;
+     X6 : TACC;
+     X7 : ENC;
+     X8 : ARRAY (IDENT_INT (1) .. IDENT_INT (4)) OF R;
+     P  : PA := NEW A;
+BEGIN
+     TEST ("DEFARR1", "VALEURS IMPLICITES DES COMPOSANTS DE TABLEAUX (LRM 3.2.1, 4.8)");
+     IF X1 (1).C /= 'C' OR X1 (3).N /= 5 THEN FAILED ("X1"); END IF;
+     IF X2 (1).E /= 1 OR X2 (2).M /= 6 THEN FAILED ("X2 : DISCRIMINANTS PAR DEFAUT"); END IF;
+     IF X3 (1).E /= 3 OR X3 (2).Q /= 'Q' THEN FAILED ("X3 : SOUS-TYPE CONTRAINT"); END IF;
+     IF X4 (2) (3).N /= 5 OR X4 (1) (1).C /= 'C' THEN FAILED ("X4 : TABLEAU DE TABLEAUX"); END IF;
+     IF X5 (2, 3).N /= 5 OR X5 (1, 2).C /= 'C' THEN FAILED ("X5 : DEUX DIMENSIONS"); END IF;
+     IF X6 (1) /= NULL OR X6 (2) /= NULL THEN FAILED ("X6 : ACCES NULS"); END IF;
+     IF X7.X /= 1 OR X7.T (3).N /= 5 THEN FAILED ("X7 : COMPOSANT TABLEAU"); END IF;
+     IF X8 (4).N /= 5 OR X8 (1).C /= 'C' THEN FAILED ("X8 : BORNES DYNAMIQUES"); END IF;
+     IF P (2).N /= 5 OR P (3).C /= 'C' THEN FAILED ("P : NEW A"); END IF;
+     RESULT;
+END DEFARR1;

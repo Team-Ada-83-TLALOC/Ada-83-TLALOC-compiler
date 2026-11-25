@@ -1248,6 +1248,20 @@ is
 
 	else											-- PAS D'INITIALISATION, ALLOUER
 	  COVAR_ALLOCATE;
+	  if  A_INIT_IMPLICITE_TYPE( TYPE_SPEC )  then							--| lot 26 : composants records (LRM 3.2.1)
+	    declare
+	      LEN	:constant STRING	:= VC_STR & "__ilg";
+	    begin
+	      PUT_LINE( "VAR " & LEN & ", Q" );								--| longueur en octets : SIZ / 8
+	      PUT( tab & "LD" & tab & IMAGE( TYPE_LEVEL ) & ", " );
+	      PUT_TYPE_INFO_PREFIX;
+	      PUT_LINE( ".SIZ__" );
+	      PUT_LINE( tab & "LI" & tab & '8' );
+	      PUT_LINE( tab & "DIV" );
+	      PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & LEN );
+	      CODE_INIT_IMPLICITE_TABLEAU( TYPE_SPEC, VC_STR & "_disp", LEN );
+	    end;
+	  end if;
 
 	end if;
         end			INITIALIZE;
@@ -1537,128 +1551,7 @@ is
 				-- fields that have default values
 				-- (objet record courant : un defaut peut lire un
 				-- discriminant, LRM 3.7.1)
-	CODI.POSER_REC_COURANT( LVL, VC_STR & "_disp" );
-	declare
-	  COMP_DECL_S	: SEQ_TYPE;
-	  COMP_DECL	: TREE;
-	begin
-	  if  TYPE_SPEC.TY = DN_CONSTRAINED_RECORD  then						-- base PRIVEE possible (derive d'un prive)
-	    COMP_DECL_S := LIST( D( AS_DECL_S, D( SM_COMP_LIST, CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, TYPE_SPEC ) ) ) ) );
-
-	  else
-	    COMP_DECL_S := LIST( D( AS_DECL_S, D( SM_COMP_LIST, TYPE_SPEC ) ) );
-
-	  end if;
-
-	  while  not IS_EMPTY( COMP_DECL_S )  loop
-	    POP( COMP_DECL_S, COMP_DECL );
-
-	    if  COMP_DECL.TY /= DN_NULL_COMP_DECL  then
-
-	    declare
-	      COMP_ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, COMP_DECL ) );
-	      COMP_ID	: TREE;
-	    begin
-	      while  not IS_EMPTY( COMP_ID_S )  loop
-	        POP( COMP_ID_S, COMP_ID );
-	        declare
-		FIELD_INIT	: TREE		:= D( SM_INIT_EXP, COMP_ID );
-		COMP_TYPE		: TREE		:= D( SM_OBJ_TYPE, COMP_ID );
-		COMP_STR		:constant STRING	:= PRINT_NAME( D( LX_SYMREP, COMP_ID ) );
-	        begin
-		if  FIELD_INIT /= TREE_VOID  and then  CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
-		  PUT( tab & "LIVA " & LVL_STR & ", " );						--| @descripteur dans l'objet
-		  CODI.REGIONS_PATH( VC_NAME );
-		  PUT( VC_STR & "_disp, " );
-		  CODI.REGIONS_PATH( TYPE_NAME );
-		  PUT_LINE( TYPE_NAME_STR & "." & COMP_STR );
-		  EXPRESSIONS.CODE_VALEUR_COMPOSANT_DYNAMIQUE( COMP_ID, FIELD_INIT );
-
-		elsif  FIELD_INIT /= TREE_VOID  then
-
-		  if  FIELD_INIT.TY = DN_AGGREGATE  then						-- composant composite : descente recursive
-		    if  REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )  then
-		      PUT_LINE( "; COMPILE_RECORD_VAR : composant composite d'un record represente non gere" );
-		      raise PROGRAM_ERROR;
-		    end if;
-		    PUT( tab & "LIVA " & LVL_STR & ", " );
-		    CODI.REGIONS_PATH( VC_NAME );
-		    PUT( VC_STR & "_disp, " );
-		    CODI.REGIONS_PATH( TYPE_NAME );
-		    PUT_LINE( TYPE_NAME_STR & "."
-		      & COMP_STR );
-		    EXPRESSIONS.CODE_AGGREGATE( FIELD_INIT, COMP_TYPE );					-- l'adresse du champ est sur la pile, CODE_AGGREGATE la consomme
-
-		  else										-- composant scalaire : store direct
-		    if  REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )  then
-		      PUT_LINE( tab & "LA  " & LVL_STR & ", " & VC_STR & "_disp" );	-- @data du record
-		      REPRESENTED_ITEMS.CODE_STORE_REP_COMPONENT( COMP_ID, FIELD_INIT );
-
-		    else
-		      PUT( tab & "LIVA " & LVL_STR & ", " );
-		      CODI.REGIONS_PATH( VC_NAME );
-		      PUT( VC_STR & "_disp, " );
-		      CODI.REGIONS_PATH( TYPE_NAME );
-		      PUT_LINE( TYPE_NAME_STR & "." & COMP_STR );
-		      EXPRESSIONS.CODE_EXP( FIELD_INIT );
-		      EXPRESSIONS.CODE_RANGE_CHECK( CODI.FULL_TYPE_VIEW( COMP_TYPE ) );		-- LRM 3.2.1 : defaut dans le sous-type du composant
-		      PUT_LINE( tab & "S" & CODI.OPER_SIZ_CHAR( COMP_TYPE ) );
-		    end if;
-		  end if;
-
-		elsif  CODI.FULL_TYPE_VIEW( COMP_TYPE ).TY = DN_CONSTRAINED_RECORD
-		  and then  not REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )
-		then
-				-- Composant record CONTRAINT sans defaut : ses discriminants
-				-- sont ceux de la contrainte (LRM 3.7.2), evalues avec l'objet
-				-- englobant comme objet courant, controles contre leur sous-type.
-		  declare
-		    C_TYPE	: TREE		:= CODI.FULL_TYPE_VIEW( COMP_TYPE );
-		    C_BASE	: TREE		:= CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, C_TYPE ) );
-		    C_BASE_NAME	: TREE		:= D( XD_SOURCE_NAME, C_BASE );
-		    C_BASE_STR	:constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, C_BASE_NAME ) );
-		    C_EXP_S	: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_DSCRMT_S, C_TYPE ) );
-		    C_EXP		: TREE;
-		    C_DECL_S	: SEQ_TYPE;
-		    C_DECL	: TREE;
-		  begin
-		    if  C_BASE.TY = DN_RECORD  and then  not REPRESENTED_ITEMS.HAS_RECORD_REP( C_BASE )  then
-		      C_DECL_S := LIST( D( SM_DISCRIMINANT_S, C_BASE ) );
-		      while  not IS_EMPTY( C_DECL_S )  loop
-		        POP( C_DECL_S, C_DECL );
-		        declare
-			C_ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, C_DECL ) );
-			C_ID	: TREE;
-		        begin
-			while  not IS_EMPTY( C_ID_S )  and then  not IS_EMPTY( C_EXP_S )  loop
-			  POP( C_ID_S, C_ID );
-			  POP( C_EXP_S, C_EXP );
-			  PUT( tab & "LIVA " & LVL_STR & ", " );				-- @composant
-			  CODI.REGIONS_PATH( VC_NAME );
-			  PUT( VC_STR & "_disp, " );
-			  CODI.REGIONS_PATH( TYPE_NAME );
-			  PUT_LINE( TYPE_NAME_STR & "." & COMP_STR );
-			  PUT( tab & "LI" & tab );						-- + deplacement du discriminant
-			  CODI.REGIONS_PATH( C_BASE_NAME );
-			  PUT_LINE( C_BASE_STR & "." & PRINT_NAME( D( LX_SYMREP, C_ID ) ) );
-			  PUT_LINE( tab & "ADD" );
-			  EXPRESSIONS.CODE_EXP( C_EXP );
-			  EXPRESSIONS.CODE_RANGE_CHECK( CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, C_ID ) ) );
-			  PUT_LINE( tab & "S" & CODI.OPER_SIZ_CHAR( D( SM_OBJ_TYPE, C_ID ) ) );
-			end loop;
-		        end;
-		      end loop;
-		    end if;
-		  end;
-
-		end if;
-	        end;
-	      end loop;
-	    end;
-	    end if;
-	  end loop;
-	end;
-	CODI.OTER_REC_COURANT;
+	CODE_INIT_IMPLICITE( TYPE_SPEC, VC_STR & "_disp" );						--| lot 25 : variantes, composants records
         end if;
       end COMPILE_RECORD_VAR;
 	------------------
@@ -3395,6 +3288,507 @@ is
   end	CODE_OBJET_DYNAMIQUE;
 	--------------------
 
+
+			--------------
+  function		TAILLE_STATIQUE	( T :TREE )		return NATURAL
+  is			--------------
+	-- Lot 26 : taille statique en octets d'un tableau contraint ou d'un record
+	-- (CD_IMPL_SIZE arrondi a l'octet, comme le pas des tableaux de
+	-- DECLARATIONS.TYPES_DECLS), 0 si elle n'est pas connue.
+    TS		: TREE		:= FULL_TYPE_VIEW( T );
+  begin
+    if  TS.TY = DN_CONSTRAINED_RECORD  then
+      TS := FULL_TYPE_VIEW( D( SM_BASE_TYPE, TS ) );
+    end if;
+    if  D( CD_IMPL_SIZE, TS ) = TREE_VOID  or else  D( CD_IMPL_SIZE, TS ) = TREE_NIL
+      or else  DI( CD_IMPL_SIZE, TS ) <= 0
+    then
+      return 0;
+    end if;
+    return  NATURAL( ( DI( CD_IMPL_SIZE, TS ) + STORAGE_UNIT - 1 ) / STORAGE_UNIT );
+  end	TAILLE_STATIQUE;
+	--------------
+
+
+			---------------------
+  function		A_INIT_IMPLICITE_TYPE	( T :TREE )		return BOOLEAN
+  is			---------------------
+	-- Lot 26 : vrai si un objet du type T (record ou tableau contraint) recoit des
+	-- valeurs implicites (LRM 3.2.1) : record contraint (discriminants a poser),
+	-- record a discriminants par defaut ou a composants par defaut, tableau
+	-- contraint dont les composants en recoivent.  Records dynamiques : seulement
+	-- les discriminants d'un record contraint, et pas comme composants de tableau.
+    TS		: TREE		:= FULL_TYPE_VIEW( T );
+    BASE		: TREE;
+    ELEM		: TREE;
+  begin
+    if  TS.TY = DN_RECORD  or else  TS.TY = DN_CONSTRAINED_RECORD  then
+      BASE := TS;
+      if  TS.TY = DN_CONSTRAINED_RECORD  then
+        BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, TS ) );
+      end if;
+      if  BASE.TY /= DN_RECORD  or else  REPRESENTED_ITEMS.HAS_RECORD_REP( BASE )  then
+        return FALSE;
+      end if;
+      if  TS.TY = DN_CONSTRAINED_RECORD  then
+        return TRUE;
+      end if;
+      return  not EST_RECORD_DYNAMIQUE( BASE )
+	and then  ( not IS_EMPTY( LIST( D( SM_DISCRIMINANT_S, BASE ) ) )  or else  A_INIT_IMPLICITE( BASE ) );
+
+    elsif  TS.TY = DN_CONSTRAINED_ARRAY  then
+      BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, TS ) );
+      ELEM := FULL_TYPE_VIEW( D( SM_COMP_TYPE, BASE ) );
+      if  ELEM.TY = DN_RECORD  or else  ELEM.TY = DN_CONSTRAINED_RECORD  then
+        if  ELEM.TY = DN_CONSTRAINED_RECORD
+          and then  FULL_TYPE_VIEW( D( SM_BASE_TYPE, ELEM ) ).TY = DN_RECORD
+        then
+	if  EST_RECORD_DYNAMIQUE( FULL_TYPE_VIEW( D( SM_BASE_TYPE, ELEM ) ) )  then
+	  return FALSE;
+	end if;
+        elsif  ELEM.TY = DN_RECORD  and then  EST_RECORD_DYNAMIQUE( ELEM )  then
+	return FALSE;
+        end if;
+        return  A_INIT_IMPLICITE_TYPE( ELEM );
+      elsif  ELEM.TY = DN_CONSTRAINED_ARRAY  then
+        return  TAILLE_STATIQUE( ELEM ) > 0  and then  A_INIT_IMPLICITE_TYPE( ELEM );
+      end if;
+    end if;
+    return FALSE;
+  end	A_INIT_IMPLICITE_TYPE;
+	---------------------
+
+
+			-------------
+  procedure		INIT_RECORD_A	( REC_TYPE :TREE;  OBJ_VAR :STRING )
+  is			-------------
+	-- Lot 26 : record (composant d'un record ou d'un tableau) dont l'adresse est dans
+	-- OBJ_VAR : ses discriminants -- ceux de la contrainte (LRM 3.7.2), evalues avec
+	-- l'objet courant de l'appelant, ou ses defauts (LRM 3.7.1) -- controles contre
+	-- leur sous-type, puis ses propres valeurs implicites (CODE_INIT_IMPLICITE).
+    LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+    C_TYPE	: TREE		:= FULL_TYPE_VIEW( REC_TYPE );
+    C_BASE	: TREE		:= C_TYPE;
+    C_EXP_S	: SEQ_TYPE	:= ( TREE_NIL, TREE_NIL );
+    CONTRAINT	: BOOLEAN		:= C_TYPE.TY = DN_CONSTRAINED_RECORD;
+    C_EXP		: TREE;
+    C_DECL_S	: SEQ_TYPE;
+    C_DECL	: TREE;
+  begin
+    if  CONTRAINT  then
+      C_BASE  := FULL_TYPE_VIEW( D( SM_BASE_TYPE, C_TYPE ) );
+      C_EXP_S := LIST( D( SM_NORMALIZED_DSCRMT_S, C_TYPE ) );
+    end if;
+    if  C_BASE.TY /= DN_RECORD  or else  REPRESENTED_ITEMS.HAS_RECORD_REP( C_BASE )
+      or else  not ( CONTRAINT  or else  not EST_RECORD_DYNAMIQUE( C_BASE ) )
+    then
+      return;
+    end if;
+    C_DECL_S := LIST( D( SM_DISCRIMINANT_S, C_BASE ) );
+    while  not IS_EMPTY( C_DECL_S )  loop
+      POP( C_DECL_S, C_DECL );
+      declare
+        C_ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, C_DECL ) );
+        C_ID	: TREE;
+      begin
+        while  not IS_EMPTY( C_ID_S )  loop
+	POP( C_ID_S, C_ID );
+	C_EXP := TREE_VOID;
+	if  CONTRAINT  then
+	  if  not IS_EMPTY( C_EXP_S )  then  POP( C_EXP_S, C_EXP );  end if;
+	else
+	  C_EXP := D( SM_INIT_EXP, C_ID );							-- defaut (3.7.1)
+	end if;
+	if  C_EXP /= TREE_VOID  and then  C_EXP /= TREE_NIL  then
+	  PUT_LINE( tab & "LA  " & LVL_STR & ", " & OBJ_VAR );					-- @record
+	  PUT( tab & "LI" & tab );								-- + deplacement du discriminant
+	  REGIONS_PATH( D( XD_SOURCE_NAME, C_BASE ) );
+	  PUT_LINE( '_' & PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, C_BASE ) ) )
+		& "." & PRINT_NAME( D( LX_SYMREP, C_ID ) ) );
+	  PUT_LINE( tab & "ADD" );
+	  EXPRESSIONS.CODE_VALEUR_DISCRIMINANT( C_TYPE, TREE_VOID, C_ID, C_EXP );		-- valeur elaboree d'un sous-type nomme
+	  EXPRESSIONS.CODE_RANGE_CHECK( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, C_ID ) ) );
+	  PUT_LINE( tab & "S" & OPER_SIZ_CHAR( D( SM_OBJ_TYPE, C_ID ) ) );
+	end if;
+        end loop;
+      end;
+    end loop;
+
+    if  not EST_RECORD_DYNAMIQUE( C_BASE )  and then  A_INIT_IMPLICITE( C_BASE )  then
+      CODE_INIT_IMPLICITE( C_TYPE, OBJ_VAR );
+    end if;
+  end	INIT_RECORD_A;
+	-------------
+
+
+			---------------------------
+  procedure		CODE_INIT_IMPLICITE_TABLEAU	( ARR_TYPE :TREE;  DATA_VAR, LEN_VAR :STRING )
+  is			---------------------------
+	-- Lot 26 (LRM 3.2.1) : valeurs implicites des composants d'un tableau contraint
+	-- dont l'adresse des donnees est dans DATA_VAR et la longueur en octets dans
+	-- LEN_VAR (variables de cadre du niveau courant).  Boucle a l'execution sur
+	-- les composants, au pas de leur taille (celui de TYPES_DECLS : CD_IMPL_SIZE
+	-- arrondi a l'octet, ou <record>.size) : record -> INIT_RECORD_A ; tableau
+	-- contraint de taille statique -> recursion.
+    LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+    TS		: TREE		:= FULL_TYPE_VIEW( ARR_TYPE );
+    ELEM		: TREE		:= FULL_TYPE_VIEW( D( SM_COMP_TYPE, FULL_TYPE_VIEW( D( SM_BASE_TYPE, TS ) ) ) );
+    CUR		:constant STRING	:= "__INT" & NEW_LABEL;
+    FIN		:constant STRING	:= CUR & "_F";
+    BOUCLE	:constant STRING	:= NEW_LABEL;
+    SORTIE	:constant STRING	:= NEW_LABEL;
+  begin
+    if  not A_INIT_IMPLICITE_TYPE( TS )  then
+      return;
+    end if;
+    PUT_LINE( "VAR " & CUR & ", Q" );								-- @composant courant
+    PUT_LINE( "VAR " & FIN & ", Q" );								-- @fin des donnees
+    PUT_LINE( tab & "LA  " & LVL_STR & ", " & DATA_VAR );
+    PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & CUR );
+    PUT_LINE( tab & "LA  " & LVL_STR & ", " & DATA_VAR );
+    PUT_LINE( tab & "LA  " & LVL_STR & ", " & LEN_VAR );
+    PUT_LINE( tab & "ADD" );
+    PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & FIN );
+    PUT_LINE( BOUCLE & ':' );
+    PUT_LINE( tab & "LA  " & LVL_STR & ", " & CUR );
+    PUT_LINE( tab & "LA  " & LVL_STR & ", " & FIN );
+    PUT_LINE( tab & "CLT" );
+    PUT_LINE( tab & "BF" & tab & SORTIE );
+
+    if  ELEM.TY = DN_CONSTRAINED_ARRAY  then
+      declare
+        E_LEN	:constant STRING	:= CUR & "_L";
+      begin
+        PUT_LINE( "VAR " & E_LEN & ", Q" );
+        PUT_LINE( tab & "LI" & tab & IMAGE( TAILLE_STATIQUE( ELEM ) ) );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & E_LEN );
+        CODE_INIT_IMPLICITE_TABLEAU( ELEM, CUR, E_LEN );
+      end;
+    else
+      INIT_RECORD_A( ELEM, CUR );
+    end if;
+
+    PUT_LINE( tab & "LA  " & LVL_STR & ", " & CUR );						-- composant suivant
+    if  TAILLE_STATIQUE( ELEM ) > 0  then
+      PUT_LINE( tab & "LI" & tab & IMAGE( TAILLE_STATIQUE( ELEM ) ) );
+    else
+      declare
+        E_BASE	: TREE		:= ELEM;
+      begin
+        if  E_BASE.TY = DN_CONSTRAINED_RECORD  then
+	E_BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, E_BASE ) );
+        end if;
+        PUT( tab & "LI" & tab );								-- taille symbolique (TYPES_DECLS)
+        REGIONS_PATH( D( XD_SOURCE_NAME, E_BASE ) );
+        PUT_LINE( '_' & PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, E_BASE ) ) ) & ".size" );
+      end;
+    end if;
+    PUT_LINE( tab & "ADD" );
+    PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & CUR );
+    PUT_LINE( tab & "BRA" & tab & BOUCLE );
+    PUT_LINE( SORTIE & ':' );
+  end	CODE_INIT_IMPLICITE_TABLEAU;
+	---------------------------
+
+			----------------
+  function		A_INIT_IMPLICITE	( REC_TYPE :TREE )		return BOOLEAN
+  is			----------------
+	-- Lot 25 : vrai si un objet du type record REC_TYPE recoit une valeur implicite
+	-- (LRM 3.2.1) dans un composant, variantes comprises : valeur par defaut, ou
+	-- composant record dont les discriminants sont a poser ou qui en recoit lui-meme.
+    BASE		: TREE		:= FULL_TYPE_VIEW( REC_TYPE );
+
+		-----------
+    function	LISTE_A_INIT	( CL :TREE )		return BOOLEAN
+    is		-----------
+      L_S	: SEQ_TYPE;
+      L_D	: TREE;
+      VP	: TREE;
+      V_S	: SEQ_TYPE;
+      V_E	: TREE;
+    begin
+      if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+        return FALSE;
+      end if;
+      L_S := LIST( D( AS_DECL_S, CL ) );
+      while  not IS_EMPTY( L_S )  loop
+        POP( L_S, L_D );
+        if  L_D.TY /= DN_NULL_COMP_DECL  then
+	declare
+	  I_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, L_D ) );
+	  I	: TREE;
+	  CT	: TREE;
+	begin
+	  while  not IS_EMPTY( I_S )  loop
+	    POP( I_S, I );
+	    if  D( SM_INIT_EXP, I ) /= TREE_VOID  then
+	      return TRUE;
+	    end if;
+	    CT := FULL_TYPE_VIEW( D( SM_OBJ_TYPE, I ) );
+	    if  ( CT.TY = DN_CONSTRAINED_RECORD  or else  CT.TY = DN_RECORD			-- lot 26 : meme critere qu'INIT_UN
+	          or else  CT.TY = DN_CONSTRAINED_ARRAY )						-- (record represente ou dynamique :
+	      and then  A_INIT_IMPLICITE_TYPE( CT )							-- rien a produire)
+	    then
+	      return TRUE;
+	    end if;
+	  end loop;
+	end;
+        end if;
+      end loop;
+
+      VP := D( AS_VARIANT_PART, CL );
+      if  VP = TREE_VOID  or else  VP = TREE_NIL  then
+        return FALSE;
+      end if;
+      V_S := LIST( D( AS_VARIANT_S, VP ) );
+      while  not IS_EMPTY( V_S )  loop
+        POP( V_S, V_E );
+        if  V_E.TY = DN_VARIANT  and then  LISTE_A_INIT( D( AS_COMP_LIST, V_E ) )  then
+	return TRUE;
+        end if;
+      end loop;
+      return FALSE;
+    end	LISTE_A_INIT;
+	-----------
+
+  begin
+    if  BASE.TY = DN_CONSTRAINED_RECORD  then
+      BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, BASE ) );
+    end if;
+    if  BASE.TY /= DN_RECORD  then
+      return FALSE;
+    end if;
+    return  LISTE_A_INIT( D( SM_COMP_LIST, BASE ) );
+  end	A_INIT_IMPLICITE;
+	----------------
+
+
+			------------------
+  procedure		CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING )
+  is			------------------
+	-- Lot 25 (LRM 3.2.1, 3.7.2) : valeurs implicites des composants d'un objet record
+	-- dont l'adresse des donnees est dans la variable de cadre OBJ_VAR (niveau courant)
+	-- et dont les discriminants sont deja poses.  Commun a l'objet declare, a l'objet
+	-- alloue (new R) et au composant record d'un record (recursion).
+	--   - composants de la liste, puis ceux de la variante CHOISIE d'apres le
+	--     discriminant gouvernant lu DANS L'OBJET (cascade a l'execution, choix
+	--     statiques par EXPRESSIONS.BORNES_CHOIX ; variantes imbriquees : recursion) ;
+	--     les autres variantes ne sont pas evaluees ;
+	--   - composant avec defaut : sa valeur ; composant record sans defaut : ses
+	--     discriminants (contrainte, ou defauts), puis ses propres valeurs implicites.
+	-- L'objet record courant (lecture d'un discriminant dans un defaut) est OBJ_VAR
+	-- pendant le parcours ; celui de l'appelant est restaure en sortie.
+    LVL		: LEVEL_NUM	renames CODI.CUR_LEVEL;
+    LVL_STR	:constant STRING	:= IMAGE( LVL );
+    REC_BASE	: TREE		:= FULL_TYPE_VIEW( REC_TYPE );
+    SAUVE_NOM	:constant STRING	:= CODI.REC_COURANT_NOM( 1 .. CODI.REC_COURANT_LEN );
+    SAUVE_LVL	:constant LEVEL_NUM	:= CODI.REC_COURANT_LVL;
+
+		-------------
+    procedure	ADR_COMPOSANT	( COMP_STR :STRING )						--| empile @objet.composant
+    is		-------------
+    begin
+      PUT( tab & "LIVA " & LVL_STR & ", " & OBJ_VAR & ", " );
+      REGIONS_PATH( D( XD_SOURCE_NAME, REC_BASE ) );
+      PUT_LINE( TYPE_INFO_STR( REC_BASE ) & "." & COMP_STR );
+    end	ADR_COMPOSANT;
+	-------------
+
+		-------
+    procedure	INIT_UN		( COMP_ID :TREE )						--| valeur implicite d'UN composant
+    is		-------
+      FIELD_INIT	: TREE		:= D( SM_INIT_EXP, COMP_ID );
+      COMP_TYPE	: TREE		:= D( SM_OBJ_TYPE, COMP_ID );
+      COMP_STR	:constant STRING	:= PRINT_NAME( D( LX_SYMREP, COMP_ID ) );
+      C_TYPE	: TREE		:= FULL_TYPE_VIEW( COMP_TYPE );
+    begin
+      if  FIELD_INIT /= TREE_VOID  and then  EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
+        ADR_COMPOSANT( COMP_STR );								--| @descripteur dans l'objet
+        EXPRESSIONS.CODE_VALEUR_COMPOSANT_DYNAMIQUE( COMP_ID, FIELD_INIT );
+
+      elsif  FIELD_INIT /= TREE_VOID  then
+
+        if  FIELD_INIT.TY = DN_AGGREGATE  then							-- composant composite : descente recursive
+	if  REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )  then
+	  PUT_LINE( "; CODE_INIT_IMPLICITE : composant composite d'un record represente non gere" );
+	  raise PROGRAM_ERROR;
+	end if;
+	ADR_COMPOSANT( COMP_STR );
+	EXPRESSIONS.CODE_AGGREGATE( FIELD_INIT, COMP_TYPE );					-- l'adresse du champ est sur la pile, CODE_AGGREGATE la consomme
+
+        else										-- composant scalaire : store direct
+	if  REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )  then
+	  PUT_LINE( tab & "LA  " & LVL_STR & ", " & OBJ_VAR );				-- @data du record
+	  REPRESENTED_ITEMS.CODE_STORE_REP_COMPONENT( COMP_ID, FIELD_INIT );
+	else
+	  ADR_COMPOSANT( COMP_STR );
+	  EXPRESSIONS.CODE_EXP( FIELD_INIT );
+	  EXPRESSIONS.CODE_RANGE_CHECK( C_TYPE );						-- LRM 3.2.1 : defaut dans le sous-type du composant
+	  PUT_LINE( tab & "S" & OPER_SIZ_CHAR( COMP_TYPE ) );
+	end if;
+        end if;
+
+      elsif  ( C_TYPE.TY = DN_CONSTRAINED_RECORD  or else  C_TYPE.TY = DN_RECORD )
+        and then  not REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )
+        and then  A_INIT_IMPLICITE_TYPE( C_TYPE )
+      then
+			-- Composant record sans defaut : discriminants (contrainte, evaluee avec
+			-- l'objet englobant comme objet courant, ou defauts) et valeurs implicites,
+			-- par INIT_RECORD_A sur une variable qui recoit l'adresse du composant.
+        declare
+	C_OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
+        begin
+	PUT_LINE( "VAR " & C_OBJ & ", Q" );							-- @donnees du composant
+	ADR_COMPOSANT( COMP_STR );
+	PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & C_OBJ );
+	INIT_RECORD_A( C_TYPE, C_OBJ );
+        end;
+
+      elsif  C_TYPE.TY = DN_CONSTRAINED_ARRAY
+        and then  not REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )
+        and then  not EST_COMPOSANT_DYNAMIQUE( COMP_ID )
+        and then  TAILLE_STATIQUE( C_TYPE ) > 0
+        and then  A_INIT_IMPLICITE_TYPE( C_TYPE )
+      then
+			-- Lot 26 : composant tableau (de taille statique) de records.
+        declare
+	C_OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
+	C_LEN	:constant STRING	:= C_OBJ & "_L";
+        begin
+	PUT_LINE( "VAR " & C_OBJ & ", Q" );
+	PUT_LINE( "VAR " & C_LEN & ", Q" );
+	ADR_COMPOSANT( COMP_STR );
+	PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & C_OBJ );
+	PUT_LINE( tab & "LI" & tab & IMAGE( TAILLE_STATIQUE( C_TYPE ) ) );
+	PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & C_LEN );
+	CODE_INIT_IMPLICITE_TABLEAU( C_TYPE, C_OBJ, C_LEN );
+        end;
+      end if;
+    end	INIT_UN;
+	-------
+
+		----------
+    procedure	INIT_LISTE	( CL :TREE )
+    is		----------
+      L_S	: SEQ_TYPE;
+      L_D	: TREE;
+      VP	: TREE;
+    begin
+      if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+        return;
+      end if;
+      L_S := LIST( D( AS_DECL_S, CL ) );
+      while  not IS_EMPTY( L_S )  loop
+        POP( L_S, L_D );
+        if  L_D.TY /= DN_NULL_COMP_DECL  then
+	declare
+	  I_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, L_D ) );
+	  I	: TREE;
+	begin
+	  while  not IS_EMPTY( I_S )  loop
+	    POP( I_S, I );
+	    INIT_UN( I );
+	  end loop;
+	end;
+        end if;
+      end loop;
+
+      VP := D( AS_VARIANT_PART, CL );
+      if  VP = TREE_VOID  or else  VP = TREE_NIL  then
+        return;
+      end if;
+      declare
+        GOV_ID	: TREE		:= D( SM_DEFN, D( AS_NAME, VP ) );
+        GOV_STR	:constant STRING	:= PRINT_NAME( D( LX_SYMREP, GOV_ID ) );
+        LBL_DONE	:constant STRING	:= NEW_LABEL;
+        VAR_S	: SEQ_TYPE	:= LIST( D( AS_VARIANT_S, VP ) );
+        VAR_E	: TREE;
+
+		-----
+        procedure	DISCR								--| discriminant gouvernant de l'objet
+        is		-----
+        begin
+	PUT( tab & OPER_LOADI_STR( D( SM_OBJ_TYPE, GOV_ID ) ) & tab & LVL_STR & ", " & OBJ_VAR & ", " );
+	REGIONS_PATH( D( XD_SOURCE_NAME, REC_BASE ) );
+	PUT_LINE( TYPE_INFO_STR( REC_BASE ) & "." & GOV_STR );
+        end	DISCR;
+	-----
+
+      begin
+        while  not IS_EMPTY( VAR_S )  loop
+	POP( VAR_S, VAR_E );
+	if  VAR_E.TY = DN_VARIANT  then
+	  declare
+	    LBL_NEXT	:constant STRING	:= NEW_LABEL;
+	    CHOICES	: SEQ_TYPE	:= LIST( D( AS_CHOICE_S, VAR_E ) );
+	    CH		: TREE;
+	    IS_OTHERS	: BOOLEAN		:= FALSE;
+	    N_TESTS	: NATURAL		:= 0;
+	    LO, HI_B	: INTEGER;
+	    OK		: BOOLEAN;
+	  begin
+	    while  not IS_EMPTY( CHOICES )  loop
+	      POP( CHOICES, CH );
+	      if  CH.TY = DN_CHOICE_OTHERS  then
+	        IS_OTHERS := TRUE;
+	      else
+	        EXPRESSIONS.BORNES_CHOIX( CH, LO, HI_B, OK );
+	        if  not OK  then
+		TROU( "CODE_INIT_IMPLICITE choix de variante non statique", CH );
+	        end if;
+	        if  LO = HI_B  then
+		DISCR;
+		PUT_LINE( tab & "LI" & tab & INTEGER'IMAGE( LO ) );
+		PUT_LINE( tab & "CEQ" );
+	        else
+		DISCR;
+		PUT_LINE( tab & "LI" & tab & INTEGER'IMAGE( LO ) );
+		PUT_LINE( tab & "CLT" );							-- d < lo
+		DISCR;
+		PUT_LINE( tab & "LI" & tab & INTEGER'IMAGE( HI_B ) );
+		PUT_LINE( tab & "CGT" );							-- d > hi
+		PUT_LINE( tab & "OU" );
+		PUT_LINE( tab & "LI" & tab & "1" );
+		PUT_LINE( tab & "OUX" );							-- dans l'intervalle
+	        end if;
+	        N_TESTS := N_TESTS + 1;
+	        if  N_TESTS >= 2  then
+		PUT_LINE( tab & "OU" );							-- choix multiples : A | B
+	        end if;
+	      end if;
+	    end loop;
+	    if  not IS_OTHERS  then
+	      PUT_LINE( tab & "BF" & tab & LBL_NEXT );
+	    end if;
+	    INIT_LISTE( D( AS_COMP_LIST, VAR_E ) );
+	    PUT_LINE( tab & "BRA" & tab & LBL_DONE );
+	    if  not IS_OTHERS  then
+	      PUT_LINE( LBL_NEXT & ':' );
+	    end if;
+	  end;
+	end if;
+        end loop;
+        PUT_LINE( LBL_DONE & ':' );
+      end;
+    end	INIT_LISTE;
+	----------
+
+  begin
+    if  REC_BASE.TY = DN_CONSTRAINED_RECORD  then						-- base PRIVEE possible (derive d'un prive)
+      REC_BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, REC_BASE ) );
+    end if;
+    if  REC_BASE.TY /= DN_RECORD  or else  not A_INIT_IMPLICITE( REC_BASE )  then
+      return;
+    end if;
+    POSER_REC_COURANT( LVL, OBJ_VAR );
+    INIT_LISTE( D( SM_COMP_LIST, REC_BASE ) );
+    if  SAUVE_NOM'LENGTH > 0  then
+      POSER_REC_COURANT( SAUVE_LVL, SAUVE_NOM );
+    else
+      OTER_REC_COURANT;
+    end if;
+  end	CODE_INIT_IMPLICITE;
+	------------------
 
 	------------
 end	DECLARATIONS;

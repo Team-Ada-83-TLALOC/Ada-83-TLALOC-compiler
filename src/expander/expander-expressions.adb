@@ -5078,6 +5078,94 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	-----------------------
 
 
+			------------
+  procedure		BORNES_CHOIX		( CH :TREE;  BAS, HAUT :out INTEGER;  OK :out BOOLEAN )
+  is			------------
+	-- Bornes STATIQUES d'un choix de variante (RM83 3.7.3, choix statiques), lot 24 :
+	--   choice_exp  valeur      -> bas = haut = valeur ;
+	--   choice_exp  nom de sous-type (used_name_id, sans sm_value) -> intervalle du sous-type ;
+	--   choice_range  range     -> as_exp1 .. as_exp2 ;
+	--   choice_range  discrete_subtype -> contrainte de l'indication, sinon intervalle de la marque.
+	-- OK = FALSE si une borne n'est pas lisible (le site appelant leve un TROU).
+    RNG		: TREE;
+    L, H		: INTEGER		:= 0;
+    TROUVE	: BOOLEAN		:= FALSE;
+
+		------
+    procedure	VALEUR	( E :TREE;  V :out INTEGER;  LU :out BOOLEAN )
+    is		------
+      SV	: TREE;
+    begin
+      V := 0;  LU := FALSE;
+      if  E = TREE_VOID  or else  E.TY = DN_USED_NAME_ID  or else  E.TY = DN_USED_OP  then
+        return;										-- pas de sm_value (STATIC_BOUND_VALUE)
+      end if;
+      SV := D( SM_VALUE, E );
+      if  SV.PT = HI  and then  SV.NOTY = DN_NUM_VAL  then
+        V := DI( SM_VALUE, E );  LU := TRUE;
+      elsif  SV.TY = DN_NUM_VAL  then
+        V := INTEGER'VALUE( PRINT_NUM( SV ) );  LU := TRUE;
+      end if;
+    end	VALEUR;
+	------
+
+		----------
+    procedure	INTERVALLE	( R :TREE )						-- -> L, H, TROUVE
+    is		----------
+      OK1, OK2	: BOOLEAN;
+    begin
+      TROUVE := FALSE;
+      if  R = TREE_VOID  or else  R.TY /= DN_RANGE  then
+        return;
+      end if;
+      VALEUR( D( AS_EXP1, R ), L, OK1 );
+      VALEUR( D( AS_EXP2, R ), H, OK2 );
+      TROUVE := OK1  and then  OK2;
+    end	INTERVALLE;
+	----------
+
+		------------
+    procedure	DE_LA_MARQUE	( NOM :TREE )
+    is		------------
+      DEFN	: TREE	:= D( SM_DEFN, NOM );
+    begin
+      TROUVE := FALSE;
+      if  DEFN.TY in CLASS_TYPE_NAME  then
+        INTERVALLE( D( SM_RANGE, FULL_TYPE_VIEW( D( SM_TYPE_SPEC, DEFN ) ) ) );
+      end if;
+    end	DE_LA_MARQUE;
+	------------
+
+  begin
+    if  CH.TY = DN_CHOICE_EXP  then
+      if  D( AS_EXP, CH ).TY = DN_USED_NAME_ID  then
+        DE_LA_MARQUE( D( AS_EXP, CH ) );
+      else
+        VALEUR( D( AS_EXP, CH ), L, TROUVE );
+        H := L;
+      end if;
+    elsif  CH.TY = DN_CHOICE_RANGE  then
+      RNG := D( AS_DISCRETE_RANGE, CH );
+      if  RNG.TY = DN_RANGE  then
+        INTERVALLE( RNG );
+      elsif  RNG.TY = DN_DISCRETE_SUBTYPE  then
+        declare
+	SI	: TREE	:= D( AS_SUBTYPE_INDICATION, RNG );
+	C	: TREE	:= D( AS_CONSTRAINT, SI );
+        begin
+	if  C /= TREE_VOID  and then  C /= TREE_NIL  then
+	  INTERVALLE( C );
+	else
+	  DE_LA_MARQUE( D( AS_NAME, SI ) );
+	end if;
+        end;
+      end if;
+    end if;
+    BAS := L;  HAUT := H;  OK := TROUVE;
+  end	BORNES_CHOIX;
+	------------
+
+
 			--------------------
   procedure		CODE_RECORD_EQUALITY	( OP_STR :STRING; PRM_1, PRM_2 :TREE; CONTEXT_TYPE :TREE )
   is			--------------------
@@ -5287,6 +5375,58 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
       end PATH_FIELD;
 	----------
 
+		----------
+      procedure	TEST_CHOIX	( CH, GOV_ID : TREE;  AV : STRING;
+				  N_TESTS : in out NATURAL;  IS_OTHERS : in out BOOLEAN )
+      is		----------
+	-- Choix de variante (RM83 3.7.3), commun aux voies statique et dynamique (lot 24) :
+	-- empile 1 si le discriminant gouvernant de l'operande AV satisfait CH ; plusieurs
+	-- choix d'une meme variante : OU cumule.  others (seul et dernier) : rien d'empile.
+	-- Intervalle : not ( d < lo or d > hi ), bornes statiques (BORNES_CHOIX).
+        GOV_STR	:constant STRING	:= PRINT_NAME( D( LX_SYMREP, GOV_ID ) );
+        LO, HI	: INTEGER;
+        OK	: BOOLEAN;
+
+		-----
+        procedure	DISCR
+        is		-----
+        begin
+	PUT( tab & OPER_LOADI_STR( D( SM_OBJ_TYPE, GOV_ID ) ) & tab & LVL & ", " & AV & ", " );
+	PATH_FIELD( GOV_STR );	NEW_LINE;
+        end	DISCR;
+		-----
+
+      begin
+        if  CH.TY = DN_CHOICE_OTHERS  then
+	IS_OTHERS := TRUE;
+	return;
+        end if;
+        BORNES_CHOIX( CH, LO, HI, OK );
+        if  not OK  then
+	TROU( "CODE_RECORD_EQUALITY choix de variante non statique", CH );
+        end if;
+        if  LO = HI  then
+	DISCR;
+	PUT_LINE( tab & "LI" & tab & INTEGER'IMAGE( LO ) );
+	PUT_LINE( tab & "CEQ" );
+        else
+	DISCR;
+	PUT_LINE( tab & "LI" & tab & INTEGER'IMAGE( LO ) );
+	PUT_LINE( tab & "CLT" );								-- d < lo
+	DISCR;
+	PUT_LINE( tab & "LI" & tab & INTEGER'IMAGE( HI ) );
+	PUT_LINE( tab & "CGT" );								-- d > hi
+	PUT_LINE( tab & "OU" );
+	PUT_LINE( tab & "LI" & tab & "1" );
+	PUT_LINE( tab & "OUX" );								-- dans l'intervalle
+        end if;
+        N_TESTS := N_TESTS + 1;
+        if  N_TESTS >= 2  then
+	PUT_LINE( tab & "OU" );								-- choix multiples : A | B
+        end if;
+      end	TEST_CHOIX;
+	----------
+
     begin
       if CODI.DEBUG then PUT_LINE( "; CODE record equality " & OP_STR & ' ' & BASE_STR ); end if;
 
@@ -5320,9 +5460,9 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 		-- les donnees sont hors partie statique) : discriminants et champs
 		-- un a un, puis les donnees de chaque composant dynamique sur SIZ
 		-- octets (descripteur de A).  ET cumules, comme la cascade a variantes.
-        if  VP_ROOT /= TREE_VOID  and then  VP_ROOT /= TREE_NIL  then
-	TROU( "CODE_RECORD_EQUALITY record dynamique a variantes", BASE );
-        end if;
+		-- A variantes (lot 24) : composants de chaque liste puis cascade sur le
+		-- discriminant gouvernant (CMP_LISTE, recursive), variante ACTIVE seule ;
+		-- sortie immediate apres les discriminants s'ils different.
         declare
 	EQ_UID	:constant STRING	:= NEW_LABEL;
 	A_VAR	:constant STRING	:= "EQA_" & EQ_UID;
@@ -5331,6 +5471,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	DECL	: TREE;
 	ID_S	: SEQ_TYPE;
 	ID		: TREE;
+	FIN	:constant STRING	:= NEW_LABEL;						-- sortie si discriminants differents
 
 			---------
 	procedure		CMP_CHAMP	( COMP_ID : TREE )
@@ -5376,6 +5517,72 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	end	CMP_CHAMP;
 		---------
 
+			---------
+	procedure		CMP_LISTE	( CL : TREE )
+	is		---------
+	  L_S	: SEQ_TYPE;
+	  L_D	: TREE;
+	  VP	: TREE;
+	begin
+	  if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+	    return;
+	  end if;
+	  L_S := LIST( D( AS_DECL_S, CL ) );
+	  while  not IS_EMPTY( L_S )  loop
+	    POP( L_S, L_D );
+	    if  L_D.TY /= DN_NULL_COMP_DECL  then
+	      declare
+	        I_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, L_D ) );
+	        I	: TREE;
+	      begin
+	        while  not IS_EMPTY( I_S )  loop
+		POP( I_S, I );
+		CMP_CHAMP( I );
+	        end loop;
+	      end;
+	    end if;
+	  end loop;
+
+	  VP := D( AS_VARIANT_PART, CL );
+	  if  VP = TREE_VOID  or else  VP = TREE_NIL  then
+	    return;
+	  end if;
+	  declare
+	    GOV_ID	: TREE		:= D( SM_DEFN, D( AS_NAME, VP ) );
+	    LBL_DONE	:constant STRING	:= NEW_LABEL;
+	    VAR_S	: SEQ_TYPE	:= LIST( D( AS_VARIANT_S, VP ) );
+	    VAR_E	: TREE;
+	  begin
+	    while  not IS_EMPTY( VAR_S )  loop
+	      POP( VAR_S, VAR_E );
+	      if  VAR_E.TY = DN_VARIANT  then
+	        declare
+		LBL_NEXT	:constant STRING	:= NEW_LABEL;
+		CHOICES	: SEQ_TYPE	:= LIST( D( AS_CHOICE_S, VAR_E ) );
+		CH		: TREE;
+		IS_OTHERS	: BOOLEAN		:= FALSE;
+		N_TESTS	: NATURAL		:= 0;
+	        begin
+		while  not IS_EMPTY( CHOICES )  loop
+		  POP( CHOICES, CH );
+		  TEST_CHOIX( CH, GOV_ID, A_VAR, N_TESTS, IS_OTHERS );
+		end loop;
+		if  not IS_OTHERS  then
+		  PUT_LINE( tab & "BF" & tab & LBL_NEXT );
+		end if;
+		CMP_LISTE( D( AS_COMP_LIST, VAR_E ) );
+		PUT_LINE( tab & "BRA" & tab & LBL_DONE );
+		if  not IS_OTHERS  then
+		  PUT_LINE( LBL_NEXT & ':' );
+		end if;
+	        end;
+	      end if;
+	    end loop;
+	    PUT_LINE( LBL_DONE & ':' );
+	  end;
+	end	CMP_LISTE;
+		---------
+
         begin
 	PUT_LINE( "VAR " & A_VAR & ", Q" );
 	PUT_LINE( "VAR " & B_VAR & ", Q" );
@@ -5395,17 +5602,12 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	  end loop;
 	end loop;
 
-	DECL_S := LIST( D( AS_DECL_S, D( SM_COMP_LIST, BASE ) ) );					-- composants
-	while  not IS_EMPTY( DECL_S )  loop
-	  POP( DECL_S, DECL );
-	  if  DECL.TY /= DN_NULL_COMP_DECL  then
-	    ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
-	    while  not IS_EMPTY( ID_S )  loop
-	      POP( ID_S, ID );
-	      CMP_CHAMP( ID );
-	    end loop;
-	  end if;
-	end loop;
+	if  VP_ROOT /= TREE_VOID  and then  VP_ROOT /= TREE_NIL  then
+	  PUT_LINE( tab & "DUP" );							-- discriminants differents :
+	  PUT_LINE( tab & "BF" & tab & FIN );						-- resultat faux, variantes non comparees
+	end if;
+	CMP_LISTE( D( SM_COMP_LIST, BASE ) );							-- composants, variantes
+	PUT_LINE( FIN & ':' );
         end;
 
       elsif  ( VP_ROOT = TREE_VOID  or else  VP_ROOT = TREE_NIL )
@@ -5590,6 +5792,17 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	      PUT_LINE( tab & "ET" );
 	    end;
 
+	  elsif  F_TYPE.TY = DN_CONSTRAINED_ARRAY
+	    and then  D( CD_IMPL_SIZE, F_TYPE ) /= TREE_VOID  and then  DI( CD_IMPL_SIZE, F_TYPE ) > 0
+	  then										--| lot 24 : tableau contraint de taille
+	    PUT_LINE( tab & "LA  " & LVL & ", " & A_VAR );				--| statique, BLKCMP de sa taille
+	    PUT( tab & "LVA" & tab & ", " );  PATH_FIELD( F_STR );	NEW_LINE;
+	    PUT_LINE( tab & "LI" & tab & IMAGE( ( DI( CD_IMPL_SIZE, F_TYPE ) + CODI.STORAGE_UNIT - 1 ) / CODI.STORAGE_UNIT ) );
+	    PUT_LINE( tab & "LA  " & LVL & ", " & B_VAR );
+	    PUT( tab & "LVA" & tab & ", " );  PATH_FIELD( F_STR );	NEW_LINE;
+	    PUT_LINE( tab & "BLKCMP" );
+	    PUT_LINE( tab & "ET" );
+
 	  elsif  F_TYPE.TY = DN_ARRAY  or else  F_TYPE.TY = DN_CONSTRAINED_ARRAY  then
 	    PUT_LINE( "; CODE_RECORD_EQUALITY : champ tableau de record a variantes non supporte" );
 	    raise PROGRAM_ERROR;
@@ -5660,27 +5873,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 		  begin
 		    while  not IS_EMPTY( CHOICES )  loop
 		      POP( CHOICES, CH );
-
-		      if  CH.TY = DN_CHOICE_OTHERS  then
-		        IS_OTHERS := TRUE;								-- seul et dernier (RM83 3.7.3)
-
-		      elsif  CH.TY = DN_CHOICE_EXP  then
-		        PUT( tab & OPER_LOADI_STR( D( SM_OBJ_TYPE, GOV_ID ) ) & tab & LVL & ", " & A_VAR & ", " );
-		        PATH_FIELD( GOV_STR );	NEW_LINE;						-- discriminant (deja verifie egal)
-
-		        PUT_LINE( tab & "LI" & tab & IMAGE( DI( SM_VALUE, D( AS_EXP, CH ) ) ) );
-		        PUT_LINE( tab & "CEQ" );
-
-		        N_TESTS := N_TESTS + 1;
-		        if  N_TESTS >= 2  then
-			PUT_LINE( tab & "OU" );							-- choix multiples : A | B
-		        end if;
-
-		      else
-		        PUT_LINE( "; CODE_RECORD_EQUALITY : choix de variante non gere "
-			& NODE_NAME'IMAGE( CH.TY ) );
-		        raise PROGRAM_ERROR;
-		      end if;
+		      TEST_CHOIX( CH, GOV_ID, A_VAR, N_TESTS, IS_OTHERS );			-- lot 24 : choix partages
 		    end loop;
 
 		    if  not IS_OTHERS  then
@@ -6722,13 +6915,23 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
     if  CODI.EST_RECORD_DYNAMIQUE( DESIG_TYPE )  then
 			--| Option B : new R ( D ) -> objet neuf sur le TAS ; new R (type a
-			--| defauts) -> discriminants par defaut (liste vide).  Les composants
-			--| ne sont pas initialises (comme le chemin statique).
+			--| defauts) -> discriminants par defaut (liste vide), puis valeurs
+			--| implicites des composants (lot 25).
       if  DESIG_TYPE.TY = DN_CONSTRAINED_RECORD  then
         DECLARATIONS.CODE_OBJET_DYNAMIQUE( DESIG_TYPE, LIST( D( SM_NORMALIZED_DSCRMT_S, DESIG_TYPE ) ),
 				     SUR_LE_TAS => TRUE );
       else
         DECLARATIONS.CODE_OBJET_DYNAMIQUE( DESIG_TYPE, ( TREE_NIL, TREE_NIL ), SUR_LE_TAS => TRUE );
+      end if;
+      if  DECLARATIONS.A_INIT_IMPLICITE( DESIG_TYPE )  then					--| lot 25 : valeurs implicites (LRM 4.8)
+        declare
+          OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
+        begin
+          PUT_LINE( "VAR " & OBJ & ", Q" );
+          PUT_LINE( tab & "DUP" );								-- @objet (reste : valeur d'acces)
+          PUT_LINE( tab & "SA" & tab & IMAGE( CODI.CUR_LEVEL ) & ", " & OBJ );
+          DECLARATIONS.CODE_INIT_IMPLICITE( DESIG_TYPE, OBJ );
+        end;
       end if;
       return;
     end if;
@@ -6736,8 +6939,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     if  DESIG_TYPE.TY = DN_RECORD  or else  DESIG_TYPE.TY = DN_CONSTRAINED_RECORD  then
 			--| Record statique : bloc de .size (base), puis DISCRIMINANTS
 			--| (LRM 4.8) : ceux de la contrainte (new R (3)), sinon les
-			--| defauts (new R).  Les autres composants ne sont pas initialises
-			--| (dette : valeurs par defaut des composants d'un objet alloue).
+			--| defauts (new R), puis valeurs implicites des composants (lot 25).
       declare
         BASE_REC	: TREE		:= DESIG_TYPE;
         EXP_S	: SEQ_TYPE	:= ( TREE_NIL, TREE_NIL );
@@ -6782,6 +6984,16 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	    end if;
 	  end loop;
 	end loop;
+	if  DECLARATIONS.A_INIT_IMPLICITE( DESIG_TYPE )  then					--| lot 25 : valeurs implicites (LRM 4.8)
+	  declare
+	    OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
+	  begin
+	    PUT_LINE( "VAR " & OBJ & ", Q" );
+	    PUT_LINE( tab & "DUP" );								-- @objet (reste : valeur d'acces)
+	    PUT_LINE( tab & "SA" & tab & IMAGE( CODI.CUR_LEVEL ) & ", " & OBJ );
+	    DECLARATIONS.CODE_INIT_IMPLICITE( DESIG_TYPE, OBJ );
+	  end;
+	end if;
         end if;
       end;
 
@@ -6792,6 +7004,24 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
       PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
       PUT_LINE( tab & "DIV" );
       PUT_LINE( tab & "HEAP_ALLOC" );
+      if  DESIG_TYPE.TY = DN_CONSTRAINED_ARRAY  and then  DECLARATIONS.A_INIT_IMPLICITE_TYPE( DESIG_TYPE )  then
+        declare										--| lot 26 : composants records (LRM 4.8)
+	OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
+	LEN	:constant STRING	:= OBJ & "_L";
+        begin
+	PUT_LINE( "VAR " & OBJ & ", Q" );
+	PUT_LINE( "VAR " & LEN & ", Q" );
+	PUT_LINE( tab & "DUP" );								-- @donnees (reste : valeur d'acces)
+	PUT_LINE( tab & "SA" & tab & IMAGE( CODI.CUR_LEVEL ) & ", " & OBJ );
+	PUT( tab & "LD" & tab & IMAGE( DI( CD_LEVEL, DESIG_TYPE ) ) & ", " );
+	REGIONS_PATH( DESIG_NAME );
+	PUT_LINE( DESIG_STR & ".SIZ__" );
+	PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+	PUT_LINE( tab & "DIV" );
+	PUT_LINE( tab & "SA" & tab & IMAGE( CODI.CUR_LEVEL ) & ", " & LEN );
+	DECLARATIONS.CODE_INIT_IMPLICITE_TABLEAU( DESIG_TYPE, OBJ, LEN );
+        end;
+      end if;
     end if;
 
   end	CODE_SUBTYPE_ALLOCATOR;
@@ -7588,10 +7818,20 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	  while  not IS_EMPTY( CHOICES )  loop
 	    POP( CHOICES, CH );
 
-	    if  CH.TY = DN_CHOICE_EXP  then
-	      if  DI( SM_VALUE, D( AS_EXP, CH ) ) = VAL  then
-	        return TRUE;
-	      end if;
+	    if  CH.TY = DN_CHOICE_EXP  or else  CH.TY = DN_CHOICE_RANGE  then		--| lot 24 : valeur, intervalle,
+	      declare									--| sous-type (BORNES_CHOIX)
+	        LO, HI	: INTEGER;
+	        OK	: BOOLEAN;
+	      begin
+	        BORNES_CHOIX( CH, LO, HI, OK );
+	        if  not OK  then
+		PUT_LINE( "; CODE_AGGREGATE record : choix de variante non statique" );
+		raise PROGRAM_ERROR;
+	        end if;
+	        if  LO <= VAL  and then  VAL <= HI  then
+		return TRUE;
+	        end if;
+	      end;
 
 	    elsif  CH.TY = DN_CHOICE_OTHERS  then
 	      return TRUE;								-- toujours en derniere position (RM83 3.7.3)
