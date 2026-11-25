@@ -668,10 +668,6 @@ is
       COMP_TYPE := D( SM_TYPE_SPEC, COMP_TYPE );
     end if;
 
-    if  CODI.EST_RECORD_DYNAMIQUE( COMP_TYPE )  then						--| option B : pas de taille d'ELEMENT statique
-      CODI.TROU( "PROCESS_CONSTRAINED_ARRAY_TYPE_SPEC tableau de records dynamiques (taille max : etape 3)", COMP_TYPE );
-    end if;
-
     declare
       COMP_SIZE_TREE	: TREE			:= TREE_VOID;
       IS_STATIC		: BOOLEAN			:= COMP_SIZE_TREE /= TREE_VOID;
@@ -762,6 +758,9 @@ is
         elsif  TS.TY = DN_RECORD  or else  TS.TY = DN_CONSTRAINED_RECORD  then
           if  TS.TY = DN_CONSTRAINED_RECORD  then
             TS := D( SM_BASE_TYPE, TS );
+          end if;
+          if  CODI.EST_RECORD_DYNAMIQUE( TS )  then						--| lot 27 : pas de taille statique
+            return  0;										--| (CD_IMPL_SIZE non pose)
           end if;
 
           RAW := DI( CD_IMPL_SIZE, TS );
@@ -882,7 +881,47 @@ is
 	PUT_LINE( "VAR _FST_" & DIM_NBR_STR & ", D" );
 	PUT_LINE( "VAR _LST_" & DIM_NBR_STR & ", D" );
 
-	if  ELEMENT_SIZ = 0
+	if  CODI.EST_RECORD_DYNAMIQUE( COMP_TYPE )  then
+		-- Lot 27 : composant record DYNAMIQUE (option B).  Pas = taille d'un
+		-- objet composant, auto-relatif, en bits ; le tableau suit le chemin
+		-- dynamique.
+		--   contraint : GABARIT fabrique ici, avec le type (contrainte
+		--     elaboree et controlee maintenant, LRM 3.6.1, 3.7.2) ; chaque
+		--     objet tableau en recopie un par composant ;
+		--   non contraint (discriminants par defaut, composants mutables) :
+		--     pas = taille MAXIMALE, sans controle ; le gabarit aux defauts
+		--     est fabrique, et controle, a chaque creation d'objet.
+	  IS_STATIC := FALSE;
+	  PUT_LINE( "VAR _GABARIT, Q" );
+	  declare
+	    E_TYPE	: TREE		:= CODI.FULL_TYPE_VIEW( COMP_TYPE );
+	    E_BASE	: TREE		:= E_TYPE;
+	  begin
+	    if  E_BASE.TY = DN_CONSTRAINED_RECORD  then
+	      E_BASE := CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, E_BASE ) );
+	    end if;
+	    if  E_TYPE.TY = DN_CONSTRAINED_RECORD  then
+	      DECLARATIONS.CODE_OBJET_DYNAMIQUE( E_TYPE, LIST( D( SM_NORMALIZED_DSCRMT_S, E_TYPE ) ),
+					 SUR_LE_TAS => FALSE );
+	      PUT_LINE( tab & "SA" & tab & LVL_STR & ", _GABARIT" );
+	      PUT( tab & "LID" & tab & LVL_STR & ", _GABARIT, " );
+	      CODI.REGIONS_PATH( D( XD_SOURCE_NAME, E_BASE ) );
+	      PUT_LINE( CODI.TYPE_INFO_STR( E_BASE ) & ".__TAILLE" );
+	    else
+	      declare
+	        MAX	:constant STRING	:= "__PAS" & CODI.NEW_LABEL;
+	      begin
+	        PUT_LINE( tab & "LI" & tab & "0" );
+	        PUT_LINE( tab & "SA" & tab & LVL_STR & ", _GABARIT" );			--| pas de gabarit au type
+	        DECLARATIONS.CODE_TAILLE_MAX( E_BASE, MAX );
+	        PUT_LINE( tab & "LD" & tab & LVL_STR & ", " & MAX );
+	      end;
+	    end if;
+	    PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+	    PUT_LINE( tab & "MUL" );								-- octets -> bits
+	  end;
+
+	elsif  ELEMENT_SIZ = 0
 	  and then ( COMP_TYPE.TY = DN_RECORD  or else  COMP_TYPE.TY = DN_CONSTRAINED_RECORD )
 	then
 		-- Pilier 3.7 / ACVC A7 : composant record dont la vue complete

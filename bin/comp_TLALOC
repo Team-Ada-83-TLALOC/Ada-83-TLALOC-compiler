@@ -151,16 +151,18 @@ debutA=$(date +%s)
 
 if [ "${1:-}" = "T1" ]
 then
-  rm -f T2.exe
-  echo "          ----------------------"
-  echo "          Assemble T2 with fasmg"
-  echo "          ----------------------"
-  cd ./ADA__LIB
+#  rm -f T2.exe
+#  echo "          ----------------------"
+#  echo "          Assemble T2 with fasmg"
+#  echo "          ----------------------"
+#  cd ./ADA__LIB
 
-  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T2.exe
-  chmod u+x ./T2.exe
-  mv ./T2.exe ../
-  cd ..
+# TLALOC EST DEVENU TROP GROS FASMG TAPE LES 4Go (POINTEURS 32 BITS ! )
+
+#  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T2.exe || exit 1
+#  chmod u+x ./T2.exe
+#  mv ./T2.exe ../
+#  cd ..
 
   echo "          ----------------------------"
   echo "          Assemble T2 with TARGET_CODE"
@@ -172,19 +174,21 @@ then
   ./T1 CODE /TARGET_CPU=X86_64 TLALOC
   cd ./ADA__LIB
   chmod u+x ./TLALOC.x86exe
-  mv ./TLALOC.x86exe ../T2t.exe
+  mv ./TLALOC.x86exe ../T2.exe
 
 else
 
-  echo "          ----------------------"
-  echo "          Assemble T3 with fasmg"
-  echo "          ----------------------"
-  cd ./ADA__LIB
+#  echo "          ----------------------"
+#  echo "          Assemble T3 with fasmg"
+#  echo "          ----------------------"
+#  cd ./ADA__LIB
 
-  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T3f.exe
-  chmod u+x ./T3f.exe
-  mv ./T3f.exe ../
-  cd ..
+# TLALOC EST DEVENU TROP GROS FASMG TAPE LES 4Go (POINTEURS 32 BITS ! )
+
+#  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T3f.exe
+#  chmod u+x ./T3f.exe
+#  mv ./T3f.exe ../
+#  cd ..
 
   echo "          ----------------------------"
   echo "          Assemble T3 with TARGET_CODE"

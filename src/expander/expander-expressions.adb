@@ -4183,6 +4183,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	    RNG		: TREE := TREE_VOID;
 	    CTX_TYPE	: TREE := FULL_TYPE_VIEW( CONTEXT_TYPE );
 	    BORNES_DU_CONTEXTE : BOOLEAN := FALSE;
+	    DYN		: BOOLEAN := DECLARATIONS.EST_TABLEAU_DYNAMIQUE( CONTEXT_TYPE );		--| lot 28
 			---------------
 	    function	AGGREGATE_RANGE		return TREE
 	    is		---------------
@@ -4337,6 +4338,9 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	    end	CODE_CONTEXT_BOUND;
 		------------------
 	  begin
+	    if  DYN  and then  CTX_TYPE.TY /= DN_CONSTRAINED_ARRAY  then				--| lot 28 : pas lu dans l'info du contexte
+	      TROU( "CODE_ARRAY_AGGREGATE_OPERAND tableau de records dynamiques, contexte non contraint", CONTEXT_TYPE );
+	    end if;
 	    if  AGG_TYPE = TREE_VOID  or else  AGG_TYPE.TY = DN_VOID  then
 	      -- Dans une concaténation de STRING, le type contextuel est le
 	      -- type résultat de l'opérateur "&".
@@ -4468,6 +4472,22 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	      PUT_LINE( tab & "LI" & tab & IMAGE( NB_POSITIONNELS ) );
 	    end if;
 
+	    if  DYN  then
+				--| lot 28 : composants records dynamiques -- pas lu dans
+				--| l'info du contexte (gabarit elabore avec le type)
+	      PUT( tab & "LD" & tab & IMAGE( DI( CD_LEVEL, CTX_TYPE ) ) & ", " );
+	      REGIONS_PATH( D( XD_SOURCE_NAME, CTX_TYPE ) );
+	      PUT_LINE( TYPE_INFO_STR( CTX_TYPE ) & "._COMP_SIZ" );
+	      PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info._COMP_SIZ" );
+	      PUT_LINE( tab & "DUP" );								-- SIZ = COUNT * COMP_SIZ
+	      PUT_LINE( tab & "LD  " & LVL & ", " & ANON & "_info._COMP_SIZ" );
+	      PUT_LINE( tab & "MUL" );
+	      PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info.SIZ__" );
+	      PUT_LINE( tab & "LD  " & LVL & ", " & ANON & "_info._COMP_SIZ" );			-- donnees : COUNT * COMP_SIZ / 8
+	      PUT_LINE( tab & "MUL" );
+	      PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+	      PUT_LINE( tab & "DIV" );
+	    else
 	    -- COMP_SIZ en bits
 	    PUT_LINE( tab & "LI" & tab & IMAGE( COMP_BITS ) );
 	    PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info._COMP_SIZ" );
@@ -4485,6 +4505,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	      PUT_LINE( tab & "LI" & tab & IMAGE( COMP_BYTES ) );
 	      PUT_LINE( tab & "MUL" );
 	    end if;
+	    end if;
 	    PUT_LINE( tab & "CO_VAR" );
 	    PUT_LINE( tab & "SA  " & LVL & ", " & ANON & "_disp" );
 
@@ -4494,8 +4515,18 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
 	    -- Remplissage des données de l'agrégat.
 	    -- CODE_AGGREGATE attend l'adresse des données au sommet de pile.
+	    if  DYN  then
+	      PUT_LINE( "VAR" & tab & ANON & "_pas, Q" );						--| lot 28
+	      PUT_LINE( tab & "LD  " & LVL & ", " & ANON & "_info._COMP_SIZ" );
+	      PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+	      PUT_LINE( tab & "DIV" );
+	      PUT_LINE( tab & "SA  " & LVL & ", " & ANON & "_pas" );
+	      CODE_AGREGAT_TABLEAU_DYNAMIQUE( AGG, CTX_TYPE, ANON & "_disp",
+				      ANON & "_info._FST_1", ANON & "_info._LST_1", ANON & "_pas" );
+	    else
 	    PUT_LINE( tab & "LA  " & LVL & ", " & ANON & "_disp" );
 	    CODE_AGGREGATE( AGG, AGG_TYPE );
+	    end if;
 
 	    -- Résultat attendu par la concat : adresse du doublet.
 	    PUT_LINE( tab & "LVA " & LVL & ", " & ANON & "_disp" );
@@ -4892,6 +4923,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
     TYPE_NAME	: TREE		:= D( XD_SOURCE_NAME, CONTEXT_TYPE );
     TYPE_STR	:constant STRING	:= TYPE_INFO_STR( CONTEXT_TYPE );
+    DYN		: BOOLEAN		:= DECLARATIONS.EST_TABLEAU_DYNAMIQUE( CONTEXT_TYPE );		--| lot 28
 
 		-------------
     procedure	SETUP_OPERAND	( E : TREE;  ANON : STRING )
@@ -4921,7 +4953,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
       PUT_LINE( tab & "SUB" );
       PUT_LINE( tab & "INC" );
       PUT_LINE( tab & "CLAMP0" );						-- piege n 52
-      if COMP_BYTES /= 1 then
+      if  COMP_BYTES /= 1  and then  not DYN  then					--| lot 28 : dynamique -> nombre de composants
         PUT_LINE( tab & "LI"  & tab & IMAGE( COMP_BYTES ) );
         PUT_LINE( tab & "MUL" );
       end if;
@@ -4930,7 +4962,82 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     end	SETUP_OPERAND;
 	-------------
   begin
-    if  OP_STR = """="""  or  OP_STR = """/="""  then
+    if  DYN  and then  ( OP_STR = """="""  or  OP_STR = """/=""" )  then
+			--| Lot 28 : composants records DYNAMIQUES -- longueurs (nombres de
+			--| composants) egales, puis egalite de records (lot 24) composant par
+			--| composant, au pas lu dans l'info de l'operande gauche ; arret au
+			--| premier composant different.  Un BLKCMP global serait faux : octets
+			--| au-dela de __TAILLE d'un composant mutable, remplissage.
+      SETUP_OPERAND( PRM_1, ANON_G );
+      SETUP_OPERAND( PRM_2, ANON_D );
+      declare
+        ELEM	: TREE		:= DECLARATIONS.ELEMENT_TABLEAU( CONTEXT_TYPE );
+        CA	:constant STRING	:= ANON_G & "_ca";
+        CB	:constant STRING	:= ANON_D & "_cb";
+        N	:constant STRING	:= ANON_G & "_n";
+        PAS	:constant STRING	:= ANON_G & "_pas";
+        BOUCLE	:constant STRING	:= LABEL_STR( NEW_LABEL );
+        VRAI	:constant STRING	:= LABEL_STR( NEW_LABEL );
+        FAUX	:constant STRING	:= LABEL_STR( NEW_LABEL );
+      begin
+        PUT_LINE( "VAR " & CA & ", Q" );
+        PUT_LINE( "VAR " & CB & ", Q" );
+        PUT_LINE( "VAR " & N & ", Q" );
+        PUT_LINE( "VAR " & PAS & ", Q" );
+        PUT_LINE( tab & "LA  " & LVL & ", " & ANON_G & "_len" );				-- nombres de composants
+        PUT_LINE( tab & "LA  " & LVL & ", " & ANON_D & "_len" );
+        PUT_LINE( tab & "CEQ" );
+        PUT_LINE( tab & "DUP" );
+        PUT_LINE( tab & "BF" & tab & LBL_END );						-- le 0 restant EST le resultat
+        PUT_LINE( tab & "DROP" );
+        PUT( tab & "LID " & LVL & ", " & ANON_G & "_info, " );
+        CODI.REGIONS_PATH( TYPE_NAME );
+        PUT_LINE( TYPE_STR & ".COMP_SIZ" );
+        PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+        PUT_LINE( tab & "DIV" );
+        PUT_LINE( tab & "SA  " & LVL & ", " & PAS );
+        PUT_LINE( tab & "LA  " & LVL & ", " & ANON_G & "_data" );
+        PUT_LINE( tab & "SA  " & LVL & ", " & CA );
+        PUT_LINE( tab & "LA  " & LVL & ", " & ANON_D & "_data" );
+        PUT_LINE( tab & "SA  " & LVL & ", " & CB );
+        PUT_LINE( tab & "LA  " & LVL & ", " & ANON_G & "_len" );
+        PUT_LINE( tab & "SA  " & LVL & ", " & N );
+        PUT_LINE( BOUCLE & ':' );
+        PUT_LINE( tab & "LA  " & LVL & ", " & N );
+        PUT_LINE( tab & "LI" & tab & "0" );
+        PUT_LINE( tab & "CGT" );
+        PUT_LINE( tab & "BF" & tab & VRAI );
+        CODE_RECORD_EQUALITY( """=""", TREE_VOID, TREE_NIL, ELEM, CA, CB );		-- 0/1
+        PUT_LINE( tab & "BF" & tab & FAUX );
+        PUT_LINE( tab & "LA  " & LVL & ", " & CA );
+        PUT_LINE( tab & "LA  " & LVL & ", " & PAS );
+        PUT_LINE( tab & "ADD" );
+        PUT_LINE( tab & "SA  " & LVL & ", " & CA );
+        PUT_LINE( tab & "LA  " & LVL & ", " & CB );
+        PUT_LINE( tab & "LA  " & LVL & ", " & PAS );
+        PUT_LINE( tab & "ADD" );
+        PUT_LINE( tab & "SA  " & LVL & ", " & CB );
+        PUT_LINE( tab & "LA  " & LVL & ", " & N );
+        PUT_LINE( tab & "LI" & tab & "1" );
+        PUT_LINE( tab & "SUB" );
+        PUT_LINE( tab & "SA  " & LVL & ", " & N );
+        PUT_LINE( tab & "BRA" & tab & BOUCLE );
+        PUT_LINE( VRAI & ':' );
+        PUT_LINE( tab & "LI" & tab & "1" );
+        PUT_LINE( tab & "BRA" & tab & LBL_END );
+        PUT_LINE( FAUX & ':' );
+        PUT_LINE( tab & "LI" & tab & "0" );
+        PUT_LINE( LBL_END & ':' );
+      end;
+      if  OP_STR = """/="""  then
+        PUT_LINE( tab & "LI"  & tab & "1" );
+        PUT_LINE( tab & "OUX" );
+      end if;
+
+    elsif  DYN  then
+      TROU( "CODE_COMPOSITE_OPERATOR tableau de records dynamiques : operateur non gere", CONTEXT_TYPE );
+
+    elsif  OP_STR = """="""  or  OP_STR = """/="""  then
 
       if CODI.DEBUG then PUT_LINE( "; CODE composite " & OP_STR & ' ' & TYPE_STR ); end if;
 
@@ -5167,7 +5274,8 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
 
 			--------------------
-  procedure		CODE_RECORD_EQUALITY	( OP_STR :STRING; PRM_1, PRM_2 :TREE; CONTEXT_TYPE :TREE )
+  procedure		CODE_RECORD_EQUALITY	( OP_STR :STRING; PRM_1, PRM_2 :TREE; CONTEXT_TYPE :TREE;
+						  A_CELL, B_CELL :STRING := "" )
   is			--------------------
 
 -- Pilier 3.7 (RM83 4.5.2) : "=" / "/=" de records.
@@ -5184,6 +5292,14 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     procedure	OPERAND_DATA_ADDRESS	( E : TREE )
     is		--------------------
     begin
+      if  A_CELL /= ""  then								--| lot 28 : @donnees deja dans des cellules
+        if  E = PRM_1  then									--| (composants d'un tableau)
+	PUT_LINE( tab & "LA  " & IMAGE( CODI.CUR_LEVEL ) & ", " & A_CELL );
+        else
+	PUT_LINE( tab & "LA  " & IMAGE( CODI.CUR_LEVEL ) & ", " & B_CELL );
+        end if;
+        return;
+      end if;
       if  E.TY = DN_AGGREGATE  and then  CODI.EST_RECORD_DYNAMIQUE( CONTEXT_TYPE )  then
 			--| Option B : objet neuf (discriminants de l'agregat) sur la co-pile,
 			--| rempli par CODE_AGGREGATE, puis son @data.
@@ -7004,7 +7120,45 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
       PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
       PUT_LINE( tab & "DIV" );
       PUT_LINE( tab & "HEAP_ALLOC" );
-      if  DESIG_TYPE.TY = DN_CONSTRAINED_ARRAY  and then  DECLARATIONS.A_INIT_IMPLICITE_TYPE( DESIG_TYPE )  then
+      if  DECLARATIONS.EST_TABLEAU_DYNAMIQUE( DESIG_TYPE )  then					--| lot 27 : composants records dynamiques
+        declare
+	OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
+	LEN	:constant STRING	:= OBJ & "_L";
+	PAS	:constant STRING	:= OBJ & "_P";
+	GAB	:constant STRING	:= OBJ & "_G";
+	NIV	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	TNIV	:constant STRING	:= IMAGE( DI( CD_LEVEL, DESIG_TYPE ) );
+        begin
+	PUT_LINE( "VAR " & OBJ & ", Q" );
+	PUT_LINE( "VAR " & LEN & ", Q" );
+	PUT_LINE( "VAR " & PAS & ", Q" );
+	PUT_LINE( "VAR " & GAB & ", Q" );
+	PUT_LINE( tab & "DUP" );								-- @donnees (reste : valeur d'acces)
+	PUT_LINE( tab & "SA" & tab & NIV & ", " & OBJ );
+	PUT( tab & "LD" & tab & TNIV & ", " );							-- longueur : SIZ / 8
+	REGIONS_PATH( DESIG_NAME );
+	PUT_LINE( DESIG_STR & ".SIZ__" );
+	PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+	PUT_LINE( tab & "DIV" );
+	PUT_LINE( tab & "SA" & tab & NIV & ", " & LEN );
+	PUT( tab & "LD" & tab & TNIV & ", " );							-- pas : COMP_SIZ / 8
+	REGIONS_PATH( DESIG_NAME );
+	PUT_LINE( DESIG_STR & "._COMP_SIZ" );
+	PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+	PUT_LINE( tab & "DIV" );
+	PUT_LINE( tab & "SA" & tab & NIV & ", " & PAS );
+	if  DECLARATIONS.ELEMENT_TABLEAU( DESIG_TYPE ).TY = DN_CONSTRAINED_RECORD  then
+	  PUT( tab & "LA" & tab & TNIV & ", " );						-- gabarit du type
+	  REGIONS_PATH( DESIG_NAME );
+	  PUT_LINE( DESIG_STR & "._GABARIT" );
+	else
+	  DECLARATIONS.CODE_OBJET_DYNAMIQUE( DECLARATIONS.ELEMENT_TABLEAU( DESIG_TYPE ), ( TREE_NIL, TREE_NIL ),
+					 SUR_LE_TAS => FALSE, MUTABLE => TRUE );			-- gabarit aux defauts
+	end if;
+	PUT_LINE( tab & "SA" & tab & NIV & ", " & GAB );
+	DECLARATIONS.CODE_INIT_IMPLICITE_TABLEAU( DESIG_TYPE, OBJ, LEN, PAS, GAB );
+        end;
+      elsif  DESIG_TYPE.TY = DN_CONSTRAINED_ARRAY  and then  DECLARATIONS.A_INIT_IMPLICITE_TYPE( DESIG_TYPE )  then
         declare										--| lot 26 : composants records (LRM 4.8)
 	OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
 	LEN	:constant STRING	:= OBJ & "_L";
@@ -7031,6 +7185,351 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 -- Replacement proposal for EXPANDER.EXPRESSIONS.CODE_ARRAY_AGGREGATE.
 -- The procedure is still an assigning aggregate: the destination data address
 -- is expected on top of the LLIR stack and is consumed by the generated code.
+			----------------
+  function		NB_DIMENSIONS_DE	( T :TREE )		return NATURAL
+  is			----------------
+	-- Lot 28 : nombre de dimensions d'un type tableau.
+    IDX_S		: SEQ_TYPE	:= LIST( D( SM_INDEX_S, FULL_TYPE_VIEW( D( SM_BASE_TYPE, FULL_TYPE_VIEW( T ) ) ) ) );
+    IDX		: TREE;
+    N		: NATURAL		:= 0;
+  begin
+    while  not IS_EMPTY( IDX_S )  loop
+      POP( IDX_S, IDX );
+      N := N + 1;
+    end loop;
+    return  N;
+  end	NB_DIMENSIONS_DE;
+	----------------
+
+
+			-------------------------------
+  procedure		CODE_AGREGAT_TABLEAU_DYNAMIQUE	( AGG, ARR_TYPE :TREE;  DATA_VAR, FST_VAR, LST_VAR, PAS_VAR :STRING )
+  is			-------------------------------
+	-- Lot 28 : agregat (une dimension) d'un tableau de records DYNAMIQUES, ecrit
+	-- dans des donnees dont l'adresse est dans DATA_VAR (Q), les bornes de la
+	-- destination dans FST_VAR, LST_VAR (D) et le pas en octets dans PAS_VAR (Q),
+	-- cellules du niveau courant.
+	--   1. chaque composant devient un objet valide AVANT toute ecriture :
+	--      contraint -> copie d'un gabarit (discriminants de la contrainte, pour le
+	--      controle de l'affectation) ; non contraint -> __MUTABLE := 1 ;
+	--   2. associations : others d'abord (tous les composants), puis positionnelles
+	--      (FST + k - 1) et choix nommes (valeur, intervalle) ; agregat nomme SANS
+	--      others : bornes propres (min .. max des choix), glissement vers la
+	--      destination, longueurs egales sinon CONSTRAINT_ERROR (LRM 4.3.2, 5.2.1) ;
+	--      positionnel sans others : longueur egale a celle de la destination ;
+	--   3. chaque composant recoit sa valeur comme par affectation : agregat de
+	--      record (CODE_AGGREGATE) ou copie (CODE_COPIE_RECORD_DYNAMIQUE), avec le
+	--      controle des discriminants d'un composant contraint ; l'expression est
+	--      evaluee pour chaque composant associe (LRM 4.3).
+    LVL		:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+    ELEM		: TREE		:= DECLARATIONS.ELEMENT_TABLEAU( ARR_TYPE );
+    E_BASE	: TREE		:= ELEM;
+    U		:constant STRING	:= "__AGT" & NEW_LABEL;
+    CUR		:constant STRING	:= U & "_C";							-- @composant courant (Q)
+    IDX		:constant STRING	:= U & "_I";							-- indice courant (D)
+    HAUT		:constant STRING	:= U & "_H";							-- borne haute d'un intervalle (D)
+    DECAL		:constant STRING	:= U & "_G";							-- glissement (D)
+    GAB		:constant STRING	:= U & "_B";							-- gabarit (Q)
+    SEQ		: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+    ASSOC		: TREE;
+    NB_POS	: NATURAL		:= 0;
+    AVEC_OTHERS	: BOOLEAN		:= FALSE;
+    AVEC_NOMME	: BOOLEAN		:= FALSE;
+
+		-----------
+    procedure	ADR_INDICE								--| CUR := DATA + (IDX + DECAL - FST) * PAS,
+    is		-----------								--| IDX + DECAL controle dans FST .. LST
+    begin
+      PUT_LINE( tab & "LD  " & LVL & ", " & IDX );
+      PUT_LINE( tab & "LD  " & LVL & ", " & DECAL );
+      PUT_LINE( tab & "ADD" );
+      PUT_LINE( tab & "DUP" );
+      PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );
+      PUT_LINE( tab & "CLT" );
+      PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+      PUT_LINE( tab & "DUP" );
+      PUT_LINE( tab & "LD  " & LVL & ", " & LST_VAR );
+      PUT_LINE( tab & "CGT" );
+      PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+      PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );
+      PUT_LINE( tab & "SUB" );
+      PUT_LINE( tab & "LA  " & LVL & ", " & PAS_VAR );
+      PUT_LINE( tab & "MUL" );
+      PUT_LINE( tab & "LA  " & LVL & ", " & DATA_VAR );
+      PUT_LINE( tab & "ADD" );
+      PUT_LINE( tab & "SA  " & LVL & ", " & CUR );
+    end	ADR_INDICE;
+	----------
+
+		------
+    procedure	VALEUR	( V :TREE )							--| composant courant := V
+    is		------
+    begin
+      PUT_LINE( tab & "LA  " & LVL & ", " & CUR );
+      if  V.TY = DN_AGGREGATE  then
+        CODE_AGGREGATE( V, ELEM );
+      else
+        CODE_COPIE_RECORD_DYNAMIQUE( V, ELEM );
+      end if;
+    end	VALEUR;
+	------
+
+		---------
+    procedure	INTERVALLE	( BAS, HT :TREE;  V :TREE;  A_LA_DESTINATION :BOOLEAN )
+    is		---------
+	-- composants d'indices BAS .. HT (expressions ; A_LA_DESTINATION : bornes de
+	-- la destination, deja dans FST_VAR / LST_VAR) := V, un par un
+      BOUCLE	:constant STRING	:= LABEL_STR( NEW_LABEL );
+      SORTIE	:constant STRING	:= LABEL_STR( NEW_LABEL );
+    begin
+      if  A_LA_DESTINATION  then
+        PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );
+        PUT_LINE( tab & "LD  " & LVL & ", " & DECAL );
+        PUT_LINE( tab & "SUB" );
+        PUT_LINE( tab & "SD  " & LVL & ", " & IDX );
+        PUT_LINE( tab & "LD  " & LVL & ", " & LST_VAR );
+        PUT_LINE( tab & "LD  " & LVL & ", " & DECAL );
+        PUT_LINE( tab & "SUB" );
+        PUT_LINE( tab & "SD  " & LVL & ", " & HAUT );
+      else
+        CODE_EXP( BAS );
+        PUT_LINE( tab & "SD  " & LVL & ", " & IDX );
+        CODE_EXP( HT );
+        PUT_LINE( tab & "SD  " & LVL & ", " & HAUT );
+      end if;
+      PUT_LINE( BOUCLE & ':' );
+      PUT_LINE( tab & "LD  " & LVL & ", " & IDX );
+      PUT_LINE( tab & "LD  " & LVL & ", " & HAUT );
+      PUT_LINE( tab & "CGT" );
+      PUT_LINE( tab & "BT" & tab & SORTIE );
+      ADR_INDICE;
+      VALEUR( V );
+      PUT_LINE( tab & "LD  " & LVL & ", " & IDX );
+      PUT_LINE( tab & "INC" );
+      PUT_LINE( tab & "SD  " & LVL & ", " & IDX );
+      PUT_LINE( tab & "BRA" & tab & BOUCLE );
+      PUT_LINE( SORTIE & ':' );
+    end	INTERVALLE;
+	----------
+
+		------
+    procedure	BORNES_CHOIX_AGT	( CH :TREE;  BAS, HT :out TREE )
+    is		------
+	-- expressions des bornes d'un choix nomme (valeur, intervalle, sous-type)
+      R		: TREE;
+    begin
+      if  CH.TY = DN_CHOICE_EXP  then
+        BAS := D( AS_EXP, CH );  HT := D( AS_EXP, CH );
+      else
+        R := D( AS_DISCRETE_RANGE, CH );
+        if  R.TY = DN_DISCRETE_SUBTYPE  then
+	R := D( AS_CONSTRAINT, D( AS_SUBTYPE_INDICATION, R ) );
+        end if;
+        if  R = TREE_VOID  or else  R = TREE_NIL  or else  R.TY /= DN_RANGE  then
+	TROU( "CODE_AGREGAT_TABLEAU_DYNAMIQUE choix non gere", CH );
+        end if;
+        BAS := D( AS_EXP1, R );  HT := D( AS_EXP2, R );
+      end if;
+    end	BORNES_CHOIX_AGT;
+	------
+
+  begin
+    if  E_BASE.TY = DN_CONSTRAINED_RECORD  then
+      E_BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, E_BASE ) );
+    end if;
+    while  not IS_EMPTY( SEQ )  loop							-- sortes d'associations
+      POP( SEQ, ASSOC );
+      if  ASSOC.TY = DN_NAMED  then
+        declare
+	CH_S	: SEQ_TYPE	:= LIST( D( AS_CHOICE_S, ASSOC ) );
+	CH	: TREE;
+        begin
+	while  not IS_EMPTY( CH_S )  loop
+	  POP( CH_S, CH );
+	  if  CH.TY = DN_CHOICE_OTHERS  then
+	    AVEC_OTHERS := TRUE;
+	  else
+	    AVEC_NOMME := TRUE;
+	  end if;
+	end loop;
+        end;
+      else
+        NB_POS := NB_POS + 1;
+      end if;
+    end loop;
+
+    PUT_LINE( "VAR " & CUR & ", Q" );
+    PUT_LINE( "VAR " & IDX & ", D" );
+    PUT_LINE( "VAR " & HAUT & ", D" );
+    PUT_LINE( "VAR " & DECAL & ", D" );
+    PUT_LINE( "VAR " & GAB & ", Q" );
+    PUT_LINE( tab & "LI" & tab & "0" );
+    PUT_LINE( tab & "SD  " & LVL & ", " & DECAL );
+
+    -- 1. composants valides avant toute ecriture
+    if  ELEM.TY = DN_CONSTRAINED_RECORD  then
+      DECLARATIONS.CODE_OBJET_DYNAMIQUE( ELEM, LIST( D( SM_NORMALIZED_DSCRMT_S, ELEM ) ), SUR_LE_TAS => FALSE );
+      PUT_LINE( tab & "SA  " & LVL & ", " & GAB );
+    end if;
+    declare
+      BOUCLE	:constant STRING	:= LABEL_STR( NEW_LABEL );
+      SORTIE	:constant STRING	:= LABEL_STR( NEW_LABEL );
+    begin
+      PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );
+      PUT_LINE( tab & "SD  " & LVL & ", " & IDX );
+      PUT_LINE( BOUCLE & ':' );
+      PUT_LINE( tab & "LD  " & LVL & ", " & IDX );
+      PUT_LINE( tab & "LD  " & LVL & ", " & LST_VAR );
+      PUT_LINE( tab & "CGT" );
+      PUT_LINE( tab & "BT" & tab & SORTIE );
+      ADR_INDICE;
+      if  ELEM.TY = DN_CONSTRAINED_RECORD  then
+        PUT_LINE( tab & "LA  " & LVL & ", " & CUR );					-- @DST
+        PUT_LINE( tab & "LA  " & LVL & ", " & PAS_VAR );					-- LEN
+        PUT_LINE( tab & "LA  " & LVL & ", " & GAB );					-- @SRC
+        PUT_LINE( tab & "BLKMOV" );
+      else
+        PUT_LINE( tab & "LI" & tab & "1" );						-- composant mutable
+        PUT( tab & "SID" & tab & LVL & ", " & CUR & ", " );
+        REGIONS_PATH( D( XD_SOURCE_NAME, E_BASE ) );
+        PUT_LINE( TYPE_INFO_STR( E_BASE ) & ".__MUTABLE" );
+      end if;
+      PUT_LINE( tab & "LD  " & LVL & ", " & IDX );
+      PUT_LINE( tab & "INC" );
+      PUT_LINE( tab & "SD  " & LVL & ", " & IDX );
+      PUT_LINE( tab & "BRA" & tab & BOUCLE );
+      PUT_LINE( SORTIE & ':' );
+    end;
+
+    -- 2. glissement et longueurs
+    if  AVEC_NOMME  and then  not AVEC_OTHERS  then						-- bornes propres : min / max des choix
+      declare
+        AF	:constant STRING	:= U & "_AF";
+        AL	:constant STRING	:= U & "_AL";
+        PREMIER	: BOOLEAN		:= TRUE;
+        S2	: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+        A2	: TREE;
+        CH_S	: SEQ_TYPE;
+        CH	: TREE;
+        BAS, HT	: TREE;
+      begin
+        PUT_LINE( "VAR " & AF & ", D" );
+        PUT_LINE( "VAR " & AL & ", D" );
+        while  not IS_EMPTY( S2 )  loop
+	POP( S2, A2 );
+	CH_S := LIST( D( AS_CHOICE_S, A2 ) );
+	while  not IS_EMPTY( CH_S )  loop
+	  POP( CH_S, CH );
+	  BORNES_CHOIX_AGT( CH, BAS, HT );
+	  if  PREMIER  then
+	    CODE_EXP( BAS );
+	    PUT_LINE( tab & "SD  " & LVL & ", " & AF );
+	    CODE_EXP( HT );
+	    PUT_LINE( tab & "SD  " & LVL & ", " & AL );
+	    PREMIER := FALSE;
+	  else
+	    declare
+	      L1	:constant STRING	:= LABEL_STR( NEW_LABEL );
+	      L2	:constant STRING	:= LABEL_STR( NEW_LABEL );
+	    begin
+	      CODE_EXP( BAS );
+	      PUT_LINE( tab & "DUP" );
+	      PUT_LINE( tab & "LD  " & LVL & ", " & AF );
+	      PUT_LINE( tab & "CLT" );
+	      PUT_LINE( tab & "BF" & tab & L1 );
+	      PUT_LINE( tab & "DUP" );
+	      PUT_LINE( tab & "SD  " & LVL & ", " & AF );
+	      PUT_LINE( L1 & ':' );
+	      PUT_LINE( tab & "DROP" );
+	      CODE_EXP( HT );
+	      PUT_LINE( tab & "DUP" );
+	      PUT_LINE( tab & "LD  " & LVL & ", " & AL );
+	      PUT_LINE( tab & "CGT" );
+	      PUT_LINE( tab & "BF" & tab & L2 );
+	      PUT_LINE( tab & "DUP" );
+	      PUT_LINE( tab & "SD  " & LVL & ", " & AL );
+	      PUT_LINE( L2 & ':' );
+	      PUT_LINE( tab & "DROP" );
+	    end;
+	  end if;
+	end loop;
+        end loop;
+        PUT_LINE( tab & "LD  " & LVL & ", " & AL );					-- AL - AF = LST - FST
+        PUT_LINE( tab & "LD  " & LVL & ", " & AF );
+        PUT_LINE( tab & "SUB" );
+        PUT_LINE( tab & "LD  " & LVL & ", " & LST_VAR );
+        PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );
+        PUT_LINE( tab & "SUB" );
+        PUT_LINE( tab & "CNE" );
+        PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+        PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );				-- DECAL = FST - AF
+        PUT_LINE( tab & "LD  " & LVL & ", " & AF );
+        PUT_LINE( tab & "SUB" );
+        PUT_LINE( tab & "SD  " & LVL & ", " & DECAL );
+      end;
+    elsif  NB_POS > 0  and then  not AVEC_OTHERS  then						-- positionnel : longueur egale
+      PUT_LINE( tab & "LD  " & LVL & ", " & LST_VAR );
+      PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );
+      PUT_LINE( tab & "SUB" );
+      PUT_LINE( tab & "INC" );
+      PUT_LINE( tab & "LI" & tab & IMAGE( NB_POS ) );
+      PUT_LINE( tab & "CNE" );
+      PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+    end if;
+
+    -- 3. valeurs : others d'abord, puis le reste
+    SEQ := LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+    while  not IS_EMPTY( SEQ )  loop
+      POP( SEQ, ASSOC );
+      if  ASSOC.TY = DN_NAMED  then
+        declare
+	CH_S	: SEQ_TYPE	:= LIST( D( AS_CHOICE_S, ASSOC ) );
+	CH	: TREE;
+        begin
+	while  not IS_EMPTY( CH_S )  loop
+	  POP( CH_S, CH );
+	  if  CH.TY = DN_CHOICE_OTHERS  then
+	    INTERVALLE( TREE_VOID, TREE_VOID, D( AS_EXP, ASSOC ), A_LA_DESTINATION => TRUE );
+	  end if;
+	end loop;
+        end;
+      end if;
+    end loop;
+    SEQ := LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+    declare
+      K		: NATURAL		:= 0;
+      BAS, HT	: TREE;
+    begin
+      while  not IS_EMPTY( SEQ )  loop
+        POP( SEQ, ASSOC );
+        if  ASSOC.TY = DN_NAMED  then
+	declare
+	  CH_S	: SEQ_TYPE	:= LIST( D( AS_CHOICE_S, ASSOC ) );
+	  CH	: TREE;
+	begin
+	  while  not IS_EMPTY( CH_S )  loop
+	    POP( CH_S, CH );
+	    if  CH.TY /= DN_CHOICE_OTHERS  then
+	      BORNES_CHOIX_AGT( CH, BAS, HT );
+	      INTERVALLE( BAS, HT, D( AS_EXP, ASSOC ), A_LA_DESTINATION => FALSE );
+	    end if;
+	  end loop;
+	end;
+        else
+	PUT_LINE( tab & "LD  " & LVL & ", " & FST_VAR );					-- IDX := FST + K
+	PUT_LINE( tab & "LI" & tab & IMAGE( K ) );
+	PUT_LINE( tab & "ADD" );
+	PUT_LINE( tab & "SD  " & LVL & ", " & IDX );
+	ADR_INDICE;
+	VALEUR( ASSOC );
+	K := K + 1;
+        end if;
+      end loop;
+    end;
+  end	CODE_AGREGAT_TABLEAU_DYNAMIQUE;
+	-------------------------------
+
+
 
   procedure		CODE_ARRAY_AGGREGATE	( AGGREGATE, TYPE_SPEC :TREE; DST_SLICE_RANGE :TREE := TREE_VOID )
   is			--------------------
@@ -7594,6 +8093,40 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	-----------------
 
   begin
+    if  DECLARATIONS.EST_TABLEAU_DYNAMIQUE( TYPE_SPEC )  then				--| lot 28 : composants records dynamiques
+      if  DST_SLICE_RANGE /= TREE_VOID  or else  TYPE_SPEC.TY /= DN_CONSTRAINED_ARRAY
+        or else  NB_DIMENSIONS_DE( TYPE_SPEC ) /= 1
+      then
+        TROU( "CODE_ARRAY_AGGREGATE tableau de records dynamiques : tranche, non contraint ou multi-dimensions", TYPE_SPEC );
+      end if;
+      declare
+        LVL_S	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+        TLVL	:constant STRING	:= IMAGE( DI( CD_LEVEL, TYPE_SPEC ) );
+        DST	:constant STRING	:= "__AGD" & NEW_LABEL;
+      begin
+        PUT_LINE( "VAR " & DST & ", Q" );
+        PUT_LINE( "VAR " & DST & "_F, D" );
+        PUT_LINE( "VAR " & DST & "_L, D" );
+        PUT_LINE( "VAR " & DST & "_P, Q" );
+        PUT_LINE( tab & "SA  " & LVL_S & ", " & DST );						-- @donnees (consommee)
+        PUT( tab & "LD" & tab & TLVL & ", " );							-- bornes du TYPE (elaborees)
+        REGIONS_PATH( D( XD_SOURCE_NAME, TYPE_SPEC ) );
+        PUT_LINE( TYPE_INFO_STR( TYPE_SPEC ) & "._FST_1" );
+        PUT_LINE( tab & "SD  " & LVL_S & ", " & DST & "_F" );
+        PUT( tab & "LD" & tab & TLVL & ", " );
+        REGIONS_PATH( D( XD_SOURCE_NAME, TYPE_SPEC ) );
+        PUT_LINE( TYPE_INFO_STR( TYPE_SPEC ) & "._LST_1" );
+        PUT_LINE( tab & "SD  " & LVL_S & ", " & DST & "_L" );
+        PUT( tab & "LD" & tab & TLVL & ", " );							-- pas en octets
+        REGIONS_PATH( D( XD_SOURCE_NAME, TYPE_SPEC ) );
+        PUT_LINE( TYPE_INFO_STR( TYPE_SPEC ) & "._COMP_SIZ" );
+        PUT_LINE( tab & "LI" & tab & IMAGE( CODI.STORAGE_UNIT ) );
+        PUT_LINE( tab & "DIV" );
+        PUT_LINE( tab & "SA  " & LVL_S & ", " & DST & "_P" );
+        CODE_AGREGAT_TABLEAU_DYNAMIQUE( AGGREGATE, TYPE_SPEC, DST, DST & "_F", DST & "_L", DST & "_P" );
+      end;
+      return;
+    end if;
     DESC_AGG_LEN := 0;										--| un agregat imbrique ne le reprend pas
     if  TYPE_SPEC.TY /= DN_CONSTRAINED_ARRAY
     and then TYPE_SPEC.TY /= DN_ARRAY  then

@@ -1248,7 +1248,39 @@ is
 
 	else											-- PAS D'INITIALISATION, ALLOUER
 	  COVAR_ALLOCATE;
-	  if  A_INIT_IMPLICITE_TYPE( TYPE_SPEC )  then							--| lot 26 : composants records (LRM 3.2.1)
+	  if  EST_TABLEAU_DYNAMIQUE( TYPE_SPEC )  then							--| lot 27 : composants records dynamiques
+	    declare
+	      LEN	:constant STRING	:= VC_STR & "__ilg";
+	      PAS	:constant STRING	:= VC_STR & "__ips";
+	      GAB	:constant STRING	:= VC_STR & "__igb";
+	    begin
+	      PUT_LINE( "VAR " & LEN & ", Q" );
+	      PUT_LINE( "VAR " & PAS & ", Q" );
+	      PUT_LINE( "VAR " & GAB & ", Q" );
+	      PUT( tab & "LD" & tab & IMAGE( TYPE_LEVEL ) & ", " );					--| longueur en octets : SIZ / 8
+	      PUT_TYPE_INFO_PREFIX;
+	      PUT_LINE( ".SIZ__" );
+	      PUT_LINE( tab & "LI" & tab & '8' );
+	      PUT_LINE( tab & "DIV" );
+	      PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & LEN );
+	      PUT( tab & "LD" & tab & IMAGE( TYPE_LEVEL ) & ", " );					--| pas en octets : COMP_SIZ / 8
+	      PUT_TYPE_INFO_PREFIX;
+	      PUT_LINE( "._COMP_SIZ" );
+	      PUT_LINE( tab & "LI" & tab & '8' );
+	      PUT_LINE( tab & "DIV" );
+	      PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & PAS );
+	      if  ELEMENT_TABLEAU( TYPE_SPEC ).TY = DN_CONSTRAINED_RECORD  then			--| composant contraint : gabarit du type
+	        PUT( tab & "LA" & tab & IMAGE( TYPE_LEVEL ) & ", " );
+	        PUT_TYPE_INFO_PREFIX;
+	        PUT_LINE( "._GABARIT" );
+	      else										--| non contraint : gabarit aux defauts,
+	        CODE_OBJET_DYNAMIQUE( ELEMENT_TABLEAU( TYPE_SPEC ), ( TREE_NIL, TREE_NIL ),		--| controle maintenant (LRM 3.7.2)
+				SUR_LE_TAS => FALSE, MUTABLE => TRUE );
+	      end if;
+	      PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & GAB );
+	      CODE_INIT_IMPLICITE_TABLEAU( TYPE_SPEC, VC_STR & "_disp", LEN, PAS, GAB );
+	    end;
+	  elsif  A_INIT_IMPLICITE_TYPE( TYPE_SPEC )  then							--| lot 26 : composants records (LRM 3.2.1)
 	    declare
 	      LEN	:constant STRING	:= VC_STR & "__ilg";
 	    begin
@@ -2871,7 +2903,8 @@ is
 
 
 			----------------------
-  procedure		CODE_INIT_DESCRIPTEURS	( REC_TYPE :TREE; OBJ_LVL :LEVEL_NUM; OBJ_VAR :STRING )
+  procedure		CODE_INIT_DESCRIPTEURS	( REC_TYPE :TREE; OBJ_LVL :LEVEL_NUM; OBJ_VAR :STRING;
+						  BORNER :BOOLEAN := FALSE )
   is			----------------------
 	-- Option B (claude/conception_records_discriminants.md).  L'objet a ses
 	-- DISCRIMINANTS poses ; l'adresse de ses donnees (au moins la partie
@@ -2880,6 +2913,10 @@ is
 	-- comprises, disposition additive) : bornes evaluees avec l'objet comme
 	-- OBJET RECORD COURANT, COMP_SIZ, SIZ, OFS ; puis __TAILLE.  Les donnees
 	-- suivent la partie statique, chacune alignee sur 8 octets.
+	-- BORNER (lot 27, calcul de la taille MAXIMALE) : un intervalle non vide est
+	-- ramene dans le sous-type d'indice au lieu de lever CONSTRAINT_ERROR -- le
+	-- maximum porte sur les valeurs LEGALES ; le controle reel se fait sur les
+	-- discriminants effectifs de l'objet.
 
     BASE_REC		: TREE		:= CODI.FULL_TYPE_VIEW( REC_TYPE );
     LVL_STR		:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
@@ -2974,7 +3011,37 @@ is
 
       -- LRM 3.6.1 : intervalle NON VIDE -> bornes dans le sous-type d'indice
       -- du type tableau de base, sinon CONSTRAINT_ERROR
-      if  CODI.CHECKS_ENABLED  then
+      if  BORNER  then
+        declare
+	VIDE	:constant STRING	:= LABEL_STR( NEW_LABEL );
+	OK_F	:constant STRING	:= LABEL_STR( NEW_LABEL );
+	OK_L	:constant STRING	:= LABEL_STR( NEW_LABEL );
+	IDX_B_S	: SEQ_TYPE	:= LIST( D( SM_INDEX_S, CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, COMP_TYPE ) ) ) );
+	IDX_B	: TREE;
+        begin
+	POP( IDX_B_S, IDX_B );
+	DEPUIS_OBJET( COMP_ID, CODI.DESC_LST_1 );
+	DEPUIS_OBJET( COMP_ID, CODI.DESC_FST_1 );
+	PUT_LINE( tab & "CLT" );							-- LST < FST : vide
+	PUT_LINE( tab & "BT" & tab & VIDE );
+	DEPUIS_OBJET( COMP_ID, CODI.DESC_FST_1 );
+	CODE_BORNE_SOUS_TYPE( IDX_B, IS_LAST => FALSE );
+	PUT_LINE( tab & "CLT" );
+	PUT_LINE( tab & "BF" & tab & OK_F );
+	CODE_BORNE_SOUS_TYPE( IDX_B, IS_LAST => FALSE );				-- FST := INDEX'FIRST
+	DANS_OBJET( COMP_ID, CODI.DESC_FST_1 );
+	PUT_LINE( OK_F & ':' );
+	DEPUIS_OBJET( COMP_ID, CODI.DESC_LST_1 );
+	CODE_BORNE_SOUS_TYPE( IDX_B, IS_LAST => TRUE );
+	PUT_LINE( tab & "CGT" );
+	PUT_LINE( tab & "BF" & tab & OK_L );
+	CODE_BORNE_SOUS_TYPE( IDX_B, IS_LAST => TRUE );				-- LST := INDEX'LAST
+	DANS_OBJET( COMP_ID, CODI.DESC_LST_1 );
+	PUT_LINE( OK_L & ':' );
+	PUT_LINE( VIDE & ':' );
+        end;
+
+      elsif  CODI.CHECKS_ENABLED  then
         declare
 	VIDE	:constant STRING	:= LABEL_STR( NEW_LABEL );
 	IDX_B_S	: SEQ_TYPE	:= LIST( D( SM_INDEX_S, CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, COMP_TYPE ) ) ) );
@@ -3112,6 +3179,101 @@ is
 	----------------------
 
 
+			---------------
+  procedure		CODE_TAILLE_MAX	( REC_TYPE :TREE;  MAX_VAR :STRING )
+  is			---------------
+	-- Option B, taille MAXIMALE d'un objet NON CONTRAINT d'un type a discriminants
+	-- par defaut : MAX_VAR (cellule D du cadre courant, declaree ici) := max du
+	-- __TAILLE sur les combinaisons des bornes FIRST/LAST des sous-types de
+	-- discriminants, posees dans une partie statique temporaire.  Les bornes
+	-- des composants sont ramenees dans leur sous-type d'indice (BORNER) : aucun
+	-- controle ici (lot 27) -- il revient aux discriminants effectifs de l'objet.
+	-- Sortie de CODE_OBJET_DYNAMIQUE (etape 3) pour servir aussi au pas d'un
+	-- tableau de records mutables, elabore avec le TYPE tableau.
+    BASE_REC	: TREE		:= CODI.FULL_TYPE_VIEW( REC_TYPE );
+    BASE_NAME	: TREE;
+    LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+    TMP		:constant STRING	:= "__TMX" & NEW_LABEL;
+    DISCRS	: array ( 1 .. 4 ) of TREE;
+    NB		: NATURAL		:= 0;
+    DECL_S2	: SEQ_TYPE;
+    DECL2	: TREE;
+    ID_S2	: SEQ_TYPE;
+    ID2		: TREE;
+    COMBI	: NATURAL;
+    NB_COMB	: NATURAL		:= 1;							-- 2 ** NB (sans "**" : TLALOC refuse 0 .. 2 ** NB - 1)
+
+		-----------
+    procedure	BORNE_DISCR	( DISCR :TREE; IS_LAST :BOOLEAN )
+    is		-----------
+	-- empile FIRST ou LAST du sous-type du discriminant
+    begin
+      CODE_BORNE_SOUS_TYPE( D( SM_OBJ_TYPE, DISCR ), IS_LAST );
+    end	BORNE_DISCR;
+	-----------
+
+  begin
+    if  BASE_REC.TY = DN_CONSTRAINED_RECORD  then
+      BASE_REC := CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, BASE_REC ) );
+    end if;
+    BASE_NAME := D( XD_SOURCE_NAME, BASE_REC );
+    PUT( "VAR " & TMP & "__dat, " );								-- partie statique temporaire
+    REGIONS_PATH( BASE_NAME );
+    PUT_LINE( TYPE_INFO_STR( BASE_REC ) & ".size" );
+    PUT_LINE( "VAR " & TMP & "_disp, Q" );
+    PUT_LINE( tab & "LVA" & tab & LVL_STR & ", " & TMP & "__dat" );
+    PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & TMP & "_disp" );
+    DECL_S2 := LIST( D( SM_DISCRIMINANT_S, BASE_REC ) );
+    while  not IS_EMPTY( DECL_S2 )  loop
+      POP( DECL_S2, DECL2 );
+      ID_S2 := LIST( D( AS_SOURCE_NAME_S, DECL2 ) );
+      while  not IS_EMPTY( ID_S2 )  loop
+	POP( ID_S2, ID2 );
+	if  NB = DISCRS'LAST  then
+	  CODI.TROU( "CODE_OBJET_DYNAMIQUE taille max : plus de 4 discriminants", ID2 );
+	else
+	  NB := NB + 1;
+	  DISCRS( NB ) := ID2;
+	end if;
+      end loop;
+    end loop;
+
+    PUT_LINE( "VAR " & MAX_VAR & ", D" );
+    PUT_LINE( tab & "LI" & tab & "0" );
+    PUT_LINE( tab & "SD" & tab & LVL_STR & ", " & MAX_VAR );
+    for  I in 1 .. NB  loop
+      NB_COMB := NB_COMB * 2;
+    end loop;
+    for  C in NATURAL range 0 .. NB_COMB - 1  loop
+      COMBI := C;
+      for  I in 1 .. NB  loop
+	BORNE_DISCR( DISCRS( I ), IS_LAST => COMBI mod 2 = 1 );
+	COMBI := COMBI / 2;
+	PUT( tab & "SI" & CODI.OPER_SIZ_CHAR( D( SM_OBJ_TYPE, DISCRS( I ) ) ) & tab & LVL_STR & ", " & TMP & "_disp, " );
+	REGIONS_PATH( DISCRS( I ) );
+	PUT_LINE( PRINT_NAME( D( LX_SYMREP, DISCRS( I ) ) ) );
+      end loop;
+      CODE_INIT_DESCRIPTEURS( BASE_REC, CODI.CUR_LEVEL, TMP & "_disp", BORNER => TRUE );
+      declare
+	SKIP	:constant STRING	:= LABEL_STR( NEW_LABEL );
+      begin
+	PUT( tab & "LID" & tab & LVL_STR & ", " & TMP & "_disp, " );
+	REGIONS_PATH( BASE_NAME );
+	PUT_LINE( TYPE_INFO_STR( BASE_REC ) & ".__TAILLE" );
+	PUT_LINE( tab & "LD" & tab & LVL_STR & ", " & MAX_VAR );
+	PUT_LINE( tab & "CGT" );
+	PUT_LINE( tab & "BF" & tab & SKIP );
+	PUT( tab & "LID" & tab & LVL_STR & ", " & TMP & "_disp, " );
+	REGIONS_PATH( BASE_NAME );
+	PUT_LINE( TYPE_INFO_STR( BASE_REC ) & ".__TAILLE" );
+	PUT_LINE( tab & "SD" & tab & LVL_STR & ", " & MAX_VAR );
+	PUT_LINE( SKIP & ':' );
+      end;
+    end loop;
+  end	CODE_TAILLE_MAX;
+	---------------
+
+
 			--------------------
   procedure		CODE_OBJET_DYNAMIQUE	( REC_TYPE :TREE; DSCRMT_EXP_S :SEQ_TYPE; SUR_LE_TAS :BOOLEAN;
 						  MUTABLE :BOOLEAN := FALSE )
@@ -3143,76 +3305,6 @@ is
     EXP			: TREE;
     MAX_VAR		:constant STRING	:= "__MAX" & NEW_LABEL;
 
-		-------------
-    procedure	BORNE_DISCR	( DISCR :TREE; IS_LAST :BOOLEAN )
-    is		-------------
-	-- empile FIRST ou LAST du sous-type du discriminant
-    begin
-      CODE_BORNE_SOUS_TYPE( D( SM_OBJ_TYPE, DISCR ), IS_LAST );
-    end	BORNE_DISCR;
-	-----------
-
-		-----------
-    procedure	TAILLE_MAX
-    is		-----------
-	-- MAX_VAR := max sur les combinaisons de bornes du __TAILLE de l'objet
-      DISCRS	: array ( 1 .. 4 ) of TREE;
-      NB		: NATURAL		:= 0;
-      DECL_S2	: SEQ_TYPE	:= LIST( D( SM_DISCRIMINANT_S, BASE_REC ) );
-      DECL2	: TREE;
-      ID_S2	: SEQ_TYPE;
-      ID2		: TREE;
-      COMBI	: NATURAL;
-      NB_COMB	: NATURAL		:= 1;							-- 2 ** NB (sans "**" : TLALOC refuse
-    begin												-- 0 .. 2 ** NB - 1 en intervalle NATURAL)
-      while  not IS_EMPTY( DECL_S2 )  loop
-        POP( DECL_S2, DECL2 );
-        ID_S2 := LIST( D( AS_SOURCE_NAME_S, DECL2 ) );
-        while  not IS_EMPTY( ID_S2 )  loop
-	POP( ID_S2, ID2 );
-	if  NB = DISCRS'LAST  then
-	  CODI.TROU( "CODE_OBJET_DYNAMIQUE taille max : plus de 4 discriminants", ID2 );
-	else
-	  NB := NB + 1;
-	  DISCRS( NB ) := ID2;
-	end if;
-        end loop;
-      end loop;
-
-      PUT_LINE( "VAR " & MAX_VAR & ", D" );
-      PUT_LINE( tab & "LI" & tab & "0" );
-      PUT_LINE( tab & "SD" & tab & LVL_STR & ", " & MAX_VAR );
-      for  I in 1 .. NB  loop
-        NB_COMB := NB_COMB * 2;
-      end loop;
-      for  C in NATURAL range 0 .. NB_COMB - 1  loop
-        COMBI := C;
-        for  I in 1 .. NB  loop
-	BORNE_DISCR( DISCRS( I ), IS_LAST => COMBI mod 2 = 1 );
-	COMBI := COMBI / 2;
-	PUT( tab & "SI" & CODI.OPER_SIZ_CHAR( D( SM_OBJ_TYPE, DISCRS( I ) ) ) & tab & LVL_STR & ", " & TMP & "_disp, " );
-	REGIONS_PATH( DISCRS( I ) );
-	PUT_LINE( PRINT_NAME( D( LX_SYMREP, DISCRS( I ) ) ) );
-        end loop;
-        CODE_INIT_DESCRIPTEURS( BASE_REC, CODI.CUR_LEVEL, TMP & "_disp" );
-        declare
-	SKIP	:constant STRING	:= LABEL_STR( NEW_LABEL );
-        begin
-	PUT( tab & "LID" & tab & LVL_STR & ", " & TMP & "_disp, " );
-	REGIONS_PATH( BASE_NAME );
-	PUT_LINE( TYPE_INFO_STR( BASE_REC ) & ".__TAILLE" );
-	PUT_LINE( tab & "LD" & tab & LVL_STR & ", " & MAX_VAR );
-	PUT_LINE( tab & "CGT" );
-	PUT_LINE( tab & "BF" & tab & SKIP );
-	PUT( tab & "LID" & tab & LVL_STR & ", " & TMP & "_disp, " );
-	REGIONS_PATH( BASE_NAME );
-	PUT_LINE( TYPE_INFO_STR( BASE_REC ) & ".__TAILLE" );
-	PUT_LINE( tab & "SD" & tab & LVL_STR & ", " & MAX_VAR );
-	PUT_LINE( SKIP & ':' );
-        end;
-      end loop;
-    end	TAILLE_MAX;
-	----------
 
   begin
     if  BASE_REC.TY = DN_CONSTRAINED_RECORD  then
@@ -3229,7 +3321,7 @@ is
     PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & TMP & "_disp" );
 
     if  MUTABLE  then
-      TAILLE_MAX;
+      CODE_TAILLE_MAX( BASE_REC, MAX_VAR );							--| lot 27 : procedure partagee
     end if;
 
     -- 2. discriminants
@@ -3287,6 +3379,36 @@ is
 
   end	CODE_OBJET_DYNAMIQUE;
 	--------------------
+
+
+			---------------
+  function		ELEMENT_TABLEAU	( T :TREE )		return TREE
+  is			---------------
+	-- Lot 27 : vue complete du type des composants d'un type tableau.
+    TS		: TREE		:= FULL_TYPE_VIEW( T );
+  begin
+    if  TS.TY = DN_CONSTRAINED_ARRAY  then
+      TS := FULL_TYPE_VIEW( D( SM_BASE_TYPE, TS ) );
+    end if;
+    if  TS.TY /= DN_ARRAY  then
+      return TREE_VOID;
+    end if;
+    return  FULL_TYPE_VIEW( D( SM_COMP_TYPE, TS ) );
+  end	ELEMENT_TABLEAU;
+	---------------
+
+
+			---------------------
+  function		EST_TABLEAU_DYNAMIQUE	( T :TREE )		return BOOLEAN
+  is			---------------------
+	-- Lot 27 : tableau dont les composants sont des records dynamiques (option B).
+    E		: TREE		:= ELEMENT_TABLEAU( T );
+  begin
+    return  E /= TREE_VOID
+	and then  ( E.TY = DN_RECORD  or else  E.TY = DN_CONSTRAINED_RECORD )
+	and then  EST_RECORD_DYNAMIQUE( E );
+  end	EST_TABLEAU_DYNAMIQUE;
+	---------------------
 
 
 			--------------
@@ -3422,7 +3544,8 @@ is
 
 
 			---------------------------
-  procedure		CODE_INIT_IMPLICITE_TABLEAU	( ARR_TYPE :TREE;  DATA_VAR, LEN_VAR :STRING )
+  procedure		CODE_INIT_IMPLICITE_TABLEAU	( ARR_TYPE :TREE;  DATA_VAR, LEN_VAR :STRING;
+							  PAS_VAR, GAB_VAR :STRING := "" )
   is			---------------------------
 	-- Lot 26 (LRM 3.2.1) : valeurs implicites des composants d'un tableau contraint
 	-- dont l'adresse des donnees est dans DATA_VAR et la longueur en octets dans
@@ -3430,6 +3553,10 @@ is
 	-- les composants, au pas de leur taille (celui de TYPES_DECLS : CD_IMPL_SIZE
 	-- arrondi a l'octet, ou <record>.size) : record -> INIT_RECORD_A ; tableau
 	-- contraint de taille statique -> recursion.
+	-- Lot 27, composants records DYNAMIQUES : GAB_VAR contient l'adresse d'un
+	-- gabarit (objet auto-relatif, discriminants et descripteurs poses) et
+	-- PAS_VAR le pas en octets ; chaque composant en recoit une copie (BLKMOV
+	-- du pas entier), puis ses valeurs implicites.
     LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
     TS		: TREE		:= FULL_TYPE_VIEW( ARR_TYPE );
     ELEM		: TREE		:= FULL_TYPE_VIEW( D( SM_COMP_TYPE, FULL_TYPE_VIEW( D( SM_BASE_TYPE, TS ) ) ) );
@@ -3438,7 +3565,7 @@ is
     BOUCLE	:constant STRING	:= NEW_LABEL;
     SORTIE	:constant STRING	:= NEW_LABEL;
   begin
-    if  not A_INIT_IMPLICITE_TYPE( TS )  then
+    if  GAB_VAR = ""  and then  not A_INIT_IMPLICITE_TYPE( TS )  then
       return;
     end if;
     PUT_LINE( "VAR " & CUR & ", Q" );								-- @composant courant
@@ -3455,7 +3582,15 @@ is
     PUT_LINE( tab & "CLT" );
     PUT_LINE( tab & "BF" & tab & SORTIE );
 
-    if  ELEM.TY = DN_CONSTRAINED_ARRAY  then
+    if  GAB_VAR /= ""  then
+      PUT_LINE( tab & "LA  " & LVL_STR & ", " & CUR );						-- @DST
+      PUT_LINE( tab & "LA  " & LVL_STR & ", " & PAS_VAR );					-- LEN
+      PUT_LINE( tab & "LA  " & LVL_STR & ", " & GAB_VAR );					-- @SRC
+      PUT_LINE( tab & "BLKMOV" );
+      if  A_INIT_IMPLICITE( ELEM )  then
+        CODE_INIT_IMPLICITE( ELEM, CUR );
+      end if;
+    elsif  ELEM.TY = DN_CONSTRAINED_ARRAY  then
       declare
         E_LEN	:constant STRING	:= CUR & "_L";
       begin
@@ -3469,7 +3604,9 @@ is
     end if;
 
     PUT_LINE( tab & "LA  " & LVL_STR & ", " & CUR );						-- composant suivant
-    if  TAILLE_STATIQUE( ELEM ) > 0  then
+    if  PAS_VAR /= ""  then
+      PUT_LINE( tab & "LA  " & LVL_STR & ", " & PAS_VAR );
+    elsif  TAILLE_STATIQUE( ELEM ) > 0  then
       PUT_LINE( tab & "LI" & tab & IMAGE( TAILLE_STATIQUE( ELEM ) ) );
     else
       declare

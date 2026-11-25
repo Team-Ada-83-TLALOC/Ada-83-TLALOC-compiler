@@ -261,6 +261,9 @@ is
     procedure CODE_OBJECT_ADDRESS	( NAME : TREE );
     procedure CODE_COMPOSITE_DATA_ADDRESS( EXP : TREE );
     procedure CODE_DOUBLET_DYNAMIQUE	( SELECTED :TREE; ANON :STRING );					--| option B : R.A dynamique -> @doublet {donnees, descripteur}
+    procedure CODE_RECORD_EQUALITY	( OP_STR :STRING; PRM_1, PRM_2 :TREE; CONTEXT_TYPE :TREE;
+				  A_CELL, B_CELL :STRING := "" );				--| lot 28 : operandes en cellules (composants)
+    procedure CODE_AGREGAT_TABLEAU_DYNAMIQUE ( AGG, ARR_TYPE :TREE;  DATA_VAR, FST_VAR, LST_VAR, PAS_VAR :STRING );	--| lot 28
     procedure CODE_COPIE_RECORD_DYNAMIQUE	( SRC_EXP :TREE; REC_TYPE :TREE );					--| option B : pile @DST -> (copie de __TAILLE(source) octets)
     procedure CODE_VALEUR_COMPOSANT_DYNAMIQUE ( COMP_ID, VALEUR :TREE );						--| pile : @descripteur ; valeur -> donnees du composant
     procedure ELABORER_DISCRIMINANTS	( C :TREE );								--| 3.7.2 : evaluation unique + compatibilite, a l'elaboration
@@ -349,7 +352,8 @@ is
     procedure CODE_PACKAGE_SPEC	( PACKAGE_SPEC :TREE );
     procedure CODE_GENERIC_DECL	( GENERIC_DECL :TREE );
     procedure CODE_BORNE_SOUS_TYPE	( T :TREE; IS_LAST :BOOLEAN );						--| empile FIRST / LAST d'un sous-type discret
-    procedure CODE_INIT_DESCRIPTEURS	( REC_TYPE :TREE; OBJ_LVL :LEVEL_NUM; OBJ_VAR :STRING );		--| option B : descripteurs et __TAILLE de l'objet
+    procedure CODE_INIT_DESCRIPTEURS	( REC_TYPE :TREE; OBJ_LVL :LEVEL_NUM; OBJ_VAR :STRING;
+				  BORNER :BOOLEAN := FALSE );		--| option B : descripteurs et __TAILLE de l'objet
 												--| dont l'adresse est dans la variable OBJ_VAR
     procedure CODE_OBJET_DYNAMIQUE	( REC_TYPE :TREE; DSCRMT_EXP_S :SEQ_TYPE; SUR_LE_TAS :BOOLEAN;
 				  MUTABLE :BOOLEAN := FALSE );						--| option B : pile -> @objet neuf (discriminants de
@@ -358,8 +362,12 @@ is
     function  A_INIT_IMPLICITE	( REC_TYPE :TREE )		return BOOLEAN;				--| lot 25 : un composant recoit une valeur implicite
     procedure CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING );				--| lot 25 : valeurs implicites des composants de l'objet
 												--| dont l'adresse est dans OBJ_VAR (discriminants poses)
+    function  ELEMENT_TABLEAU	( T :TREE )		return TREE;				--| lot 27 : type des composants d'un tableau
+    function  EST_TABLEAU_DYNAMIQUE	( T :TREE )		return BOOLEAN;				--| lot 27 : composants records dynamiques
+    procedure CODE_TAILLE_MAX	( REC_TYPE :TREE;  MAX_VAR :STRING );				--| lot 27 : taille maximale d'un objet non contraint (bornes ramenees)
     function  A_INIT_IMPLICITE_TYPE	( T :TREE )		return BOOLEAN;				--| lot 26 : record ou tableau contraint a valeurs implicites
-    procedure CODE_INIT_IMPLICITE_TABLEAU ( ARR_TYPE :TREE;  DATA_VAR, LEN_VAR :STRING );		--| lot 26 : composants d'un tableau (donnees dans DATA_VAR,
+    procedure CODE_INIT_IMPLICITE_TABLEAU ( ARR_TYPE :TREE;  DATA_VAR, LEN_VAR :STRING;
+					  PAS_VAR, GAB_VAR :STRING := "" );		--| lot 26 : composants d'un tableau (donnees dans DATA_VAR,
 												--| longueur en octets dans LEN_VAR)
 
 
