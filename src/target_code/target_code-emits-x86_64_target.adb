@@ -84,6 +84,85 @@ is					-------------
   end	E_POP_RBX;
 	---------
 
+			-----------------
+  procedure		E_SETCC_CELLULE		( CC :INTEGER )						--| 10 octets (lot 44)
+  is			-----------------
+	--| Booleen d'une comparaison dans la cellule ENTIERE du sommet : setcc al, movzx eax, al,
+	--| mov [rbp], rax.  Avant : setcc [rbp], qui laissait les 7 octets hauts de l'operande A
+	--| (BT / BF ne lisent que l'octet bas ; une valeur entiere du booleen etait fausse).
+  begin
+    B( 16#0F# ); B( CC ); B( 16#C0# );									--| setcc al
+    B( 16#0F# ); B( 16#B6# ); B( 16#C0# );								--| movzx eax, al
+    B( 16#48# ); B( 16#89# ); B( 16#45# ); B( 16#00# );							--| mov [rbp], rax
+  end	E_SETCC_CELLULE;
+	-----------------
+
+			--------
+  procedure		E_JCC_NE		( CC :INTEGER )						--| 6 octets (lot 46)
+  is			--------
+	--| jcc rel32 vers STANDARD.ne_raise_ (NUMERIC_ERROR) : alignement sur LLIR V8, ou
+	--| les fautes 128 (diviseur nul) et 129 (resultat signe hors de 64 bits) valent un
+	--| raise NUMERIC_ERROR a l'instruction fautive (TAHX). CC : 80 jo, 82 jc, 83 jae,
+	--| 84 jz, 88 js, 8F jg.
+    V	: SYMBOLS.VALUE_TYPE	:= SYMBOLS.VALUE_OF( SYMBOLS.RESOLVE( "STANDARD.ne_raise_" ) );
+  begin
+    B( 16#0F# ); B( CC );
+    D32( INTEGER( V - ( ORG + SYMBOLS.VALUE_TYPE( TOP ) + 4 ) ) );
+  end	E_JCC_NE;
+	--------
+
+			---------------------
+  procedure		E_DIVISEUR_NON_NUL								--| 9 octets (lot 46)
+  is			---------------------
+	--| rbx = diviseur : nul -> NUMERIC_ERROR (faute 128)
+  begin
+    B( 16#48# ); B( 16#85# ); B( 16#DB# );								--| test rbx, rbx
+    E_JCC_NE( 16#84# );										--| jz ne_raise_
+  end	E_DIVISEUR_NON_NUL;
+	---------------------
+
+			-------------------
+  procedure		E_DIVISION_EXACTE								--| 41 octets (lot 46)
+  is			-------------------
+	--| rdx:rax = dividende sur 128 bits, rbx = diviseur non nul. Quotient tronque vers zero
+	--| dans rax, |reste| dans rdx, signe du quotient dans le bit 63 de r8. Quotient hors de
+	--| [-2**63, 2**63) -> NUMERIC_ERROR (faute 129 de CVTIX, CVTXI), sans idiv (#DE). rbx
+	--| ressort avec |diviseur|.
+	--| Division non signee des valeurs absolues, puis signe.
+  begin
+    B( 16#49# ); B( 16#89# ); B( 16#D0# );								--| mov r8, rdx
+    B( 16#49# ); B( 16#31# ); B( 16#D8# );								--| xor r8, rbx (signe du quotient)
+    B( 16#48# ); B( 16#85# ); B( 16#D2# );								--| test rdx, rdx
+    B( 16#79# ); B( 16#0A# );									--| jns +10
+    B( 16#48# ); B( 16#F7# ); B( 16#D8# );								--| neg rax
+    B( 16#48# ); B( 16#83# ); B( 16#D2# ); B( 16#00# );							--| adc rdx, 0
+    B( 16#48# ); B( 16#F7# ); B( 16#DA# );								--| neg rdx (|dividende|)
+    B( 16#48# ); B( 16#85# ); B( 16#DB# );								--| test rbx, rbx
+    B( 16#79# ); B( 16#03# );									--| jns +3
+    B( 16#48# ); B( 16#F7# ); B( 16#DB# );								--| neg rbx (|diviseur|, 2**63 non signe)
+    B( 16#48# ); B( 16#39# ); B( 16#DA# );								--| cmp rdx, rbx
+    E_JCC_NE( 16#83# );										--| jae ne_raise_ (quotient >= 2**64)
+    B( 16#48# ); B( 16#F7# ); B( 16#F3# );								--| div rbx (non signe)
+  end	E_DIVISION_EXACTE;
+	-------------------
+
+			-------------------
+  procedure		E_SIGNE_QUOTIENT								--| 28 octets (lot 46)
+  is			-------------------
+	--| rax = |quotient| (non signe), signe dans le bit 63 de r8 : rax := quotient signe,
+	--| NUMERIC_ERROR s'il sort de [-2**63, 2**63).
+  begin
+    B( 16#4D# ); B( 16#85# ); B( 16#C0# );								--| test r8, r8
+    B( 16#78# ); B( 16#0B# );									--| js +11 (negatif)
+    B( 16#48# ); B( 16#85# ); B( 16#C0# );								--| test rax, rax
+    E_JCC_NE( 16#88# );										--| js ne_raise_ (>= 2**63)
+    B( 16#EB# ); B( 16#0C# );									--| jmp +12
+    B( 16#48# ); B( 16#F7# ); B( 16#D8# );								--| neg rax
+    B( 16#48# ); B( 16#85# ); B( 16#C0# );								--| test rax, rax
+    E_JCC_NE( 16#8F# );										--| jg ne_raise_ (|q| > 2**63)
+  end	E_SIGNE_QUOTIENT;
+	-------------------
+
 			---------
   procedure		E_POP_RCX									--| 8 octets (decalages, conversions)
   is			---------
@@ -445,14 +524,14 @@ is					-------------
 		-------------------------------------------------------------
 --		O P E R A T I O N S	  A R I T H M E T I Q U E   E N T I E R E
 
-    elsif  M = "DEC"  or else  M = "INC"  or else  M = "NEG"  then return  4;
-    elsif  M = "ABS"  then return  16;									--| (x xor allsign) - allsign
+    elsif  M = "DEC"  or else  M = "INC"  or else  M = "NEG"  then return  10;					--| + jo ne_raise_ (lot 46)
+    elsif  M = "ABS"  then return  22;									--| (x xor allsign) - allsign
     elsif  M = "CLAMP0"  then return  15;
-    elsif  M = "ADD"  or else  M = "SUB"  then return 12;							--| POP_RAX(8) + op qword [rbp],rax (4)
-    elsif  M = "MUL"  then return  24;									--| POP_RAX + imul qword [rbp] + DROP + PUSH_RAX
-    elsif  M = "DIV"  then return  29;
-    elsif  M = "REMI"  then return  32;
-    elsif  M = "MODI"  then return  48;
+    elsif  M = "ADD"  or else  M = "SUB"  then return 18;							--| POP_RAX(8) + op qword [rbp],rax (4) + jo (6)
+    elsif  M = "MUL"  then return  30;									--| POP_RAX + imul qword [rbp] + jo + DROP + PUSH_RAX
+    elsif  M = "DIV"  then return  29 + 9 + 4 + 2 + 3 + 6 + 2;						--| lot 46 : diviseur nul, -2**63 / -1
+    elsif  M = "REMI"  then return  32 + 9 + 4 + 2 + 2 + 2;
+    elsif  M = "MODI"  then return  48 + 9 + 4 + 2 + 2 + 2;
     elsif  M = "SAR"  then return  12;									--| POP_RCX + sar qword [rbp], cl
 
 
@@ -476,26 +555,26 @@ is					-------------
 	---------------------------------------------------
 --	C O N V E R S I O N S   E N T I E R  <->  F I X E D
 
-    elsif  M = "CVTIX"  then return  38;
-    elsif  M = "CVTXI"  then return  70;								--| X*NUMER/DENOM arrondi au plus pres
+    elsif  M = "CVTIX"  then return  24 + 9 + 3 + 41 + 28 + 8;						--| lot 46 : division exacte controlee
+    elsif  M = "CVTXI"  then return  24 + 9 + 3 + 41 + 18 + 28 + 8;						--| lot 46 : division exacte controlee, arrondi								--| X*NUMER/DENOM arrondi au plus pres
 
 
 				-----------------------
 --				C O M P A R A I S O N S
 
-    elsif  M = "CEQ"  then return  16;									--| POP_RBX + cmp + sete
+    elsif  M = "CEQ"  then return  22;									--| POP_RBX + cmp + setcc al, movzx, mov (lot 44)
     elsif  M = "CNE"  or else  M = "CGT"  or else  M = "CGE"  or else  M = "CLT"  or else  M = "CLE"
-    then return  16;
+    then return  22;
 
 
 		-------------------------------------------------------------------------
 --		C O M P A R A I S O N S   F L O T T A N T E S   ( S S E 2	d o u b l e )
 
-    elsif  M = "FCEQ"  then return  28;									--| ucomisd + sete, NaN exclu (setnp)
-    elsif  M = "FCNE"  then return  28;
+    elsif  M = "FCEQ"  then return  33;									--| ucomisd + sete, NaN exclu (setnp) ; cellule entiere (lot 44)
+    elsif  M = "FCNE"  then return  33;
     elsif  M = "FCGT"  or else  M = "FCGE"  or else  M = "FCLT"
-    then return  22;
-    elsif  M = "FCLE"  then return  22;									--| ucomisd inverse + setae
+    then return  28;
+    elsif  M = "FCLE"  then return  28;									--| ucomisd inverse + setae
 
 
 			-----------------------------------------------------
@@ -955,18 +1034,22 @@ is					-------------
 
     elsif  M = "DEC"  then										--| dec qword [rbp]
       B( 16#48# ); B( 16#FF# ); B( 16#4D# ); B( 16#00# );
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (lot 46, faute 129)
 
     elsif  M = "INC"  then										--| inc qword [rbp]
       B( 16#48# ); B( 16#FF# ); B( 16#45# ); B( 16#00# );
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (lot 46, faute 129)
 
     elsif  M = "NEG"  then										--| neg qword [rbp]
       B( 16#48# ); B( 16#F7# ); B( 16#5D# ); B( 16#00# );
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (lot 46, faute 129)
 
     elsif  M = "ABS"  then										--| valeur absolue entiere
       B( 16#48# ); B( 16#8B# ); B( 16#45# ); B( 16#00# );							--| mov rax, [rbp]
       B( 16#48# ); B( 16#C1# ); B( 16#F8# ); B( 16#3F# );							--| sar rax, 63 (allsign)
       B( 16#48# ); B( 16#31# ); B( 16#45# ); B( 16#00# );							--| xor [rbp], rax
       B( 16#48# ); B( 16#29# ); B( 16#45# ); B( 16#00# );							--| sub [rbp], rax
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (lot 46, faute 129)
 
     elsif  M = "CLAMP0"  then										--| sommet := max(0, sommet)
       B( 16#48# ); B( 16#8B# ); B( 16#45# ); B( 16#00# );
@@ -977,20 +1060,29 @@ is					-------------
     elsif  M = "ADD"  then
       E_POP_RAX;
       B( 16#48# ); B( 16#01# ); B( 16#45# ); B( 16#00# );							--| add qword [rbp], rax
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (lot 46, faute 129)
 
     elsif  M = "SUB"  then
       E_POP_RAX;
       B( 16#48# ); B( 16#29# ); B( 16#45# ); B( 16#00# );							--| sub qword [rbp], rax
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (lot 46, faute 129)
 
     elsif  M = "MUL"  then
       E_POP_RAX;
       B( 16#48# ); B( 16#F7# ); B( 16#6D# ); B( 16#00# );							--| imul qword [rbp]
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (lot 46, faute 129)
       B( 16#48# ); B( 16#8D# ); B( 16#6D# ); B( 16#F8# );							--| DROP
       E_PUSH_RAX;
 
     elsif  M = "DIV"  then										--| division signee tronquee
       E_POP_RBX;
       E_POP_RAX;
+      E_DIVISEUR_NON_NUL;									--| lot 46 : fautes 128, 129 (V8)
+      B( 16#48# ); B( 16#83# ); B( 16#FB# ); B( 16#FF# );							--| cmp rbx, -1
+      B( 16#75# ); B( 16#0B# );									--| jne +11
+      B( 16#48# ); B( 16#F7# ); B( 16#D8# );								--| neg rax (a / -1 = -a)
+      E_JCC_NE( 16#80# );										--| jo ne_raise_ (-2**63 / -1)
+      B( 16#EB# ); B( 16#05# );									--| jmp +5 (sans idiv)
       B( 16#48# ); B( 16#99# );
       B( 16#48# ); B( 16#F7# ); B( 16#FB# );
       E_PUSH_RAX;
@@ -998,6 +1090,11 @@ is					-------------
     elsif  M = "REMI"  then										--| reste (signe du dividende)
       E_POP_RBX;
       E_POP_RAX;
+      E_DIVISEUR_NON_NUL;									--| lot 46 : faute 128 ; a rem -1 = 0
+      B( 16#48# ); B( 16#83# ); B( 16#FB# ); B( 16#FF# );							--| cmp rbx, -1
+      B( 16#75# ); B( 16#04# );									--| jne +4
+      B( 16#31# ); B( 16#C0# );									--| xor eax, eax
+      B( 16#EB# ); B( 16#08# );									--| jmp +8 (sans idiv : -2**63 rem -1 = 0)
       B( 16#48# ); B( 16#99# );
       B( 16#48# ); B( 16#F7# ); B( 16#FB# );
       B( 16#48# ); B( 16#89# ); B( 16#D0# );
@@ -1006,6 +1103,11 @@ is					-------------
     elsif  M = "MODI"  then										--| modulo Ada (signe du diviseur)
       E_POP_RBX;
       E_POP_RAX;
+      E_DIVISEUR_NON_NUL;									--| lot 46 : faute 128 ; a rem -1 = 0
+      B( 16#48# ); B( 16#83# ); B( 16#FB# ); B( 16#FF# );							--| cmp rbx, -1
+      B( 16#75# ); B( 16#04# );									--| jne +4
+      B( 16#31# ); B( 16#C0# );									--| xor eax, eax
+      B( 16#EB# ); B( 16#18# );									--| jmp +24 (sans idiv : -2**63 rem -1 = 0)
       B( 16#48# ); B( 16#99# );
       B( 16#48# ); B( 16#F7# ); B( 16#FB# );
       B( 16#48# ); B( 16#89# ); B( 16#D0# );
@@ -1099,26 +1201,25 @@ is					-------------
       E_POP_RBX;
       E_POP_RCX;
       E_POP_RAX;
-      B( 16#48# ); B( 16#F7# ); B( 16#E9# );
-      B( 16#48# ); B( 16#F7# ); B( 16#FB# );
+      E_DIVISEUR_NON_NUL;									--| lot 46 : faute 128
+      B( 16#48# ); B( 16#F7# ); B( 16#E9# );								--| imul rcx (128 bits)
+      E_DIVISION_EXACTE;									--| lot 46 : quotient tronque, faute 129
+      E_SIGNE_QUOTIENT;
       E_PUSH_RAX;
 
     elsif  M = "CVTXI"  then										--| X * NUMER / DENOM, arrondi au plus pres
       E_POP_RBX;											--| DENOM
       E_POP_RCX;											--| NUMER
       E_POP_RAX;											--| X
+      E_DIVISEUR_NON_NUL;									--| lot 46 : faute 128
       B( 16#48# ); B( 16#F7# ); B( 16#E9# );								--| imul rcx
-      B( 16#48# ); B( 16#F7# ); B( 16#FB# );								--| idiv rbx
-      B( 16#48# ); B( 16#89# ); B( 16#D1# );								--| mov rcx, rdx
-      B( 16#48# ); B( 16#C1# ); B( 16#F9# ); B( 16#3F# );							--| sar rcx, 63
-      B( 16#48# ); B( 16#31# ); B( 16#CA# );								--| xor rdx, rcx (|reste|)
-      B( 16#48# ); B( 16#29# ); B( 16#CA# );								--| sub rdx, rcx
-      B( 16#48# ); B( 16#D1# ); B( 16#EB# );								--| shr rbx, 1
-      B( 16#48# ); B( 16#83# ); B( 16#D3# ); B( 16#00# );							--| adc rbx, 0 (demi-DENOM arrondi)
+      E_DIVISION_EXACTE;									--| |q| dans rax, |r| dans rdx, |DENOM| dans rbx
+      B( 16#48# ); B( 16#29# ); B( 16#D3# );								--| sub rbx, rdx (|DENOM| - |r|)
       B( 16#48# ); B( 16#39# ); B( 16#DA# );								--| cmp rdx, rbx
-      B( 16#72# ); B( 16#07# );									--| jb +7 (pas d arrondi)
-      B( 16#48# ); B( 16#83# ); B( 16#C9# ); B( 16#01# );							--| or rcx, 1 (signe du quotient)
-      B( 16#48# ); B( 16#01# ); B( 16#C8# );								--| add rax, rcx
+      B( 16#72# ); B( 16#0A# );									--| jb +10 (2.|r| < |DENOM| : pas d'arrondi)
+      B( 16#48# ); B( 16#83# ); B( 16#C0# ); B( 16#01# );							--| add rax, 1 (a l'ecart de zero)
+      E_JCC_NE( 16#82# );										--| jc ne_raise_ (|q| + 1 = 2**64)
+      E_SIGNE_QUOTIENT;									--| sur le quotient exact arrondi (V8, [Q16])
       E_PUSH_RAX;
 
 
@@ -1128,32 +1229,32 @@ is					-------------
     elsif  M = "CEQ"  then
       E_POP_RBX;
       B( 16#48# ); B( 16#39# ); B( 16#5D# ); B( 16#00# );							--| cmp [rbp], rbx
-      B( 16#0F# ); B( 16#94# ); B( 16#45# ); B( 16#00# );							--| sete [rbp]
+      E_SETCC_CELLULE( 16#94# );								--| lot 44 : cellule entiere
 
     elsif  M = "CNE"  then										--| A /= B
       E_POP_RBX;
       B( 16#48# ); B( 16#39# ); B( 16#5D# ); B( 16#00# );
-      B( 16#0F# ); B( 16#95# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#95# );								--| lot 44 : cellule entiere
 
     elsif  M = "CGT"  then										--| A > B
       E_POP_RBX;
       B( 16#48# ); B( 16#39# ); B( 16#5D# ); B( 16#00# );
-      B( 16#0F# ); B( 16#9F# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#9F# );								--| lot 44 : cellule entiere
 
     elsif  M = "CGE"  then										--| A >= B
       E_POP_RBX;
       B( 16#48# ); B( 16#39# ); B( 16#5D# ); B( 16#00# );
-      B( 16#0F# ); B( 16#9D# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#9D# );								--| lot 44 : cellule entiere
 
     elsif  M = "CLT"  then										--| A < B
       E_POP_RBX;
       B( 16#48# ); B( 16#39# ); B( 16#5D# ); B( 16#00# );
-      B( 16#0F# ); B( 16#9C# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#9C# );								--| lot 44 : cellule entiere
 
     elsif  M = "CLE"  then										--| A <= B
       E_POP_RBX;
       B( 16#48# ); B( 16#39# ); B( 16#5D# ); B( 16#00# );
-      B( 16#0F# ); B( 16#9E# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#9E# );								--| lot 44 : cellule entiere
 
 
 		-------------------------------------------------------------------------
@@ -1164,46 +1265,50 @@ is					-------------
       B( 16#48# ); B( 16#8D# ); B( 16#6D# ); B( 16#F8# );							--| DROP
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#45# ); B( 16#00# );					--| movsd xmm0, [rbp] (A)
       B( 16#66# ); B( 16#0F# ); B( 16#2E# ); B( 16#C1# );							--| ucomisd xmm0, xmm1
-      B( 16#0F# ); B( 16#94# ); B( 16#45# ); B( 16#00# );							--| sete [rbp]
-      B( 16#0F# ); B( 16#9B# ); B( 16#C0# );								--| setnp al (pas NaN)
-      B( 16#20# ); B( 16#45# ); B( 16#00# );								--| and [rbp], al
+      B( 16#0F# ); B( 16#94# ); B( 16#C0# );								--| sete al (lot 44)
+      B( 16#0F# ); B( 16#9B# ); B( 16#C1# );								--| setnp cl (pas NaN)
+      B( 16#20# ); B( 16#C8# );									--| and al, cl
+      B( 16#0F# ); B( 16#B6# ); B( 16#C0# );								--| movzx eax, al
+      B( 16#48# ); B( 16#89# ); B( 16#45# ); B( 16#00# );							--| mov [rbp], rax
 
     elsif  M = "FCNE"  then										--| A /= B flottant (NaN -> vrai)
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#4D# ); B( 16#00# );
       B( 16#48# ); B( 16#8D# ); B( 16#6D# ); B( 16#F8# );
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#45# ); B( 16#00# );
       B( 16#66# ); B( 16#0F# ); B( 16#2E# ); B( 16#C1# );
-      B( 16#0F# ); B( 16#95# ); B( 16#45# ); B( 16#00# );
-      B( 16#0F# ); B( 16#9A# ); B( 16#C0# );
-      B( 16#08# ); B( 16#45# ); B( 16#00# );
+      B( 16#0F# ); B( 16#95# ); B( 16#C0# );								--| setne al (lot 44)
+      B( 16#0F# ); B( 16#9A# ); B( 16#C1# );								--| setp cl (NaN)
+      B( 16#08# ); B( 16#C8# );									--| or al, cl
+      B( 16#0F# ); B( 16#B6# ); B( 16#C0# );								--| movzx eax, al
+      B( 16#48# ); B( 16#89# ); B( 16#45# ); B( 16#00# );							--| mov [rbp], rax
 
     elsif  M = "FCGT"  then										--| A > B flottant
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#4D# ); B( 16#00# );
       B( 16#48# ); B( 16#8D# ); B( 16#6D# ); B( 16#F8# );
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#45# ); B( 16#00# );
       B( 16#66# ); B( 16#0F# ); B( 16#2E# ); B( 16#C1# );
-      B( 16#0F# ); B( 16#97# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#97# );								--| lot 44 : cellule entiere
 
     elsif  M = "FCGE"  then										--| A >= B flottant
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#4D# ); B( 16#00# );
       B( 16#48# ); B( 16#8D# ); B( 16#6D# ); B( 16#F8# );
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#45# ); B( 16#00# );
       B( 16#66# ); B( 16#0F# ); B( 16#2E# ); B( 16#C1# );
-      B( 16#0F# ); B( 16#93# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#93# );								--| lot 44 : cellule entiere
 
     elsif  M = "FCLT"  then										--| A < B flottant (ucomisd inverse)
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#4D# ); B( 16#00# );
       B( 16#48# ); B( 16#8D# ); B( 16#6D# ); B( 16#F8# );
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#45# ); B( 16#00# );
       B( 16#66# ); B( 16#0F# ); B( 16#2E# ); B( 16#C8# );
-      B( 16#0F# ); B( 16#97# ); B( 16#45# ); B( 16#00# );
+      E_SETCC_CELLULE( 16#97# );								--| lot 44 : cellule entiere
 
     elsif  M = "FCLE"  then										--| A <= B flottant
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#4D# ); B( 16#00# );					--| movsd xmm1, [rbp] (B)
       B( 16#48# ); B( 16#8D# ); B( 16#6D# ); B( 16#F8# );							--| DROP
       B( 16#F2# ); B( 16#0F# ); B( 16#10# ); B( 16#45# ); B( 16#00# );					--| movsd xmm0, [rbp] (A)
       B( 16#66# ); B( 16#0F# ); B( 16#2E# ); B( 16#C8# );							--| ucomisd xmm1, xmm0 (inverse)
-      B( 16#0F# ); B( 16#93# ); B( 16#45# ); B( 16#00# );							--| setae [rbp]
+      E_SETCC_CELLULE( 16#93# );								--| lot 44 : cellule entiere
 
 
 			-----------------------------------------------------

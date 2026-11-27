@@ -320,6 +320,25 @@ is
     FIXED_RANGE	: TREE		:= D( SM_RANGE, TYPE_SPEC );		-- contrainte pliee du subtype_indication
     EXP_FST	: TREE		:= D( AS_EXP1, FIXED_RANGE );
     EXP_LST	: TREE		:= D( AS_EXP2, FIXED_RANGE );
+			----------------
+    procedure		EMIT_TERME_SMALL	( S :STRING )
+    is			----------------
+	--| Lot 42 : numerateur ou denominateur du small. 2**63 (small 2**-63, SYSTEM.FINE_DELTA)
+	--| ne tient pas en LI signe : on emet son motif de 64 bits, -2**63. Seuls les generiques
+	--| (FIXED_USE_INFO) lisent ces champs, et ne savent pas encore traiter ce cas.
+      use ENTIERS_EXACTS;
+      V		: ENTIER_EXACT	:= LIRE( S );
+    begin
+      if  TIENT_64( V )  then
+        PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( V ) );
+      elsif  EGAL( V, OPPOSE( EXACT( LONG_INTEGER'FIRST ) ) )  then
+        PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( EXACT( LONG_INTEGER'FIRST ) ) );		--| 2**63 : motif non signe
+      else
+        TROU( "EMIT_FIXED_TYPE_INFO : terme de small au-dela de 2**63 (" & S & ")" );
+      end if;
+    end	EMIT_TERME_SMALL;
+	----------------
+
   begin
 	-- Bornes = SM_VALUE rationnels en unites du type (piege 71),
 	-- scalees par la formule unique. Pas de PARENT__u : layout
@@ -338,16 +357,16 @@ is
 
     PUT_LINE( "VAR FST, " & SIZE_CHAR );
     PUT_LINE( "VAR LST, " & SIZE_CHAR );
-    EXPRESSIONS.CODE_STATIC_FIXED_VALUE( D( SM_VALUE, EXP_FST ), TYPE_SPEC );
+    EXPRESSIONS.CODE_STATIC_FIXED_VALUE( D( SM_VALUE, EXP_FST ), TYPE_SPEC, BORNE_DE_TYPE => TRUE );
     PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", FST" );
-    EXPRESSIONS.CODE_STATIC_FIXED_VALUE( D( SM_VALUE, EXP_LST ), TYPE_SPEC );
+    EXPRESSIONS.CODE_STATIC_FIXED_VALUE( D( SM_VALUE, EXP_LST ), TYPE_SPEC, BORNE_DE_TYPE => TRUE );
     PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", LST" );
 
     PUT_LINE( "VAR NUMER, Q" );
     PUT_LINE( "VAR DENOM, Q" );
-    PUT_LINE( tab & "LI" & tab & PRINT_NUM( D( XD_NUMER, SMALL_VAL ) ) );
+    EMIT_TERME_SMALL( PRINT_NUM( D( XD_NUMER, SMALL_VAL ) ) );
     PUT_LINE( tab & "SQ" & tab & LVL_STR & ", NUMER" );
-    PUT_LINE( tab & "LI" & tab & PRINT_NUM( D( XD_DENOM, SMALL_VAL ) ) );
+    EMIT_TERME_SMALL( PRINT_NUM( D( XD_DENOM, SMALL_VAL ) ) );
     PUT_LINE( tab & "SQ" & tab & LVL_STR & ", DENOM" );
 
     PUT_LINE( "end namespace" );

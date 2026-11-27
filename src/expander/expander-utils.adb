@@ -1695,6 +1695,354 @@ end	SUBPROGRAM_ORIGIN;
 	----------------
 
 
+			--=============================================================--
+			--  ENTIERS EXACTS (lot 42) : chiffres de base 10 000, C(1)     --
+			--  poids faible, chiffres au-dela de LONG toujours nuls.       --
+			--=============================================================--
+
+		--^^^^^^^^^^^^^^--
+	package body	ENTIERS_EXACTS
+	is	--------------
+
+		---
+    function	NUL		return ENTIER_EXACT
+    is		---
+      R		: ENTIER_EXACT;
+    begin
+      R.NEGATIF := FALSE;
+      R.LONG := 0;
+      for  I in R.C'RANGE  loop
+        R.C( I ) := 0;
+      end loop;
+      return R;
+    end	NUL;
+
+		-------------
+    function	COMPARER_ABS	( A, B :ENTIER_EXACT )	return INTEGER				--| -1, 0, 1 sur |A| et |B|
+    is		-------------
+    begin
+      if  A.LONG /= B.LONG  then
+        if  A.LONG < B.LONG  then  return -1;  else  return 1;  end if;
+      end if;
+      for  I in reverse 1 .. A.LONG  loop
+        if  A.C( I ) /= B.C( I )  then
+	if  A.C( I ) < B.C( I )  then  return -1;  else  return 1;  end if;
+        end if;
+      end loop;
+      return 0;
+    end	COMPARER_ABS;
+
+		----------
+    procedure	NORMALISER	( E :in out ENTIER_EXACT )						--| retire les chiffres de tete nuls ; zero non signe
+    is		----------
+    begin
+      while  E.LONG > 0  and then  E.C( E.LONG ) = 0  loop
+        E.LONG := E.LONG - 1;
+      end loop;
+      if  E.LONG = 0  then
+        E.NEGATIF := FALSE;
+      end if;
+    end	NORMALISER;
+
+		--------------
+    function	DIFFERENCE_ABS	( A, B :ENTIER_EXACT )	return ENTIER_EXACT			--| |A| - |B|, avec |A| >= |B|
+    is		--------------
+      R		: ENTIER_EXACT	:= NUL;
+      EMPRUNT	: INTEGER		:= 0;
+      V		: INTEGER;
+    begin
+      for  I in 1 .. A.LONG  loop
+        V := A.C( I ) - B.C( I ) - EMPRUNT;
+        if  V < 0  then
+	V := V + BASE;  EMPRUNT := 1;
+        else
+	EMPRUNT := 0;
+        end if;
+        R.C( I ) := V;
+      end loop;
+      R.LONG := A.LONG;
+      NORMALISER( R );
+      return R;
+    end	DIFFERENCE_ABS;
+
+		-------------
+    function	PRODUIT_PETIT	( A :ENTIER_EXACT; K :INTEGER )	return ENTIER_EXACT		--| |A| * K, 0 <= K < BASE
+    is		-------------
+      R		: ENTIER_EXACT	:= NUL;
+      RETENUE	: INTEGER		:= 0;
+    begin
+      if  K = 0  or else  A.LONG = 0  then
+        return R;
+      end if;
+      for  I in 1 .. A.LONG  loop
+        RETENUE := RETENUE + A.C( I ) * K;
+        R.C( I ) := RETENUE mod BASE;
+        RETENUE := RETENUE / BASE;
+      end loop;
+      R.LONG := A.LONG;
+      if  RETENUE /= 0  then
+        if  R.LONG = MAX_CHIFFRES  then  raise TROP_GRAND;  end if;
+        R.LONG := R.LONG + 1;
+        R.C( R.LONG ) := RETENUE;
+      end if;
+      return R;
+    end	PRODUIT_PETIT;
+
+		-----------
+    procedure	DIVISER_ABS	( A, B :ENTIER_EXACT; Q, R :out ENTIER_EXACT )			--| |A| / |B| et |A| rem |B|, B non nul
+    is		-----------
+      QL, RL	: ENTIER_EXACT	:= NUL;
+      BAS, HAUT, MIL	: INTEGER;
+    begin
+      for  I in reverse 1 .. A.LONG  loop
+        if  RL.LONG > 0  then									--| RL := RL * BASE + A.C( I )
+	if  RL.LONG = MAX_CHIFFRES  then  raise TROP_GRAND;  end if;
+	for  J in reverse 1 .. RL.LONG  loop
+	  RL.C( J + 1 ) := RL.C( J );
+	end loop;
+	RL.LONG := RL.LONG + 1;
+        else
+	RL.LONG := 1;
+        end if;
+        RL.C( 1 ) := A.C( I );
+        NORMALISER( RL );
+
+        BAS := 0;  HAUT := BASE - 1;							--| plus grand chiffre K : |B| * K <= RL
+        while  BAS < HAUT  loop
+	MIL := ( BAS + HAUT + 1 ) / 2;
+	if  COMPARER_ABS( PRODUIT_PETIT( B, MIL ), RL ) <= 0  then
+	  BAS := MIL;
+	else
+	  HAUT := MIL - 1;
+	end if;
+        end loop;
+        if  BAS > 0  then
+	RL := DIFFERENCE_ABS( RL, PRODUIT_PETIT( B, BAS ) );
+        end if;
+        QL.C( I ) := BAS;
+      end loop;
+      QL.LONG := A.LONG;
+      NORMALISER( QL );
+      Q := QL;
+      R := RL;
+    end	DIVISER_ABS;
+
+		----------
+    function	AVEC_SIGNE	( E :ENTIER_EXACT; NEGATIF :BOOLEAN )	return ENTIER_EXACT
+    is		----------
+      R		: ENTIER_EXACT	:= E;
+    begin
+      R.NEGATIF := NEGATIF;
+      NORMALISER( R );
+      return R;
+    end	AVEC_SIGNE;
+
+		----
+    function	LIRE	( S :STRING )	return ENTIER_EXACT
+    is		----
+      R		: ENTIER_EXACT	:= NUL;
+      NEGATIF	: BOOLEAN		:= FALSE;
+      POIDS	: INTEGER		:= 1;
+      RANG	: NATURAL		:= 1;
+    begin
+      for  I in S'RANGE  loop
+        if  S( I ) = '-'  then
+	NEGATIF := TRUE;
+        end if;
+      end loop;
+      for  I in reverse S'RANGE  loop
+        if  S( I ) in '0' .. '9'  then
+	if  RANG > MAX_CHIFFRES  then
+	  if  S( I ) /= '0'  then  raise TROP_GRAND;  end if;
+	else
+	  R.C( RANG ) := R.C( RANG ) + ( CHARACTER'POS( S( I ) ) - CHARACTER'POS( '0' ) ) * POIDS;
+	  if  POIDS = 1_000  then
+	    POIDS := 1;  RANG := RANG + 1;
+	  else
+	    POIDS := POIDS * 10;
+	  end if;
+	end if;
+        end if;
+      end loop;
+      R.LONG := RANG;
+      if  R.LONG > MAX_CHIFFRES  then
+        R.LONG := MAX_CHIFFRES;
+      end if;
+      return AVEC_SIGNE( R, NEGATIF );
+    end	LIRE;
+
+		-----
+    function	EXACT	( I :LONG_INTEGER )	return ENTIER_EXACT
+    is		-----
+      R		: ENTIER_EXACT	:= NUL;
+      V		: LONG_INTEGER	:= I;
+    begin
+      while  V /= 0  loop									--| reste et quotient tronques : LONG_INTEGER'FIRST compris
+        R.LONG := R.LONG + 1;
+        R.C( R.LONG ) := INTEGER( abs ( V rem LONG_INTEGER( BASE ) ) );
+        V := V / LONG_INTEGER( BASE );
+      end loop;
+      return AVEC_SIGNE( R, I < 0 );
+    end	EXACT;
+
+		------------
+    function	IMAGE_EXACTE	( E :ENTIER_EXACT )	return STRING
+    is		------------
+      BUF		: STRING( 1 .. 4 * MAX_CHIFFRES + 1 );
+      P		: NATURAL		:= 0;
+      V		: INTEGER;
+    begin
+      if  E.LONG = 0  then
+        return "0";
+      end if;
+      if  E.NEGATIF  then
+        P := 1;  BUF( 1 ) := '-';
+      end if;
+      declare
+        IM		:constant STRING	:= INTEGER'IMAGE( E.C( E.LONG ) );
+      begin
+        BUF( P + 1 .. P + IM'LENGTH - 1 ) := IM( IM'FIRST + 1 .. IM'LAST );
+        P := P + IM'LENGTH - 1;
+      end;
+      for  I in reverse 1 .. E.LONG - 1  loop
+        V := E.C( I );
+        for  K in reverse 1 .. 4  loop
+	BUF( P + K ) := CHARACTER'VAL( CHARACTER'POS( '0' ) + V mod 10 );
+	V := V / 10;
+        end loop;
+        P := P + 4;
+      end loop;
+      return BUF( 1 .. P );
+    end	IMAGE_EXACTE;
+
+		-------
+    function	EST_NUL	( E :ENTIER_EXACT )	return BOOLEAN
+    is		-------
+    begin
+      return E.LONG = 0;
+    end	EST_NUL;
+
+		----
+    function	EGAL	( A, B :ENTIER_EXACT )	return BOOLEAN
+    is		----
+    begin
+      return A.NEGATIF = B.NEGATIF  and then  COMPARER_ABS( A, B ) = 0;
+    end	EGAL;
+
+		------
+    function	OPPOSE	( A :ENTIER_EXACT )	return ENTIER_EXACT
+    is		------
+    begin
+      return AVEC_SIGNE( A, not A.NEGATIF );
+    end	OPPOSE;
+
+		-------
+    function	PRODUIT	( A, B :ENTIER_EXACT )	return ENTIER_EXACT
+    is		-------
+      R		: ENTIER_EXACT	:= NUL;
+      RETENUE	: INTEGER;
+      V		: INTEGER;
+      K		: INTEGER;
+    begin
+      if  A.LONG = 0  or else  B.LONG = 0  then
+        return R;
+      end if;
+      if  A.LONG + B.LONG - 1 > MAX_CHIFFRES  then
+        raise TROP_GRAND;
+      end if;
+      for  I in 1 .. A.LONG  loop
+        RETENUE := 0;
+        for  J in 1 .. B.LONG  loop
+	V := R.C( I + J - 1 ) + A.C( I ) * B.C( J ) + RETENUE;
+	R.C( I + J - 1 ) := V mod BASE;
+	RETENUE := V / BASE;
+        end loop;
+        K := I + B.LONG;
+        while  RETENUE /= 0  loop
+	if  K > MAX_CHIFFRES  then  raise TROP_GRAND;  end if;
+	V := R.C( K ) + RETENUE;
+	R.C( K ) := V mod BASE;
+	RETENUE := V / BASE;
+	K := K + 1;
+        end loop;
+      end loop;
+      R.LONG := A.LONG + B.LONG;
+      if  R.LONG > MAX_CHIFFRES  then
+        R.LONG := MAX_CHIFFRES;
+      end if;
+      return AVEC_SIGNE( R, A.NEGATIF /= B.NEGATIF );
+    end	PRODUIT;
+
+		--------
+    function	QUOTIENT	( A, B :ENTIER_EXACT )	return ENTIER_EXACT
+    is		--------
+      Q, R		: ENTIER_EXACT;
+    begin
+      if  B.LONG = 0  then
+        raise CONSTRAINT_ERROR;
+      end if;
+      DIVISER_ABS( A, B, Q, R );
+      return AVEC_SIGNE( Q, A.NEGATIF /= B.NEGATIF );
+    end	QUOTIENT;
+
+		-----
+    function	RESTE	( A, B :ENTIER_EXACT )	return ENTIER_EXACT
+    is		-----
+      Q, R		: ENTIER_EXACT;
+    begin
+      if  B.LONG = 0  then
+        raise CONSTRAINT_ERROR;
+      end if;
+      DIVISER_ABS( A, B, Q, R );
+      return AVEC_SIGNE( R, A.NEGATIF );
+    end	RESTE;
+
+		----
+    function	PGCD	( A, B :ENTIER_EXACT )	return ENTIER_EXACT
+    is		----
+      X		: ENTIER_EXACT	:= AVEC_SIGNE( A, FALSE );
+      Y		: ENTIER_EXACT	:= AVEC_SIGNE( B, FALSE );
+      T		: ENTIER_EXACT;
+    begin
+      while  Y.LONG /= 0  loop
+        T := RESTE( X, Y );
+        X := Y;
+        Y := T;
+      end loop;
+      return X;
+    end	PGCD;
+
+		--------
+    function	TIENT_64	( E :ENTIER_EXACT )	return BOOLEAN
+    is		--------
+    begin
+      if  E.NEGATIF  then
+        return COMPARER_ABS( E, EXACT( LONG_INTEGER'FIRST ) ) <= 0;
+      else
+        return COMPARER_ABS( E, EXACT( LONG_INTEGER'LAST ) ) <= 0;
+      end if;
+    end	TIENT_64;
+
+		---------
+    function	VALEUR_64	( E :ENTIER_EXACT )	return LONG_INTEGER
+    is		---------
+      V		: LONG_INTEGER	:= 0;
+    begin
+      for  I in reverse 1 .. E.LONG  loop							--| cumul negatif : LONG_INTEGER'FIRST compris
+        V := V * LONG_INTEGER( BASE ) - LONG_INTEGER( E.C( I ) );
+      end loop;
+      if  E.NEGATIF  then
+        return V;
+      else
+        return -V;
+      end if;
+    end	VALEUR_64;
+
+	end	ENTIERS_EXACTS;
+	------------------
+
+
+
 	-----
 end	UTILS;
 	-----

@@ -114,7 +114,9 @@ begin
         Put_Line ("!! EXPONENT IN NUMERIC LIT TOO LARGE");
         raise Program_Error;
       end if;
-      EXPONENT := EXPONENT * 10 + Character'POS (CHR) - Character'POS ('0');
+      if CHR /= '_' then					-- LOT 42 : SOULIGNE DE L'EXPOSANT (LRM 2.4.1)
+        EXPONENT := EXPONENT * 10 + Character'POS (CHR) - Character'POS ('0');
+      end if;
       NEXT_CHR;
     end loop;
     if not EXPONENT_POSITIVE then

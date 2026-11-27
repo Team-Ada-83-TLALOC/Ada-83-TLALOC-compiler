@@ -17,6 +17,8 @@ is
   package CODI	renames EXPANDER.UTILS;
   use CODI;
 
+  DEUX_PUISSANCE_62	: constant LONG_INTEGER	:= 4_611_686_018_427_387_904;		--| lot 43 : facteur de 2**62 (diviseurs >= 2**63)
+
 	-- Agregat tableau vers un composant DYNAMIQUE (option B) : bornes de la
 	-- dimension 1 lues dans le DESCRIPTEUR de la destination (variable de
 	-- cadre DESC_AGG_VAR, niveau courant) au lieu de reevaluer SM_RANGE --
@@ -469,7 +471,12 @@ is
       end if;
 
     when DN_NUMBER_ID			=>
+      if  VALEUR_FIXE_STATIQUE( USED_OBJECT_ID, D( SM_EXP_TYPE, USED_OBJECT_ID ) ) /= TREE_VOID  then	--| lot 42 : nombre nomme reel en contexte
+        CODE_STATIC_FIXED_VALUE( VALEUR_FIXE_STATIQUE( USED_OBJECT_ID, D( SM_EXP_TYPE, USED_OBJECT_ID ) ),	--| fixe (SM_EXP_TYPE = type du contexte,
+			   FULL_TYPE_VIEW( D( SM_EXP_TYPE, USED_OBJECT_ID ) ) );			--| pose par RESOLVE_EXP comme pour un
+      else											--| litteral)
 	CODE_EXP( D( SM_INIT_EXP, DEFN ) );
+      end if;
 
     when DN_DISCRIMINANT_ID			=>
 	--| Option B : discriminant lu dans l'OBJET RECORD COURANT (bornes d'un
@@ -2722,7 +2729,9 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
       elsif  EXP_TYPE /= TREE_VOID  and then  EXP_TYPE.TY = DN_FIXED  then					-- rationnel, contexte fixed
         CODE_STATIC_FIXED_VALUE( VAL, EXP_TYPE );
 
-      elsif  EXP_TYPE /= TREE_VOID  and then  EXP_TYPE.TY = DN_FLOAT  then					-- rationnel, contexte FLOTTANT
+      elsif  EXP_TYPE /= TREE_VOID  and then  ( EXP_TYPE.TY = DN_FLOAT  or else  EXP_TYPE.TY = DN_UNIVERSAL_REAL )  then	-- rationnel, contexte FLOTTANT ou universel
+	--| lot 45 : contexte universal_real (T'SMALL /= 2.0), code en flottant comme toute
+	--| expression universal_real ; levait PROGRAM_ERROR (contexte non traite).
 	-- A83041C : FLT := D'DELTA -- l'attribut fixed consomme en flottant.
 	-- Meme idiome que CODE_SMALL (rationnel -> LONG_FLOAT -> LIF).
         declare
@@ -2857,6 +2866,17 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	and then  D( SM_ACCURACY, T ) /= TREE_VOID;
     end	EST_FLOTTANT_MODELE;
 	------------------
+
+		---------
+    function	FIXE_PLIE		return BOOLEAN
+    is		---------							--| lot 47 : prefixe fixe non formel dont le frontal a plie
+      T		: TREE	:= PREFIX_TYPE_SPEC;					--| l'attribut (LARGE, MANTISSA : LRM 3.5.10)
+    begin
+      return  T /= TREE_VOID  and then  T.TY = DN_FIXED
+	and then  not ( CODI.IN_GENERIC_BODY  and then  IS_GENERIC_FORMAL_TYPE( D( XD_SOURCE_NAME, T ) ) )
+	and then  D( SM_VALUE, ATTRIBUTE ) /= TREE_VOID;
+    end	FIXE_PLIE;
+	---------
 
 		----------------
     procedure	CODE_FLOAT_MODEL	( QUOI : CHARACTER )
@@ -4119,6 +4139,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     when  'L' =>
       if  CHN_ATTR( 2 .. 3 ) = "AR"  then
         if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'L' );						-- LARGE
+        elsif  FIXE_PLIE  then CODE_FOLDED_ATTRIBUTE;							--| lot 47 : FIXED'LARGE plie par le frontal
         else CODE_FLOAT_LARGE;
         end if;
       elsif  CHN_ATTR( 2 .. 3 ) = "AS"  then
@@ -4134,6 +4155,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     when  'M' =>
       if  CHN_ATTR( 3 ) = 'N'  then
         if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'M' );						-- MANTISSA
+        elsif  FIXE_PLIE  then CODE_FOLDED_ATTRIBUTE;							--| lot 47 : FIXED'MANTISSA plie (rendait 53)
         else CODE_FLOAT_MANTISSA;
         end if;
       elsif  CHN_ATTR( 11 ) = 'A'  then
@@ -4245,24 +4267,64 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	--------------
 
 
-			-----------------------
-  procedure		CODE_STATIC_FIXED_VALUE	( VALUE, FIXED_TYPE :TREE )
-  is			-----------------------
-
-    SMALL		: TREE		:= D( CD_IMPL_SMALL, FIXED_TYPE );
-    NUMER_SMALL	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_NUMER, SMALL ) ) );
-    DENOM_VALUE	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_DENOM, VALUE ) ) );
-
+			--------------------
+  function		VALEUR_FIXE_STATIQUE	( EXP, FIXED_TYPE :TREE )		return TREE
+  is			--------------------
+	--| Lot 42 : valeur statique reelle (rationnel exact du frontal, LRM 4.9) de EXP, a
+	--| materialiser dans le fixe FIXED_TYPE par CODE_STATIC_FIXED_VALUE. TREE_VOID si
+	--| FIXED_TYPE n'est pas un fixe, s'il est formel generique (small inconnu), si le
+	--| noeud ne porte pas SM_VALUE (classes de GET_STATIC_VALUE du frontal) ou si la
+	--| valeur n'est pas un reel.
+    VAL		: TREE;
   begin
-	-- repr = Nv.Ds / (Dv.Ns) -- FORMULE UNIQUE du pilier fixed (note v1.1 §1).
-	-- CVTIX recoit I.D.N et calcule I*D/N en 128 bits intermediaires ;
-	-- le produit Dv.Ns est fait statiquement ici. Fossile F-1 : l'ancien
-	-- bail Ns /= 1 rendait la main a un appelant emetteur de SQ -> store
-	-- depuis une pile jamais alimentee (_T34.FST/LST corrompus).
-    PUT_LINE( tab & "LI" & tab & PRINT_NUM( D( XD_NUMER, VALUE ) ) );			-- I = Nv
-    PUT_LINE( tab & "LI" & tab & PRINT_NUM( D( XD_DENOM, SMALL ) ) );			-- D = Ds
-    PUT_LINE( tab & "LI" & tab & LONG_INTEGER'IMAGE( DENOM_VALUE * NUMER_SMALL ) );	-- N = Dv.Ns
-    PUT_LINE( tab & "CVTIX" );
+    if  FIXED_TYPE = TREE_VOID  or else  FULL_TYPE_VIEW( FIXED_TYPE ).TY /= DN_FIXED  then
+      return TREE_VOID;
+    end if;
+    if  CODI.IN_GENERIC_BODY  and then  IS_GENERIC_FORMAL_TYPE( D( XD_SOURCE_NAME, FULL_TYPE_VIEW( FIXED_TYPE ) ) )  then
+      return TREE_VOID;
+    end if;
+    if  EXP.TY not in CLASS_USED_OBJECT  and then  EXP.TY not in CLASS_NAME_VAL
+      and then  EXP.TY not in CLASS_EXP_VAL
+    then
+      return TREE_VOID;
+    end if;
+    VAL := D( SM_VALUE, EXP );
+    if  VAL = TREE_VOID  or else  VAL.PT = HI  or else  VAL.TY /= DN_REAL_VAL  then
+      return TREE_VOID;
+    end if;
+    return VAL;
+  end	VALEUR_FIXE_STATIQUE;
+	--------------------
+
+
+			-----------------------
+  procedure		CODE_STATIC_FIXED_VALUE	( VALUE, FIXED_TYPE :TREE;  BORNE_DE_TYPE :BOOLEAN := FALSE )
+  is			-----------------------
+	--| Lot 42 (LRM 4.9, 4.6) : representation d'une valeur statique reelle dans le
+	--| fixe FIXED_TYPE, calculee EXACTEMENT a la compilation :
+	--|   rep = trunc( Nv.Ds / (Dv.Ns) )		(formule unique du pilier fixed, note v1.1 §1)
+	--| avec ENTIERS_EXACTS (numerateurs et denominateurs au-dela de 64 bits : small de
+	--| 2**-63, SAFE_LARGE ** 2...). rep hors de 64 bits, donc hors du type de base :
+	--| CONSTRAINT_ERROR a l'execution (LRM 4.6 ; AI83-00387).  La pile recoit une valeur
+	--| dans les deux cas (LI 0, mort, apres le BRA).
+    use ENTIERS_EXACTS;
+    SMALL		: TREE		:= D( CD_IMPL_SMALL, FIXED_TYPE );
+    REP		: ENTIER_EXACT;
+  begin
+    REP := QUOTIENT( PRODUIT( LIRE( PRINT_NUM( D( XD_NUMER, VALUE ) ) ), LIRE( PRINT_NUM( D( XD_DENOM, SMALL ) ) ) ),
+		 PRODUIT( LIRE( PRINT_NUM( D( XD_DENOM, VALUE ) ) ), LIRE( PRINT_NUM( D( XD_NUMER, SMALL ) ) ) ) );
+    if  TIENT_64( REP )  then
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( REP ) );
+    elsif  BORNE_DE_TYPE  and then  EGAL( REP, OPPOSE( EXACT( LONG_INTEGER'FIRST ) ) )  then			--| borne 2**63 . small (RANGE .. 1.0, small 2**-63) :
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( EXACT( LONG_INTEGER'LAST ) ) );				--| a un small du dernier nombre modele (LRM 3.5.9)
+    else
+      PUT_LINE( tab & "BRA" & tab & "STANDARD.ce_raise_" );					--| valeur hors du type de base
+      PUT_LINE( tab & "LI" & tab & "0" );
+    end if;
+
+  exception
+    when TROP_GRAND =>
+      TROU( "CODE_STATIC_FIXED_VALUE : valeur statique de plus de 160 chiffres" );
 
   end	CODE_STATIC_FIXED_VALUE;
 	-----------------------
@@ -6683,13 +6745,25 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         RES_TYPE		: TREE		:= D( SM_EXP_TYPE, FUNCTION_CALL );
         IS_FLOAT		: BOOLEAN		:= RES_TYPE.TY = DN_FLOAT  or  RES_TYPE.TY = DN_UNIVERSAL_REAL;
 
+
+		---------------------------
+        function	OPERANDE_ENTIER_UNIVERSEL	( PRM :TREE )	return BOOLEAN
+        is		---------------------------
+	--| Lot 47 : operande entier d'un "*" ou d'un "/" universal_real (LRM 4.10) ; son type
+	--| est universal_integer (ou un entier, si le frontal l'a resolu ainsi).
+	  T	: TREE	:= D( SM_EXP_TYPE, PRM );
+        begin
+	return ( OP_STR = """*"""  or else  OP_STR = """/""" )
+	  and then  RES_TYPE /= TREE_VOID  and then  RES_TYPE.TY = DN_UNIVERSAL_REAL
+	  and then  T /= TREE_VOID
+	  and then  ( T.TY = DN_UNIVERSAL_INTEGER  or else  T.TY = DN_INTEGER );
+        end	OPERANDE_ENTIER_UNIVERSEL;
+		---------------------------
+
       begin
-        if OP_STR = """-"""
-	  and then RES_TYPE /= TREE_VOID
-	  and then RES_TYPE.TY = DN_FIXED
-	  and then D( SM_VALUE, FUNCTION_CALL ).TY = DN_REAL_VAL
-        then
-	CODE_STATIC_FIXED_VALUE( D( SM_VALUE, FUNCTION_CALL ), RES_TYPE );
+        if  VALEUR_FIXE_STATIQUE( FUNCTION_CALL, RES_TYPE ) /= TREE_VOID  then				--| lot 42 : tout operateur predefini type
+	CODE_STATIC_FIXED_VALUE( VALEUR_FIXE_STATIQUE( FUNCTION_CALL, RES_TYPE ),			--| fixe a valeur statique (le "-" unaire
+			   FULL_TYPE_VIEW( RES_TYPE ) );					--| seul auparavant)
 	return;
         end if;
 
@@ -6979,10 +7053,16 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 			-------------------
 
         CODE_EXP( PRM_1 );
+        if  IS_FLOAT  and then  OPERANDE_ENTIER_UNIVERSEL( PRM_1 )  then				--| lot 47 : universal_integer * universal_real
+	PUT_LINE( tab & "CVTIF" );								--| (LRM 4.10) : l'entier passe en flottant
+        end if;
         if  PRM_2.TY = DN_AGGREGATE  then
 	CODE_AGGREGATE( PRM_2, D( SM_EXP_TYPE, PRM_1 ) );
         else
 	CODE_EXP( PRM_2 );
+        end if;
+        if  IS_FLOAT  and then  OPERANDE_ENTIER_UNIVERSEL( PRM_2 )  then				--| lot 47 : universal_real * / universal_integer
+	PUT_LINE( tab & "CVTIF" );
         end if;
         -- Pour les comparaisons le type resultat est BOOLEAN,
         -- il faut tester le type du premier operande
@@ -6994,7 +7074,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	  declare
 	    PRM_TYPE	: TREE	:= D( SM_EXP_TYPE, PRM_1 );
 	  begin
-	    IS_FLOAT := PRM_TYPE.TY = DN_FLOAT;
+	    IS_FLOAT := PRM_TYPE.TY = DN_FLOAT  or else  PRM_TYPE.TY = DN_UNIVERSAL_REAL;		--| lot 47 : comparaison universal_real
 	  end;
 	end if;
         end if;
@@ -8470,6 +8550,8 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         PUT_LINE( "  VAR _AF_"   & IMAGE( I ) & ", D" );					--| courant, du premier, et drapeau
         PUT_LINE( "  VAR _VU_"   & IMAGE( I ) & ", D" );
         PUT_LINE( "  VAR _HI_"   & IMAGE( I ) & ", D" );
+        PUT_LINE( "  VAR _BAS_"  & IMAGE( I ) & ", Q" );					--| point 2 : debut du sous-tableau et
+        PUT_LINE( "  VAR _IX_"   & IMAGE( I ) & ", D" );					--| indice courant (choix nommes + others)
       end loop;
       PUT_LINE( "end namespace" );
 
@@ -8744,6 +8826,124 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
     end	EMIT_CHECK_LO;
 	-------------
 
+			-----------
+    procedure		BORNE_CHOIX	( CH :TREE;  IS_LAST :BOOLEAN )
+    is			-----------
+      -- Point 2 : empile la borne basse ou haute d'un choix nomme (valeur ou
+      -- intervalle). Avec others, ces choix sont statiques (LRM 4.3.2(3)) :
+      -- les evaluer plusieurs fois n'a pas d'effet observable.
+      RNG	: TREE;
+    begin
+      if  CH.TY = DN_CHOICE_RANGE  then
+        RNG := D( AS_DISCRETE_RANGE, CH );
+        if  RNG.TY = DN_RANGE  then
+	if  IS_LAST  then CODE_BOUND( D( AS_EXP2, RNG ) ); else CODE_BOUND( D( AS_EXP1, RNG ) ); end if;
+        else
+	CODE_DISCRETE_RANGE_BOUND( RNG, IS_LAST );
+        end if;
+      else
+        CODE_EXP( D( AS_EXP, CH ) );
+      end if;
+    end	BORNE_CHOIX;
+	-----------
+
+			-----------
+    procedure		PLACER_CHOIX	( CH :TREE;  DEPTH :NATURAL )
+    is			-----------
+      -- Point 2 (LRM 4.3.2) : un choix nomme d'un agregat avec others est place a
+      -- son indice et non a la suite des precedents : _PTR_ := _BAS_ + (bas - _FST_)
+      -- * _STR_. Intervalle non nul : ses bornes dans celles de l'agregat, sinon
+      -- CONSTRAINT_ERROR (l'ecriture sortirait de l'objet).
+      FIN	: constant STRING	:= NEW_LABEL;
+    begin
+      BORNE_CHOIX( CH, IS_LAST => FALSE );
+      BORNE_CHOIX( CH, IS_LAST => TRUE );
+      PUT_LINE( tab & "CGT" );
+      PUT_LINE( tab & "BT  " & FIN );								-- intervalle nul : rien a placer
+      if  CODI.CHECKS_ENABLED  then
+        BORNE_CHOIX( CH, IS_LAST => FALSE );
+        PUT_LINE( tab & "LD  " & LVL_STR & ", " & FST_NAME( DEPTH ) );
+        PUT_LINE( tab & "CLT" );
+        PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+        BORNE_CHOIX( CH, IS_LAST => TRUE );
+        PUT_LINE( tab & "LD  " & LVL_STR & ", " & LST_NAME( DEPTH ) );
+        PUT_LINE( tab & "CGT" );
+        PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+      end if;
+      PUT_LINE( tab & "LA  " & LVL_STR & ", " & VAR_NAME( "_BAS", DEPTH ) );
+      BORNE_CHOIX( CH, IS_LAST => FALSE );
+      PUT_LINE( tab & "LD  " & LVL_STR & ", " & FST_NAME( DEPTH ) );
+      PUT_LINE( tab & "SUB" );
+      PUT_LINE( tab & "LD  " & LVL_STR & ", " & STR_NAME( DEPTH ) );
+      PUT_LINE( tab & "MUL" );
+      PUT_LINE( tab & "ADD" );
+      PUT_LINE( tab & "SA  " & LVL_STR & ", " & PTR_NAME( DEPTH ) );
+      PUT_LINE( FIN & ':' );
+    end	PLACER_CHOIX;
+	------------
+
+			-----------------
+    procedure		PLACER_OTHERS	( AGG, COMP :TREE;  DEPTH :NATURAL )
+    is			-----------------
+      -- Point 2 (LRM 4.3.2) : others couvre les indices qu'aucun choix nomme ne
+      -- couvre ; son expression est evaluee une fois par composant couvert (LRM
+      -- 4.3). Boucle sur _IX_ de _FST_ a _LST_ : un indice couvert par un choix
+      -- est saute (pointeur avance sans ecriture).
+      BOUCLE	: constant STRING	:= NEW_LABEL;
+      FIN	: constant STRING	:= NEW_LABEL;
+      SAUT	: constant STRING	:= NEW_LABEL;
+      SUITE	: constant STRING	:= NEW_LABEL;
+      SEQ	: SEQ_TYPE		:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+      ASSOC	: TREE;
+      CS	: SEQ_TYPE;
+      C	: TREE;
+    begin
+      PUT_LINE( tab & "LD  " & LVL_STR & ", " & FST_NAME( DEPTH ) );
+      PUT_LINE( tab & "SD  " & LVL_STR & ", " & VAR_NAME( "_IX", DEPTH ) );
+      PUT_LINE( tab & "LA  " & LVL_STR & ", " & VAR_NAME( "_BAS", DEPTH ) );
+      PUT_LINE( tab & "SA  " & LVL_STR & ", " & PTR_NAME( DEPTH ) );
+      PUT_LINE( BOUCLE & ':' );
+      PUT_LINE( tab & "LD  " & LVL_STR & ", " & VAR_NAME( "_IX", DEPTH ) );
+      PUT_LINE( tab & "LD  " & LVL_STR & ", " & LST_NAME( DEPTH ) );
+      PUT_LINE( tab & "CGT" );
+      PUT_LINE( tab & "BT  " & FIN );
+      while  not IS_EMPTY( SEQ )  loop								-- indice couvert par un choix ?
+        POP( SEQ, ASSOC );
+        if  ASSOC.TY = DN_NAMED  then
+	CS := LIST( D( AS_CHOICE_S, ASSOC ) );
+	while  not IS_EMPTY( CS )  loop
+	  POP( CS, C );
+	  if  C.TY /= DN_CHOICE_OTHERS  then
+	    declare
+	      HORS	: constant STRING	:= NEW_LABEL;
+	    begin
+	      PUT_LINE( tab & "LD  " & LVL_STR & ", " & VAR_NAME( "_IX", DEPTH ) );
+	      BORNE_CHOIX( C, IS_LAST => FALSE );
+	      PUT_LINE( tab & "CLT" );
+	      PUT_LINE( tab & "BT  " & HORS );
+	      PUT_LINE( tab & "LD  " & LVL_STR & ", " & VAR_NAME( "_IX", DEPTH ) );
+	      BORNE_CHOIX( C, IS_LAST => TRUE );
+	      PUT_LINE( tab & "CGT" );
+	      PUT_LINE( tab & "BF  " & SAUT );							-- dans l'intervalle du choix
+	      PUT_LINE( HORS & ':' );
+	    end;
+	  end if;
+	end loop;
+        end if;
+      end loop;
+      EMIT_ONE_COMP( COMP, DEPTH );								-- ecrit, avance, compte
+      PUT_LINE( tab & "BRA " & SUITE );
+      PUT_LINE( SAUT & ':' );
+      EMIT_ADVANCE_PTR( DEPTH );
+      PUT_LINE( SUITE & ':' );
+      PUT_LINE( tab & "LD  " & LVL_STR & ", " & VAR_NAME( "_IX", DEPTH ) );
+      PUT_LINE( tab & "INC" );
+      PUT_LINE( tab & "SD  " & LVL_STR & ", " & VAR_NAME( "_IX", DEPTH ) );
+      PUT_LINE( tab & "BRA " & BOUCLE );
+      PUT_LINE( FIN & ':' );
+    end	PLACER_OTHERS;
+	-------------
+
 			---------------------
     procedure		EMIT_COUNT_FOR_CHOICE	( CH :TREE; DEPTH :NATURAL; CAPTURE :BOOLEAN := FALSE )
     is			---------------------
@@ -8875,6 +9075,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
       SEQ : SEQ_TYPE	:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
       ASSOC	: TREE;
       PREMIER	: BOOLEAN		:= DEPTH > 1  and then  CODI.CHECKS_ENABLED;		--| lot 36 : sous-agregat
+      PLACEMENT	: BOOLEAN		:= FALSE;					--| point 2 : choix nommes et others
 
 			-----------
       function	AVEC_OTHERS	return BOOLEAN							--| lot 36 : others -> bornes du
@@ -8899,14 +9100,34 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         return  FALSE;
       end	AVEC_OTHERS;
 	-----------
+			-----------
+      function	TOUS_NOMMES	return BOOLEAN							--| aucune association positionnelle
+      is		-----------
+        S	: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+        A	: TREE;
+      begin
+        while  not IS_EMPTY( S )  loop
+	POP( S, A );
+	if  A.TY /= DN_NAMED  then
+	  return  FALSE;
+	end if;
+        end loop;
+        return  TRUE;
+      end	TOUS_NOMMES;
+	-----------
     begin
       if  PREMIER  and then  AVEC_OTHERS  then
         PREMIER := FALSE;
       end if;
+      PLACEMENT := AVEC_OTHERS  and then  TOUS_NOMMES;
       -- Consume the incoming data address and keep it in a depth-local
       -- temporary.  This avoids carrying the current pointer on the LLIR
       -- stack while nested dynamic loops are generated.
       PUT_LINE( tab & "SA  " & LVL_STR & ", " & PTR_NAME( DEPTH ) );
+      if  PLACEMENT  then
+        PUT_LINE( tab & "LA  " & LVL_STR & ", " & PTR_NAME( DEPTH ) );
+        PUT_LINE( tab & "SA  " & LVL_STR & ", " & VAR_NAME( "_BAS", DEPTH ) );
+      end if;
 
       PUT_LINE( tab & "LI" & tab & "0" );
       PUT_LINE( tab & "SD  " & LVL_STR & ", " & EMIS_NAME( DEPTH ) );
@@ -8924,8 +9145,15 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	  while not  IS_EMPTY( CHOICES )  loop
 	    POP( CHOICES, CH );
 	    HAD_CHOICE := TRUE;
-	    EMIT_REPEATED_COMP( COMP_EXP, CH, DEPTH,
-			    CAPTURE => PREMIER  and then  CH.TY /= DN_CHOICE_OTHERS );
+	    if  PLACEMENT  and then  CH.TY = DN_CHOICE_OTHERS  then				--| point 2 : indices non couverts
+	      PLACER_OTHERS( AGG, COMP_EXP, DEPTH );
+	    else
+	      if  PLACEMENT  then								--| point 2 : a son indice
+	        PLACER_CHOIX( CH, DEPTH );
+	      end if;
+	      EMIT_REPEATED_COMP( COMP_EXP, CH, DEPTH,
+			      CAPTURE => PREMIER  and then  CH.TY /= DN_CHOICE_OTHERS );
+	    end if;
 	    PREMIER := FALSE;
 	  end loop;
 
@@ -9666,19 +9894,7 @@ SCAN_IDS:
 	  end;
 
 	else
-	  declare
-	    TARGET_SMALL	: TREE		:= D( CD_IMPL_SMALL, NUM_LIT_TYPE );
-	    NUMER_SMALL	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_NUMER, TARGET_SMALL ) ) );
-	    DENOM_SMALL	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_DENOM, TARGET_SMALL ) ) );
-
-	  begin		-- repr = Nv.Ds / (Dv.Ns) -- formule unique (note v1.1 §1)
-	    PUT_LINE( tab & "LI" & tab & PRINT_NUM( D( XD_NUMER, VALUE ) ) );		-- Nv
-	    PUT_LINE( tab & "LI" & tab & PRINT_NUM( D( XD_DENOM, TARGET_SMALL ) ) );	-- Ds
-	    PUT_LINE( tab & "LI" & tab & LONG_INTEGER'IMAGE(
-			LONG_INTEGER'VALUE( PRINT_NUM( D( XD_DENOM, VALUE ) ) ) * NUMER_SMALL ) );		-- Dv.Ns
-	    PUT_LINE( tab & "CVTIX" );
-	  end;
-
+	  CODE_STATIC_FIXED_VALUE( VALUE, NUM_LIT_TYPE );							--| lot 42 : calcul exact, formule unique
 	end if;
 
         else											-- Valeur flottante
@@ -9749,36 +9965,73 @@ SCAN_IDS:
 	------------------
 
 
-		---
-  function	GCD	( A, B : LONG_INTEGER )	return LONG_INTEGER
-  is		---
-    X : LONG_INTEGER := abs A;
-    Y : LONG_INTEGER := abs B;
-    T : LONG_INTEGER;
+		-----------
+  function	TERME_SMALL	( SMALL :TREE;  NUMERATEUR :BOOLEAN )	return ENTIERS_EXACTS.ENTIER_EXACT
+  is		-----------
+	--| Lot 43 : numerateur ou denominateur exact d'un small (2**63 compris).
   begin
-    while  Y /= 0  loop
-      T := Y;  Y := X mod Y;  X := T;
+    if  NUMERATEUR  then
+      return ENTIERS_EXACTS.LIRE( PRINT_NUM( D( XD_NUMER, SMALL ) ) );
+    else
+      return ENTIERS_EXACTS.LIRE( PRINT_NUM( D( XD_DENOM, SMALL ) ) );
+    end if;
+  end	TERME_SMALL;
+
+		--------------------
+  procedure	EMIT_DIVISEUR_EXACT	( DIVISEUR :ENTIERS_EXACTS.ENTIER_EXACT )
+  is		--------------------
+	--| Lot 43 : pile x -> trunc( x / DIVISEUR ), DIVISEUR > 0. Un diviseur de 2**63 ou plus
+	--| est emis en facteurs (puissances de 2 d'abord) par l'identite
+	--|   trunc( trunc( x / a ) / b ) = trunc( x / (a.b) )	(a, b > 0 entiers).
+    use ENTIERS_EXACTS;
+    RESTE_A_DIVISER	: ENTIER_EXACT	:= DIVISEUR;
+    FACTEUR		: ENTIER_EXACT;
+  begin
+    while  not TIENT_64( RESTE_A_DIVISER )  loop
+      FACTEUR := PGCD( RESTE_A_DIVISER, EXACT( DEUX_PUISSANCE_62 ) );
+      if  EGAL( FACTEUR, EXACT( 1 ) )  then
+        TROU( "EMIT_DIVISEUR_EXACT : diviseur de recadrage >= 2**63 sans facteur 2 (" & IMAGE_EXACTE( DIVISEUR ) & ")" );
+      end if;
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( FACTEUR ) );
+      PUT_LINE( tab & "DIV" );
+      RESTE_A_DIVISER := QUOTIENT( RESTE_A_DIVISER, FACTEUR );
     end loop;
-    return X;
-  end	GCD;
+    if  not EGAL( RESTE_A_DIVISER, EXACT( 1 ) )  then
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( RESTE_A_DIVISER ) );
+      PUT_LINE( tab & "DIV" );
+    end if;
+  end	EMIT_DIVISEUR_EXACT;
 
 		-----------------
-  procedure	EMIT_FIXED_RESCALE  ( MULT, DIV : LONG_INTEGER )
+  procedure	EMIT_FIXED_RESCALE  ( MULT, DIV : ENTIERS_EXACTS.ENTIER_EXACT )
   is		-----------------
 	-- Multiplie la representation au sommet de pile par le rationnel
 	-- MULT/DIV, REDUIT ici. Identite si 1/1. CVTIX (I.D.N) fait le
 	-- produit en 128 bits intermediaires puis la division (troncature
 	-- vers zero -- Q3). FORMULE UNIQUE, note v1.1 §1.
-    G	: LONG_INTEGER	:= GCD( MULT, DIV );
-    M	: LONG_INTEGER	:= MULT / G;
-    D	: LONG_INTEGER	:= DIV  / G;
+	--| Lot 43 : MULT et DIV exacts (ENTIERS_EXACTS), plus de debordement des produits de
+	--| smalls dans l'expanseur ; DIV >= 2**63 en facteurs (EMIT_DIVISEUR_EXACT).
+    use ENTIERS_EXACTS;
+    G	: ENTIER_EXACT	:= PGCD( MULT, DIV );
+    M	: ENTIER_EXACT	:= QUOTIENT( MULT, G );
+    DV	: ENTIER_EXACT	:= QUOTIENT( DIV, G );
   begin
-    if  M = 1  and then  D = 1  then
+    if  EGAL( M, EXACT( 1 ) )  and then  EGAL( DV, EXACT( 1 ) )  then
       return;								-- identite (cas TEQ)
     end if;
-    PUT_LINE( tab & "LI" & tab & LONG_INTEGER'IMAGE( M ) );		-- role DENOM = multiplicateur
-    PUT_LINE( tab & "LI" & tab & LONG_INTEGER'IMAGE( D ) );		-- role NUMER = diviseur
-    PUT_LINE( tab & "CVTIX" );
+    if  not TIENT_64( M )  then
+      TROU( "EMIT_FIXED_RESCALE : multiplicateur de recadrage >= 2**63 (" & IMAGE_EXACTE( M ) & ")" );
+    end if;
+    if  TIENT_64( DV )  then
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( M ) );			-- role DENOM = multiplicateur
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( DV ) );			-- role NUMER = diviseur
+      PUT_LINE( tab & "CVTIX" );
+    else
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( M ) );
+      PUT_LINE( tab & "LI" & tab & "1" );
+      PUT_LINE( tab & "CVTIX" );
+      EMIT_DIVISEUR_EXACT( DV );
+    end if;
   end	EMIT_FIXED_RESCALE;
 
 		------------------------------
@@ -9796,11 +10049,12 @@ SCAN_IDS:
     PRM_S : SEQ_TYPE	:= LIST( D( SM_NORMALIZED_PARAM_S, FUNCTION_CALL ) );
     PRM_1, PRM_2	: TREE;
 
+    use ENTIERS_EXACTS;
     TS	: TREE		:= D( CD_IMPL_SMALL, TARGET_TYPE );
-    NT	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_NUMER, TS ) ) );
-    DT	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_DENOM, TS ) ) );
+    NT	: ENTIER_EXACT	:= TERME_SMALL( TS, NUMERATEUR => TRUE );			--| lot 43 : termes exacts
+    DT	: ENTIER_EXACT	:= TERME_SMALL( TS, NUMERATEUR => FALSE );
 
-    NX, DX, NY, DY  : LONG_INTEGER;
+    NX, DX, NY, DY  : ENTIER_EXACT;
     INT_1, INT_2	: TREE;
 
 		---------------
@@ -9823,12 +10077,12 @@ SCAN_IDS:
     end	INTEGER_OPERAND;
 
 		-----------
-    procedure	SMALL_OF  ( PRM : TREE;  N, D_OUT : out LONG_INTEGER )
+    procedure	SMALL_OF  ( PRM : TREE;  N, D_OUT : out ENTIER_EXACT )
     is		-----------
       SP  : TREE	:= D( CD_IMPL_SMALL, FULL_TYPE_VIEW( D( SM_EXP_TYPE, PRM ) ) );
     begin
-      N	  := LONG_INTEGER'VALUE( PRINT_NUM( D( XD_NUMER, SP ) ) );
-      D_OUT := LONG_INTEGER'VALUE( PRINT_NUM( D( XD_DENOM, SP ) ) );
+      N	  := TERME_SMALL( SP, NUMERATEUR => TRUE );
+      D_OUT := TERME_SMALL( SP, NUMERATEUR => FALSE );
     end	SMALL_OF;
 
 		---------------
@@ -9863,22 +10117,45 @@ SCAN_IDS:
         CODE_EXP( PRM_1 );						-- rX
         CODE_EXP( INT_2 );						-- K nu
         PUT_LINE( tab & "MUL" );					-- rX.K : exact en small source
-        EMIT_FIXED_RESCALE( NX * DT, DX * NT );				-- source -> cible (souvent identite)
+        EMIT_FIXED_RESCALE( PRODUIT( NX, DT ), PRODUIT( DX, NT ) );	-- source -> cible (souvent identite)
 
       elsif  INT_1 /= TREE_VOID  then					-- INT * FIX (symetrie)
         SMALL_OF( PRM_2, NY, DY );
         CODE_EXP( PRM_2 );
         CODE_EXP( INT_1 );
         PUT_LINE( tab & "MUL" );
-        EMIT_FIXED_RESCALE( NY * DT, DY * NT );
+        EMIT_FIXED_RESCALE( PRODUIT( NY, DT ), PRODUIT( DY, NT ) );
 
       else								-- FIX * FIX
+	--| Lot 43 (LRM 4.5.5) : rep = trunc( rX.rY.M / D ), M / D = NX.NY.DT / (DX.DY.NT)
+	--| reduit exactement. Produit rX.M.rY sur 128 bits par CVTIX (plus de MUL 64 bits
+	--| avant recadrage), puis D en facteurs si D >= 2**63.
         SMALL_OF( PRM_1, NX, DX );
         SMALL_OF( PRM_2, NY, DY );
-        CODE_EXP( PRM_1 );						-- rX
-        CODE_EXP( PRM_2 );						-- rY
-        PUT_LINE( tab & "MUL" );					-- rX.rY (64 bits -- dette overflow P2)
-        EMIT_FIXED_RESCALE( NX * NY * DT, DX * DY * NT );
+        declare
+	NUM	: ENTIER_EXACT	:= PRODUIT( PRODUIT( NX, NY ), DT );
+	DEN	: ENTIER_EXACT	:= PRODUIT( PRODUIT( DX, DY ), NT );
+	G	: ENTIER_EXACT	:= PGCD( NUM, DEN );
+	M	: ENTIER_EXACT	:= QUOTIENT( NUM, G );
+	DV	: ENTIER_EXACT	:= QUOTIENT( DEN, G );
+	D1	: ENTIER_EXACT	:= DV;
+        begin
+	if  not TIENT_64( M )  then
+	  TROU( "FIX * FIX : multiplicateur >= 2**63 (" & IMAGE_EXACTE( M ) & ")" );
+	end if;
+	if  not TIENT_64( D1 )  then						-- premier facteur de D : sa part
+	  D1 := PGCD( DV, EXACT( DEUX_PUISSANCE_62 ) );					-- en puissance de 2 (EMIT_DIVISEUR_EXACT
+	end if;									-- fait le reste)
+	CODE_EXP( PRM_1 );							-- rX
+	if  not EGAL( M, EXACT( 1 ) )  then
+	  PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( M ) );
+	  PUT_LINE( tab & "MUL" );						-- rX.M (M = 1 pour des smalls binaires)
+	end if;
+	CODE_EXP( PRM_2 );							-- rY
+	PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( D1 ) );
+	PUT_LINE( tab & "CVTIX" );						-- trunc( rX.M.rY / D1 ), 128 bits
+	EMIT_DIVISEUR_EXACT( QUOTIENT( DV, D1 ) );
+        end;
       end if;
 
     elsif  OP_STR = """/"""  then
@@ -9886,19 +10163,34 @@ SCAN_IDS:
       if  INT_2 /= TREE_VOID  then					-- FIX / INT (elision)
         SMALL_OF( PRM_1, NX, DX );
         CODE_EXP( PRM_1 );
-        EMIT_FIXED_RESCALE( NX * DT, DX * NT );				-- pre-scale (Q4)
-        CODE_EXP( INT_2 );
+        EMIT_FIXED_RESCALE( PRODUIT( NX, DT ), PRODUIT( DX, NT ) );	-- pre-scale : exact par l'identite
+        CODE_EXP( INT_2 );						-- trunc( trunc( a/b ) / K ) = trunc( a/(b.K) )
         EMIT_ZERO_CHECK;
         PUT_LINE( tab & "DIV" );					-- troncature (Q3)
 
       else								-- FIX / FIX
+	--| Lot 43 (LRM 4.5.5) : rep = trunc( rX.M / (rY.D) ), M / D = NX.DY.DT / (DX.NY.NT)
+	--| reduit exactement : CVTIX( rX, M, rY ) = trunc( rX.M / rY ) sur 128 bits, puis
+	--| division par D (meme identite). Plus de pre-troncature de rX.
         SMALL_OF( PRM_1, NX, DX );
         SMALL_OF( PRM_2, NY, DY );
-        CODE_EXP( PRM_1 );
-        EMIT_FIXED_RESCALE( NX * DY * DT, DX * NY * NT );		-- pre-multiplication (Q4)
-        CODE_EXP( PRM_2 );
-        EMIT_ZERO_CHECK;
-        PUT_LINE( tab & "DIV" );
+        declare
+	NUM	: ENTIER_EXACT	:= PRODUIT( PRODUIT( NX, DY ), DT );
+	DEN	: ENTIER_EXACT	:= PRODUIT( PRODUIT( DX, NY ), NT );
+	G	: ENTIER_EXACT	:= PGCD( NUM, DEN );
+	M	: ENTIER_EXACT	:= QUOTIENT( NUM, G );
+	DV	: ENTIER_EXACT	:= QUOTIENT( DEN, G );
+        begin
+	if  not TIENT_64( M )  then
+	  TROU( "FIX / FIX : multiplicateur >= 2**63 (" & IMAGE_EXACTE( M ) & ")" );
+	end if;
+	CODE_EXP( PRM_1 );							-- rX
+	PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( M ) );
+	CODE_EXP( PRM_2 );							-- rY
+	EMIT_ZERO_CHECK;
+	PUT_LINE( tab & "CVTIX" );						-- trunc( rX.M / rY ), 128 bits
+	EMIT_DIVISEUR_EXACT( DV );
+        end;
       end if;
 
     else
@@ -9911,8 +10203,11 @@ SCAN_IDS:
 
 
 					---------------------------
-  procedure		CONTROLE_CONVERSION_TABLEAU	( SRC_EXP, SRC_TYPE, TARGET_TYPE :TREE )
+  procedure		CONTROLE_CONVERSION_TABLEAU	( SRC_EXP, SRC_TYPE, TARGET_TYPE :TREE;
+							  DOUBLET_GARANTI :BOOLEAN := FALSE )
   is			---------------------------
+	--| Lot 41 : DOUBLET_GARANTI, l'appelant garantit l'@doublet de l'operande quelle que
+	--| soit sa forme (CODE_RETURN : litteral, agregat, tranche, concatenation...).
 	--| Conversion vers un type tableau (LRM 4.6 ; AI83-00313) : cible NON contrainte (lot 22),
 	--| cible CONTRAINTE (lot 23, plus bas : longueurs et nouveau doublet).
 	--| Pile : @doublet de l'operande [ @donnees | @info ], PRESERVE (le resultat est cet @doublet :
@@ -10073,7 +10368,9 @@ SCAN_IDS:
 	-------
 
     begin
-      if  SRC_EXP.TY /= DN_USED_OBJECT_ID  and then  SRC_EXP.TY /= DN_FUNCTION_CALL  then
+      if  SRC_EXP.TY /= DN_USED_OBJECT_ID  and then  SRC_EXP.TY /= DN_FUNCTION_CALL
+        and then  not DOUBLET_GARANTI
+      then
         return;										--| forme non recensee : identite (comportement
       end if;										--| anterieur, sans controle ni glissement)
 
@@ -10197,6 +10494,10 @@ SCAN_IDS:
       if  TARGET_TYPE.TY = DN_FLOAT  then
         PUT_LINE( tab & "CVTIF" );
       end if;
+
+    elsif  VALEUR_FIXE_STATIQUE( SRC_EXP, TARGET_TYPE ) /= TREE_VOID  then				--| lot 42 : operande reel statique vers un
+      CODE_STATIC_FIXED_VALUE( VALEUR_FIXE_STATIQUE( SRC_EXP, TARGET_TYPE ),			--| fixe : valeur exacte du frontal (LRM 4.9),
+			 FULL_TYPE_VIEW( TARGET_TYPE ) );					--| pas le calcul flottant de l'expression
 
     else
 	-- F-D : le multiplicatif fixed n'a QUE la conversion comme
@@ -10463,13 +10764,11 @@ SCAN_IDS:
 
 	    elsif  SRC_TYPE.TY = DN_FIXED  and then  TARGET_TYPE /= SRC_TYPE  then
 	      declare							-- rX deja empile
+	        use ENTIERS_EXACTS;
 	        SS	: TREE		:= D( CD_IMPL_SMALL, SRC_TYPE );
-	        NS	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_NUMER, SS ) ) );
-	        DS	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_DENOM, SS ) ) );
-	        NT	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_NUMER, TARGET_SMALL ) ) );
-	        DT	: LONG_INTEGER	:= LONG_INTEGER'VALUE( PRINT_NUM( D( XD_DENOM, TARGET_SMALL ) ) );
-	      begin
-	        EMIT_FIXED_RESCALE( NS * DT, DS * NT );							-- identite si rationnels reduits egaux
+	      begin										--| lot 43 : termes exacts
+	        EMIT_FIXED_RESCALE( PRODUIT( TERME_SMALL( SS, TRUE ), TERME_SMALL( TARGET_SMALL, FALSE ) ),
+			    PRODUIT( TERME_SMALL( SS, FALSE ), TERME_SMALL( TARGET_SMALL, TRUE ) ) );	-- identite si rationnels reduits egaux
 	      end;
 	    end if;
 	  end if;

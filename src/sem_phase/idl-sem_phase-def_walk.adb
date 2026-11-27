@@ -489,7 +489,7 @@ is					--------
 	TYPE_IMPL_SMALL := U_REAL( U_VAL( 1 ) , POWER_MAX_MANTISSA );
 	loop
 	  TEST_SMALL := U_VAL( 2 ) * TYPE_IMPL_SMALL;
-	  exit when  ACCURACY <= TEST_SMALL;
+	  exit when  not ( TEST_SMALL <= ACCURACY );							-- LOT 45 : SMALL <= DELTA (LRM 3.5.9(5)), EGAL SI PUISSANCE DE 2
 	  TYPE_IMPL_SMALL := TEST_SMALL;
 	end loop;
         end	COMPUTE_IMPL_SMALL;

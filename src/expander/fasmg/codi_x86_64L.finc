@@ -856,23 +856,67 @@ end macro
 ;		O P E R A T I O N S	  A R I T H M E T I Q U E   E N T I E R E
 ;-----------------------------------------------------------------------------------------------------------------------
 
+;			------
+macro			JCC_NE	cc*				; lot 46 : jcc rel32 vers STANDARD.ne_raise_
+;			------					; (V8 : fautes 128, 129 = raise NUMERIC_ERROR)
+  db 0x0F, cc							; 80 jo, 82 jc, 83 jae, 84 jz, 88 js, 8F jg
+  local disp
+  dd disp
+  disp = STANDARD.ne_raise_-$
+end macro
+;			-----------------
+macro			DIVISEUR_NON_NUL				; lot 46 : rbx = diviseur, nul -> faute 128
+;			-----------------
+  db 0x48, 0x85, 0xDB						; test rbx, rbx
+  JCC_NE 0x84							; jz ne_raise_
+end macro
+;			----------------
+macro			DIVISION_EXACTE				; lot 46 : rdx:rax / rbx (non nul) sans idiv :
+;			----------------				; rax = |q|, rdx = |r|, rbx = |diviseur|, r8 bit 63 = signe de q
+  db 0x49, 0x89, 0xD0						; mov r8, rdx
+  db 0x49, 0x31, 0xD8						; xor r8, rbx
+  db 0x48, 0x85, 0xD2						; test rdx, rdx
+  db 0x79, 0x0A							; jns +10
+  db 0x48, 0xF7, 0xD8						; neg rax
+  db 0x48, 0x83, 0xD2, 0x00						; adc rdx, 0
+  db 0x48, 0xF7, 0xDA						; neg rdx		(|dividende|, 128 bits)
+  db 0x48, 0x85, 0xDB						; test rbx, rbx
+  db 0x79, 0x03							; jns +3
+  db 0x48, 0xF7, 0xDB						; neg rbx		(|diviseur|)
+  db 0x48, 0x39, 0xDA						; cmp rdx, rbx
+  JCC_NE 0x83							; jae ne_raise_	(quotient >= 2**64 : faute 129)
+  db 0x48, 0xF7, 0xF3						; div rbx		(non signe)
+end macro
+;			---------------
+macro			SIGNE_QUOTIENT				; lot 46 : rax = |q|, signe en r8 : rax := q,
+;			---------------				; hors de [-2**63, 2**63) -> faute 129
+  db 0x4D, 0x85, 0xC0						; test r8, r8
+  db 0x78, 0x0B							; js +11
+  db 0x48, 0x85, 0xC0						; test rax, rax
+  JCC_NE 0x88							; js ne_raise_
+  db 0xEB, 0x0C							; jmp +12
+  db 0x48, 0xF7, 0xD8						; neg rax
+  db 0x48, 0x85, 0xC0						; test rax, rax
+  JCC_NE 0x8F							; jg ne_raise_
+end macro
+
 ;			---
 macro			DEC
 ;			---
   db 0x48, 0xFF, 0x4D, 0x00						; dec qword ptr [rbp]
-  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
+  JCC_NE 0x80							; jo ne_raise_	debordement signe : faute 129 (V7), NUMERIC_ERROR (lot 46)
 end macro
 ;			---
 macro			INC
 ;			---
   db 0x48, 0xFF, 0x45, 0x00						; inc qword ptr [rbp]
-  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
+  JCC_NE 0x80							; jo ne_raise_	debordement signe : faute 129 (V7), NUMERIC_ERROR (lot 46)
 end macro
 ;			---
 macro			NEG
 ;			---
   db 0x48, 0xF7, 0x5D, 0x00						; neg qword ptr [rbp]
-  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
+  JCC_NE 0x80							; jo ne_raise_	debordement signe : faute 129 (V7), NUMERIC_ERROR (lot 46)
 end macro
 ;			---
 macro			ABS
@@ -881,7 +925,7 @@ macro			ABS
   db 0x48, 0xC1, 0xF8, 0x3F						; sar rax, 63			(RAX = tout bit de signe = allsign)
   db 0x48, 0x31, 0x45, 0x00						; xor QWORD PTR [rbp], rax		(X xor allsign)
   db 0x48, 0x29, 0x45, 0x00						; sub QWORD PTR [rbp], rax		( (X xor allsign) - allsign )
-  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
+  JCC_NE 0x80							; jo ne_raise_	debordement signe : faute 129 (V7), NUMERIC_ERROR (lot 46)
 end macro
 ;			------
 macro			CLAMP0					; sommet := max( 0, sommet )		(compte d'elements : intervalle nul -> 0)
@@ -896,21 +940,21 @@ macro			ADD
 ;			---
   POP_RAX
   db 0x48, 0x01, 0x45, 0x00						; add qword ptr [rbp], rax
-  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
+  JCC_NE 0x80							; jo ne_raise_	debordement signe : faute 129 (V7), NUMERIC_ERROR (lot 46)
 end macro
 ;			---
 macro			SUB
 ;			---
   POP_RAX
   db 0x48, 0x29, 0x45, 0x00						; sub qword ptr [rbp], rax
-  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
+  JCC_NE 0x80							; jo ne_raise_	debordement signe : faute 129 (V7), NUMERIC_ERROR (lot 46)
 end macro
 ;			---
 macro			MUL
 ;			---
   POP_RAX
   db 0x48, 0xF7, 0x6D, 0x00						; imul qword ptr [rbp]
-  db 0x71, 0x02, 0x0F, 0x0B						; jno +2 ; ud2		debordement signe : faute 129 (V7)
+  JCC_NE 0x80							; jo ne_raise_	debordement signe : faute 129 (V7), NUMERIC_ERROR (lot 46)
   DROP
   PUSH_RAX
 end macro
@@ -919,6 +963,12 @@ macro			DIV
 ;			---
   POP_RBX
   POP_RAX
+  DIVISEUR_NON_NUL						; lot 46 : faute 128
+  db 0x48, 0x83, 0xFB, 0xFF						; cmp rbx, -1
+  db 0x75, 0x0B							; jne +11
+  db 0x48, 0xF7, 0xD8						; neg rax		(a / -1 = -a)
+  JCC_NE 0x80							; jo ne_raise_	(-2**63 / -1 : faute 129)
+  db 0xEB, 0x05							; jmp +5		(sans idiv)
   db 0x48, 0x99							; cqo : extension signee RAX -> RDX:RAX
   db 0x48, 0xF7, 0xFB						; idiv rbx
   PUSH_RAX
@@ -928,6 +978,11 @@ macro			REMI					; A rem B	  (reste division tronquee, signe du dividende)
 ;			----
   POP_RBX								; depiler B (diviseur) dans RBX
   POP_RAX								; depiler A (dividende) dans RAX
+  DIVISEUR_NON_NUL						; lot 46 : faute 128
+  db 0x48, 0x83, 0xFB, 0xFF						; cmp rbx, -1
+  db 0x75, 0x04							; jne +4
+  db 0x31, 0xC0							; xor eax, eax	(a rem -1 = 0, -2**63 compris)
+  db 0xEB, 0x08							; jmp sans idiv
   db 0x48, 0x99							; cqo   (sign-extend RAX into RDX:RAX)
   db 0x48, 0xF7, 0xFB						; idiv rbx   (RAX=quotient, RDX=reste)
   db 0x48, 0x89, 0xD0						; mov rax, rdx   (resultat = reste)
@@ -938,6 +993,11 @@ macro			MODI					; A mod B	  (modulo mathematique, signe du diviseur)
 ;			----
   POP_RBX								; depiler B (diviseur) dans RBX
   POP_RAX								; depiler A (dividende) dans RAX
+  DIVISEUR_NON_NUL						; lot 46 : faute 128
+  db 0x48, 0x83, 0xFB, 0xFF						; cmp rbx, -1
+  db 0x75, 0x04							; jne +4
+  db 0x31, 0xC0							; xor eax, eax	(a rem -1 = 0, -2**63 compris)
+  db 0xEB, 0x18							; jmp sans idiv
   db 0x48, 0x99							; cqo   (sign-extend RAX into RDX:RAX)
   db 0x48, 0xF7, 0xFB						; idiv rbx   (RAX=quotient, RDX=reste)
   db 0x48, 0x89, 0xD0						; mov rax, rdx   (resultat = reste)
@@ -1072,8 +1132,10 @@ macro			CVTIX					; Conversion de l'entier I en FIXED X de SMALL = NUMER/DENOM
   POP_RBX								; rbx = NUMER : diviseur
   POP_RCX								; rcx = DENOM : multiplicateur
   POP_RAX								; rax = I : multiplicande
+  DIVISEUR_NON_NUL						; lot 46 : faute 128
   db 0x48, 0xF7, 0xE9						; imul rcx : RDX:RAX = RAX * RCX
-  db 0x48, 0xF7, 0xFB						; idiv rbx : RAX = (RDX:RAX) / RBX
+  DIVISION_EXACTE						; lot 46 : quotient tronque vers zero,
+  SIGNE_QUOTIENT							; faute 129 hors de 64 bits
   PUSH_RAX							; Resultat FIXED X sur 64 bits
 end macro
 ;			-----
@@ -1082,22 +1144,15 @@ macro			CVTXI					; Conversion du FIXED X de SMALL = NUMER/DENOM en INTEGER I
   POP_RBX								; rbx = DENOM : diviseur
   POP_RCX								; rcx = NUMER : multiplicateur
   POP_RAX								; rax = X : multiplicande
-  db 0x48, 0xF7, 0xE9			     ; imul rcx
-  db 0x48, 0xF7, 0xFB			     ; idiv rbx
-
-  db 0x48, 0x89, 0xD1			     ; mov rcx, rdx
-  db 0x48, 0xC1, 0xF9, 0x3F			     ; sar rcx, 63
-  db 0x48, 0x31, 0xCA			     ; xor rdx, rcx
-  db 0x48, 0x29, 0xCA			     ; sub rdx, rcx
-
-  db 0x48, 0xD1, 0xEB			     ; shr rbx, 1
-  db 0x48, 0x83, 0xD3, 0x00			     ; adc rbx, 0
-
-  db 0x48, 0x39, 0xDA			     ; cmp rdx, rbx
-  db 0x72, 0x07				     ; jb no_round
-
-  db 0x48, 0x83, 0xC9, 0x01			     ; or rcx, 1
-  db 0x48, 0x01, 0xC8			     ; add rax, rcx
+  DIVISEUR_NON_NUL						; lot 46 : faute 128
+  db 0x48, 0xF7, 0xE9						; imul rcx
+  DIVISION_EXACTE						; lot 46 : |q|, |r|, |DENOM|
+  db 0x48, 0x29, 0xD3						; sub rbx, rdx		(|DENOM| - |r|)
+  db 0x48, 0x39, 0xDA						; cmp rdx, rbx
+  db 0x72, 0x0A							; jb +10		(2.|r| < |DENOM| : pas d'arrondi)
+  db 0x48, 0x83, 0xC0, 0x01						; add rax, 1		(a l'ecart de zero)
+  JCC_NE 0x82							; jc ne_raise_
+  SIGNE_QUOTIENT							; sur le quotient exact arrondi (V8, [Q16])
   PUSH_RAX							; Resultat INTEGER I sur 64 bits
 end macro
 
@@ -1110,42 +1165,54 @@ macro			CEQ
 ;			---
   POP_RBX
   db 0x48, 0x39, 0x5D, 0x00						; cmp [rbp], rbx   (NXT > TOP ?)
-  db 0x0F, 0x94, 0x45, 0x00						; sete [rbp]
+  db 0x0F, 0x94, 0xC0						; sete al
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			---
 macro			CNE					; A /= B	 A empile puis B
 ;			---
   POP_RBX								; depiler le B dans RBX
   db 0x48, 0x39, 0x5D, 0x00						; cmp [rbp], rbx   (comparer avec A, calcule A-B)
-  db 0x0F, 0x95, 0x45, 0x00						; setne [rbp]
+  db 0x0F, 0x95, 0xC0						; setne al
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			---
 macro			CGT					; A > B A empile puis B (note pour avoir "A less than B" intervertir A et B)
 ;			---
   POP_RBX								; depiler le B dans RBX
   db 0x48, 0x39, 0x5D, 0x00						; cmp [rbp], rbx   (comparer avec A, calcule B-A)
-  db 0x0F, 0x9F, 0x45, 0x00						; setg [rbp]
+  db 0x0F, 0x9F, 0xC0						; setg al
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			---
 macro			CGE					; A >= B A empile puis B (note pour avoir "A less or equal than B" intervertir A et B)
 ;			---
   POP_RBX								; depiler le B dans RBX
   db 0x48, 0x39, 0x5D, 0x00						; cmp [rbp], rbx   (comparer avec A, calcule B-A)
-  db 0x0F, 0x9D, 0x45, 0x00						; setge [rbp]
+  db 0x0F, 0x9D, 0xC0						; setge al
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			---
 macro			CLT					; A < B	A empile puis B
 ;			---
   POP_RBX								; depiler le B dans RBX
   db 0x48, 0x39, 0x5D, 0x00						; cmp [rbp], rbx   (comparer avec A, calcule A-B)
-  db 0x0F, 0x9C, 0x45, 0x00						; setl [rbp]
+  db 0x0F, 0x9C, 0xC0						; setl al
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			---
 macro			CLE					; A <= B	 A empile puis B
 ;			---
   POP_RBX								; depiler le B dans RBX
   db 0x48, 0x39, 0x5D, 0x00						; cmp [rbp], rbx   (comparer avec A, calcule A-B)
-  db 0x0F, 0x9E, 0x45, 0x00						; setle [rbp]
+  db 0x0F, 0x9E, 0xC0						; setle al
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 
 ;-----------------------------------------------------------------------------------------------------------------------
@@ -1246,9 +1313,11 @@ macro			FCEQ						; A = B  flottant
   DROP
   db 0xF2, 0x0F, 0x10, 0x45, 0x00					; movsd xmm0, [rbp]		(A)
   db 0x66, 0x0F, 0x2E, 0xC1						; ucomisd xmm0, xmm1
-  db 0x0F, 0x94, 0x45, 0x00						; sete [rbp]			(ZF=1 si egal)
-  db 0x0F, 0x9B, 0xC0						; setnp al			(PF=0 si pas NaN)
-  db 0x20, 0x45, 0x00						; and [rbp], al		(result = equal ET pas NaN)
+  db 0x0F, 0x94, 0xC0						; sete al			(ZF=1 si egal)
+  db 0x0F, 0x9B, 0xC1						; setnp cl			(PF=0 si pas NaN)
+  db 0x20, 0xC8							; and al, cl			(equal ET pas NaN)
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			----
 macro			FCNE						; A /= B  flottant
@@ -1257,9 +1326,11 @@ macro			FCNE						; A /= B  flottant
   DROP
   db 0xF2, 0x0F, 0x10, 0x45, 0x00					; movsd xmm0, [rbp]		(A)
   db 0x66, 0x0F, 0x2E, 0xC1						; ucomisd xmm0, xmm1
-  db 0x0F, 0x95, 0x45, 0x00						; setne [rbp]			(ZF=0 si different)
-  db 0x0F, 0x9A, 0xC0						; setp al			(PF=1 si NaN)
-  db 0x08, 0x45, 0x00						; or [rbp], al			(result = different OU NaN)
+  db 0x0F, 0x95, 0xC0						; setne al			(ZF=0 si different)
+  db 0x0F, 0x9A, 0xC1						; setp cl			(PF=1 si NaN)
+  db 0x08, 0xC8							; or al, cl			(different OU NaN)
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			----
 macro			FCGT						; A > B  flottant
@@ -1268,7 +1339,9 @@ macro			FCGT						; A > B  flottant
   DROP
   db 0xF2, 0x0F, 0x10, 0x45, 0x00					; movsd xmm0, [rbp]		(A)
   db 0x66, 0x0F, 0x2E, 0xC1						; ucomisd xmm0, xmm1
-  db 0x0F, 0x97, 0x45, 0x00						; seta [rbp]			(A above B)
+  db 0x0F, 0x97, 0xC0						; seta al			(A above B)
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			----
 macro			FCGE						; A >= B  flottant
@@ -1277,7 +1350,9 @@ macro			FCGE						; A >= B  flottant
   DROP
   db 0xF2, 0x0F, 0x10, 0x45, 0x00					; movsd xmm0, [rbp]		(A)
   db 0x66, 0x0F, 0x2E, 0xC1						; ucomisd xmm0, xmm1
-  db 0x0F, 0x93, 0x45, 0x00						; setae [rbp]			(A above or equal B)
+  db 0x0F, 0x93, 0xC0						; setae al			(A above or equal B)
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			----
 macro			FCLT						; A < B  flottant
@@ -1286,7 +1361,9 @@ macro			FCLT						; A < B  flottant
   DROP
   db 0xF2, 0x0F, 0x10, 0x45, 0x00					; movsd xmm0, [rbp]		(A)
   db 0x66, 0x0F, 0x2E, 0xC8						; ucomisd xmm1, xmm0		(INVERSER : B vs A)
-  db 0x0F, 0x97, 0x45, 0x00						; seta [rbp]			(B above A = A below B)
+  db 0x0F, 0x97, 0xC0						; seta al			(B above A = A below B)
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 ;			----
 macro			FCLE						; A <= B  flottant
@@ -1295,7 +1372,9 @@ macro			FCLE						; A <= B  flottant
   DROP
   db 0xF2, 0x0F, 0x10, 0x45, 0x00					; movsd xmm0, [rbp]		(A)
   db 0x66, 0x0F, 0x2E, 0xC8						; ucomisd xmm1, xmm0		(INVERSER : B vs A)
-  db 0x0F, 0x93, 0x45, 0x00						; setae [rbp]			(B above or equal A = A below or equal B)
+  db 0x0F, 0x93, 0xC0						; setae al			(B above or equal A = A below or equal B)
+  db 0x0F, 0xB6, 0xC0						; movzx eax, al		(lot 44 : cellule entiere)
+  db 0x48, 0x89, 0x45, 0x00					; mov [rbp], rax
 end macro
 
 

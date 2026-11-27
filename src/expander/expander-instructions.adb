@@ -1107,6 +1107,9 @@ separate ( EXPANDER )
         elsif  ACT_PRM.TY = DN_AGGREGATE
 	 or  ( ACT_PRM.TY = DN_QUALIFIED  and then D( AS_EXP, ACT_PRM).TY = DN_AGGREGATE ) then
 
+	declare												--| point 2 : agregat qualifie ?
+	  QUALIFIE	:constant BOOLEAN	:= ACT_PRM.TY = DN_QUALIFIED;
+	begin
 	if  ACT_PRM.TY = DN_QUALIFIED  then ACT_PRM := D( AS_EXP, ACT_PRM); end if;
 	declare
 	  ANONYMOUS_STR	:constant STRING	:= ANONYMOUS_NAME_AT( ACT_PRM );
@@ -1114,7 +1117,13 @@ separate ( EXPANDER )
 	  TYPE_NAME	: TREE		:= D( XD_SOURCE_NAME, TYPE_SPEC );
 	  TYPE_NAME_STR	:constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, TYPE_NAME ) );
 	begin
-	  if  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ).TY = DN_ARRAY  then			--| formel tableau NON contraint : bornes
+	  if  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ).TY = DN_ARRAY
+	    and then  QUALIFIE  and then  CODI.FULL_TYPE_VIEW( TYPE_SPEC ).TY = DN_CONSTRAINED_ARRAY
+	  then												--| point 2 : agregat qualifie par un
+	    EXPRESSIONS.CODE_ARRAY_OPERAND( ACT_PRM, ANONYMOUS_STR,					--| sous-type contraint : contrainte
+				      CODI.FULL_TYPE_VIEW( TYPE_SPEC ),				--| applicable (others, LRM 4.3.2)
+				      CONTRAINTE_APPLICABLE => TRUE );
+	  elsif  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ).TY = DN_ARRAY  then			--| formel tableau NON contraint : bornes
 	    EXPRESSIONS.CODE_ARRAY_OPERAND( ACT_PRM, ANONYMOUS_STR,					--| de l'agregat (choix, ou S'FIRST en
 				      CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ) );	--| positionnel, LRM 4.3.2) -- le patron
 												--| du type de base n'en a pas (SIZ = -1)
@@ -1157,6 +1166,7 @@ separate ( EXPANDER )
 	  EXPRESSIONS.CODE_AGGREGATE( ACT_PRM, TYPE_SPEC );
 	  PUT_LINE( tab & "LVA " & IMAGE( CODI.CUR_LEVEL ) & ", " & ANONYMOUS_STR & "_disp" );
 	  end if;
+	end;
 	end;
 
         elsif  ACT_PRM.TY = DN_INDEXED  then								-- COMPOSANT INDEXE EN ACTUAL
@@ -1474,6 +1484,18 @@ separate ( EXPANDER )
 	    else
 	      EXPRESSIONS.CODE_EXP( EXP );
 	    end if;										-- Pile : @doublet_src
+
+	    if  CODI.FULL_TYPE_VIEW( RETURN_SUBTYPE ).TY = DN_CONSTRAINED_ARRAY  then		--| lot 41, LRM 5.8 : la valeur est
+	      declare										--| convertie au sous-type resultat
+	        SRC_TYPE	: TREE	:= RETURN_SUBTYPE;					--| contraint (LRM 4.6) : longueurs
+	      begin										--| egales, sinon CONSTRAINT_ERROR ;
+	        if  FULL_TYPE.TY = DN_ARRAY  or else  FULL_TYPE.TY = DN_CONSTRAINED_ARRAY  then	--| doublet { donnees, info du sous-
+		SRC_TYPE := EXPR_TYPE;							--| type } : ses bornes sont rendues
+	        end if;									--| (glissement) et l'info du patron
+	        EXPRESSIONS.CONTROLE_CONVERSION_TABLEAU( EXP, SRC_TYPE, RETURN_SUBTYPE,		--| n'est plus ecrasee
+					       DOUBLET_GARANTI => TRUE );
+	      end;
+	    end if;
 
     -- doublet_src = [data_ptr_src : q, info_ptr_src : q]
     -- result__ofs contient @doublet_dest, initialisé par l'appelant.

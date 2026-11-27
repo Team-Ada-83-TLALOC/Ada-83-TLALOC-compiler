@@ -241,6 +241,39 @@ is
 
     OPERAND_OVERFLOW		: exception;
 
+			-- ENTIERS EXACTS (lot 42, claude/conception_fixes_statiques_mul_div.md) :
+			-- entiers relatifs de taille bornee, en chiffres de base 10 000 (C(1) poids
+			-- faible), pour les valeurs statiques des fixes (numerateurs et denominateurs
+			-- de PRINT_NUM, au-dela de 64 bits). Chiffres inutilises toujours nuls ;
+			-- comparer par EGAL, jamais par "=" (lot 17).
+
+	package	ENTIERS_EXACTS
+	is
+    BASE			: constant		:= 10_000;
+    MAX_CHIFFRES		: constant		:= 40;						--| 160 chiffres decimaux
+    type CHIFFRES		is array( 1 .. MAX_CHIFFRES ) of INTEGER;
+    type ENTIER_EXACT	is record
+			  NEGATIF	: BOOLEAN		:= FALSE;
+			  LONG	: NATURAL		:= 0;					--| 0 : valeur nulle
+			  C	: CHIFFRES;						--| pas de valeur implicite (composant tableau d'un
+			end record;							--| record, non traite par l'expanseur) : partir de NUL
+    TROP_GRAND		: exception;							--| plus de MAX_CHIFFRES chiffres
+
+    function  NUL								return ENTIER_EXACT;		--| zero, tous chiffres nuls (initialisation)
+    function  LIRE			( S :STRING )			return ENTIER_EXACT;		--| chaine de PRINT_NUM : blancs, '-', zeros de tete
+    function  EXACT			( I :LONG_INTEGER )		return ENTIER_EXACT;
+    function  IMAGE_EXACTE		( E :ENTIER_EXACT )		return STRING;		--| "123", "-123", "0"
+    function  EST_NUL		( E :ENTIER_EXACT )		return BOOLEAN;
+    function  EGAL			( A, B :ENTIER_EXACT )		return BOOLEAN;
+    function  OPPOSE		( A :ENTIER_EXACT )		return ENTIER_EXACT;
+    function  PRODUIT		( A, B :ENTIER_EXACT )		return ENTIER_EXACT;
+    function  QUOTIENT		( A, B :ENTIER_EXACT )		return ENTIER_EXACT;		--| tronque vers zero (comme "/" d'Ada)
+    function  RESTE			( A, B :ENTIER_EXACT )		return ENTIER_EXACT;		--| signe de A (comme "rem")
+    function  PGCD			( A, B :ENTIER_EXACT )		return ENTIER_EXACT;		--| positif ; PGCD( 0, 0 ) = 0
+    function  TIENT_64		( E :ENTIER_EXACT )		return BOOLEAN;		--| -2**63 .. 2**63 - 1
+    function  VALEUR_64		( E :ENTIER_EXACT )		return LONG_INTEGER;		--| exige TIENT_64
+	end	ENTIERS_EXACTS;
+
 
   end	UTILS;
 	-----
@@ -265,7 +298,9 @@ is
     procedure CODE_STRING_LITERAL	( STRING_LITERAL	:TREE; STR_NAME :STRING );
     procedure CODE_SELECTED		( SELECTED	:TREE; IS_SOURCE :BOOLEAN := TRUE; CONTEXT :TREE := TREE_VOID );
     procedure CODE_SLICE		( SLICE		:TREE; IS_DESTINATION :BOOLEAN := TRUE );
-    procedure CODE_STATIC_FIXED_VALUE	( VALUE, FIXED_TYPE :TREE );
+    procedure CODE_STATIC_FIXED_VALUE	( VALUE, FIXED_TYPE :TREE;  BORNE_DE_TYPE :BOOLEAN := FALSE );			--| lot 42 : calcul exact ; BORNE_DE_TYPE, LRM 3.5.9
+    function  VALEUR_FIXE_STATIQUE	( EXP, FIXED_TYPE :TREE )		return TREE;				--| lot 42 : SM_VALUE reel de EXP si FIXED_TYPE est un fixe
+								--| non formel, sinon TREE_VOID (LRM 4.9)
     procedure CODE_AGGREGATE		( AGGREGATE, TYPE_SPEC	:TREE; DST_SLICE_RANGE :TREE := TREE_VOID );
     procedure CODE_OBJECT_ADDRESS	( NAME : TREE );
     procedure CODE_COMPOSITE_DATA_ADDRESS( EXP : TREE );
@@ -281,6 +316,8 @@ is
     procedure CODE_COPIE_TABLEAU	( SRC_EXP, ARR :TREE;  DST_D, DST_I :STRING );				--| LRM 5.2.1 : controle des longueurs, glissement, copie
     procedure CODE_ARRAY_OPERAND	( E :TREE; ANON :STRING; CONTEXT_TYPE :TREE;
 				  CONTRAINTE_APPLICABLE :BOOLEAN := FALSE );					--| LRM 4.3.2 : CONTEXT_TYPE contraint fournit les bornes
+    procedure CONTROLE_CONVERSION_TABLEAU ( SRC_EXP, SRC_TYPE, TARGET_TYPE :TREE;
+				  DOUBLET_GARANTI :BOOLEAN := FALSE );					--| LRM 4.6 ; lot 41 : return (LRM 5.8)
     function  IS_GENERIC_FORMAL_TYPE	( TYPE_DEFN	:TREE )		return BOOLEAN;
     function  IS_GENERIC_FORMAL_OBJECT  ( DEFN		:TREE )		return BOOLEAN;
     function  IS_GENERIC_FORMAL_SUBPROGRAM( ID		:TREE )		return BOOLEAN;
