@@ -41,7 +41,7 @@ is
     tab				: CHARACTER	renames ASCII.HT;
 
     MAX_INSTR			: constant		:= 10_000;				--| NB MAX D'INSTRUCTIONS
-    MAX_LABEL			: constant		:= 10_000;				--| NB MAX D'ETIQUETTES DE SAUT
+    MAX_LABEL			: constant		:= 1_000_000;				--| NB MAX D'ETIQUETTES DE SAUT (lot 48 : 10_000 atteint par EXPANDER.EXPRESSIONS)
     MAX_UNIT			: constant		:= 2**11-1;				--| NB MAX D'UNITES PROGRAMME
     MAX_LEVEL			: constant		:= 2**5-1;				--| NB MAX DE NIVEAUX D'IMBRICATION
     MAX_OFFSET			: constant		:= 2**15-1;				--| 32K
@@ -301,6 +301,10 @@ is
     procedure CODE_STATIC_FIXED_VALUE	( VALUE, FIXED_TYPE :TREE;  BORNE_DE_TYPE :BOOLEAN := FALSE );			--| lot 42 : calcul exact ; BORNE_DE_TYPE, LRM 3.5.9
     function  VALEUR_FIXE_STATIQUE	( EXP, FIXED_TYPE :TREE )		return TREE;				--| lot 42 : SM_VALUE reel de EXP si FIXED_TYPE est un fixe
 								--| non formel, sinon TREE_VOID (LRM 4.9)
+    procedure CODE_CONTROLE_TYPE_DE_BASE	( RES_TYPE :TREE;
+					  EXCEPTION_LBL :STRING := "STANDARD.ne_raise_";
+					  DISCRET :BOOLEAN := FALSE;
+					  OCTETS_PERMIS :BOOLEAN := FALSE );					--| lot 48 : resultat dans le type de base (LRM 4.5, 3.5.5)
     procedure CODE_AGGREGATE		( AGGREGATE, TYPE_SPEC	:TREE; DST_SLICE_RANGE :TREE := TREE_VOID );
     procedure CODE_OBJECT_ADDRESS	( NAME : TREE );
     procedure CODE_COMPOSITE_DATA_ADDRESS( EXP : TREE );
@@ -410,8 +414,17 @@ is
 												--| dynamiques poses en place (objet + OFS)
     function  A_COMPOSANTS_RECORDS	( REC_TYPE :TREE )		return BOOLEAN;				--| lot 31 : record a composant record dynamique
     function  A_INIT_IMPLICITE	( REC_TYPE :TREE )		return BOOLEAN;				--| lot 25 : un composant recoit une valeur implicite
-    procedure CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING );				--| lot 25 : valeurs implicites des composants de l'objet
-												--| dont l'adresse est dans OBJ_VAR (discriminants poses)
+    procedure CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING;
+				  CONTROLES_SEULS :BOOLEAN := FALSE );				--| lot 25 : valeurs implicites des composants de l'objet
+												--| dont l'adresse est dans OBJ_VAR (discriminants poses) ;
+												--| lot 49 : CONTROLES_SEULS, contraintes seules (LRM 3.7.2)
+    function  A_PATRON_CONTRAINTE	( T :TREE )		return BOOLEAN;				--| lot 51 : record statique a discriminants par
+												--| defaut -- son patron porte _CONTR (LRM 3.7.4)
+    procedure CODE_PATRON_CONTRAINT	( NOM :STRING;  T :TREE );					--| lot 51 : patron de cadre d'un sous-type contraint
+												--| anonyme de T (SIZ__, _CONTR = 1)
+    procedure CONTROLER_COMPATIBILITE	( T :TREE;  ACCES, COMP_ID, OWNER :TREE := TREE_VOID;
+				  ANONYME_SEUL :BOOLEAN := FALSE );				--| lot 49 : compatibilite d'une contrainte de record
+												--| STATIQUE a l'elaboration (objet d'essai, LRM 3.7.2)
     function  ELEMENT_TABLEAU	( T :TREE )		return TREE;				--| lot 27 : type des composants d'un tableau
     function  EST_TABLEAU_DYNAMIQUE	( T :TREE )		return BOOLEAN;				--| lot 27 : composants records dynamiques
     function  CHAMP_A_VARIANTES	( T :TREE )		return BOOLEAN;				--| lot 34 : record a composant record a variantes

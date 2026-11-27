@@ -810,9 +810,16 @@ separate ( EXPANDER )
 	PUT_LINE( "VAR" & tab & ANON & "__u,   q" );
 
 	PUT_LINE( tab & "SA  " & LVL_STR & ", " & ANON & "_disp" );		-- consomme l'@element de CODE_EXP
-	PUT( tab & "LA  " & IMAGE( DI( CD_LEVEL, FRM_TYPE ) ) & ", " );
-	CODI.REGIONS_PATH( TYPE_NAME );
-	PUT_LINE( TN_STR & ".use__info" );
+	if  DECLARATIONS.A_PATRON_CONTRAINTE( FRM_TYPE )					--| lot 51 (LRM 3.7.4) : composant de
+	  and then  CODI.FULL_TYPE_VIEW( D( SM_EXP_TYPE, ACT_PRM ) ).TY = DN_CONSTRAINED_RECORD	--| sous-type contraint -- patron
+	then											--| anonyme contraint
+	  DECLARATIONS.CODE_PATRON_CONTRAINT( ANON & "_pat", CODI.FULL_TYPE_VIEW( D( SM_EXP_TYPE, ACT_PRM ) ) );
+	  PUT_LINE( tab & "LVA " & LVL_STR & ", " & ANON & "_pat" );
+	else
+	  PUT( tab & "LA  " & IMAGE( DI( CD_LEVEL, FRM_TYPE ) ) & ", " );
+	  CODI.REGIONS_PATH( TYPE_NAME );
+	  PUT_LINE( TN_STR & ".use__info" );
+	end if;
 	PUT_LINE( tab & "SA  " & LVL_STR & ", " & ANON & "__u" );
 
 	PUT_LINE( tab & "LVA " & LVL_STR & ", " & ANON & "_disp" );		-- @doublet, a la place de l'@data
@@ -1099,6 +1106,11 @@ separate ( EXPANDER )
 	begin
 	  EXPRESSIONS.CODE_STRING_LITERAL( ACT_PRM, NOM_ANONYME );
 	  PUT_LINE( tab & "LCA" & tab & NOM_ANONYME & ".data_ptr" );					-- LOAD CONSTANT ADDRESS
+	  if  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, FRM_PRM_ID ) ).TY = DN_CONSTRAINED_ARRAY  then		--| lot 52 (LRM 6.4.1) : formel de
+	    EXPRESSIONS.CONTROLE_CONVERSION_TABLEAU( ACT_PRM, D( SM_OBJ_TYPE, FRM_PRM_ID ),		--| sous-type contraint -- valeur
+						     D( SM_OBJ_TYPE, FRM_PRM_ID ),			--| convertie : longueur, bornes du
+						     DOUBLET_GARANTI => TRUE );			--| formel (glissement, c43214b)
+	  end if;
 	end;
 
         elsif  ACT_PRM.TY = DN_SLICE  then								-- SLICE PARAMETER
@@ -2078,6 +2090,56 @@ separate ( EXPANDER )
 
 
 			---------------
+  function		REFERENCE_OBJET	( E, DEFN :TREE )		return BOOLEAN
+  is			---------------
+	--| Lot 50 (LRM 5.2) : l'expression E nomme-t-elle l'objet DEFN ?  Pour un agregat
+	--| affecte a son propre objet (R := (X => 1, Y => R.X)), la valeur doit etre
+	--| construite AVANT d'ecrire la destination.  Reponse prudente : TRUE pour toute
+	--| forme non reconnue.
+    S	: SEQ_TYPE;
+    X	: TREE;
+  begin
+    if  E = TREE_VOID  or else  E = TREE_NIL  then
+      return  FALSE;
+    end if;
+    case  E.TY  is
+    when  DN_USED_OBJECT_ID  =>
+      return  D( SM_DEFN, E ) = DEFN;
+    when  DN_NUMERIC_LITERAL | DN_STRING_LITERAL | DN_NULL_ACCESS | DN_USED_CHAR  =>
+      return  FALSE;
+    when  DN_PARENTHESIZED | DN_QUALIFIED | DN_CONVERSION | DN_NAMED  =>
+      return  REFERENCE_OBJET( D( AS_EXP, E ), DEFN );
+    when  DN_SELECTED | DN_ALL | DN_SLICE  =>
+      return  REFERENCE_OBJET( D( AS_NAME, E ), DEFN );
+    when  DN_SHORT_CIRCUIT  =>
+      return  REFERENCE_OBJET( D( AS_EXP1, E ), DEFN )  or else  REFERENCE_OBJET( D( AS_EXP2, E ), DEFN );
+    when  DN_INDEXED  =>
+      if  REFERENCE_OBJET( D( AS_NAME, E ), DEFN )  then
+        return  TRUE;
+      end if;
+      S := LIST( D( AS_EXP_S, E ) );
+    when  DN_FUNCTION_CALL  =>
+      S := LIST( D( SM_NORMALIZED_PARAM_S, E ) );
+    when  DN_AGGREGATE  =>
+      S := LIST( D( SM_NORMALIZED_COMP_S, E ) );
+      if  IS_EMPTY( S )  then
+        return  TRUE;
+      end if;
+    when  others  =>
+      return  TRUE;
+    end case;
+    while  not IS_EMPTY( S )  loop
+      POP( S, X );
+      if  REFERENCE_OBJET( X, DEFN )  then
+        return  TRUE;
+      end if;
+    end loop;
+    return  FALSE;
+  end	REFERENCE_OBJET;
+	---------------
+
+
+			---------------
   function		RECORD_CONTROLE	( REC_TYPE :TREE;  SOUS_TYPE_CONTRAINT :BOOLEAN )	return BOOLEAN
   is			---------------
 	--| Lot 34 (LRM 5.2) : affectation a un record STATIQUE a discriminants dont la
@@ -2096,11 +2158,14 @@ separate ( EXPANDER )
 
 
 			----------------------
-  procedure		COPIE_RECORD_CONTROLEE	( SRC_EXP, REC_TYPE :TREE )
+  procedure		COPIE_RECORD_CONTROLEE	( SRC_EXP, REC_TYPE :TREE;  PATRON :STRING := "" )
   is			----------------------
 	--| Lot 34 : pile = @DST.  Source (agregat : temporaire de cadre) ; discriminants
 	--| egaux, sinon CONSTRAINT_ERROR avant toute ecriture ; copie de .size octets.
+	--| Lot 51 : PATRON /= "" (formel out / in out d'un record a defauts) -- cellule
+	--| contenant @patron de l'actuel : controle seulement si son _CONTR /= 0.
     N	:constant STRING	:= NEW_LABEL;
+    LIBRE	:constant STRING	:= NEW_LABEL;
     LVL	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
     DST	:constant STRING	:= "__RDD" & N;
     SRC	:constant STRING	:= "__RDS" & N;
@@ -2134,6 +2199,13 @@ separate ( EXPANDER )
       EXPRESSIONS.CODE_COMPOSITE_DATA_ADDRESS( SRC_EXP );
     end if;
     PUT_LINE( tab & "SA" & tab & LVL & ", " & SRC );
+    if  PATRON /= ""  then									--| lot 51 : actuel non contraint ->
+      PUT_LINE( tab & "LA" & tab & LVL & ", " & PATRON );					--| discriminants libres
+      PUT_LINE( tab & "LD  ,  4" );
+      PUT_LINE( tab & "LI" & tab & "0" );
+      PUT_LINE( tab & "CEQ" );
+      PUT_LINE( tab & "BT" & tab & LIBRE );
+    end if;
     DECL_S := LIST( D( SM_DISCRIMINANT_S, BASE ) );
     while  not IS_EMPTY( DECL_S )  loop
       POP( DECL_S, DECL );
@@ -2146,6 +2218,9 @@ separate ( EXPANDER )
         PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
       end loop;
     end loop;
+    if  PATRON /= ""  then
+      PUT_LINE( LIBRE & ':' );
+    end if;
     PUT_LINE( tab & "LA" & tab & LVL & ", " & DST );
     PUT( tab & "LI" & tab );
     CODI.REGIONS_PATH( D( XD_SOURCE_NAME, BASE ) );
@@ -2644,8 +2719,45 @@ separate ( EXPANDER )
 	    end if;
 	    PUT_LINE( tab & "LA" );									-- @DST (adresse des data)
 
-	    if  RECORD_CONTROLE( REC_TYPE, NAME_TYPE.TY = DN_CONSTRAINED_RECORD )  then		--| lot 34 (LRM 5.2)
+	    if  ( DEFN.TY = DN_OUT_ID  or else  DEFN.TY = DN_IN_OUT_ID )				--| lot 51 (LRM 5.2, 6.2) : formel d'un
+	      and then  CODI.CHECKS_ENABLED  and then  not CODI.IN_GENERIC_BODY			--| record a defauts -- controle si le
+	      and then  NAME_TYPE.TY = DN_RECORD							--| patron de l'actuel est contraint
+	      and then  DECLARATIONS.A_PATRON_CONTRAINTE( REC_TYPE )
+	    then
+	      declare
+		PAT	:constant STRING	:= "__PAT" & NEW_LABEL;
+	      begin
+		PUT_LINE( "VAR " & PAT & ", Q" );
+		PUT_LINE( tab & "LA  " & IMAGE( DI( CD_LEVEL, DEFN ) ) & ", -"
+			& PRINT_NAME( D( LX_SYMREP, DEFN ) ) & "_ofs" );				-- @doublet de l'actuel
+		PUT_LINE( tab & "LA  ,  8" );							-- @patron
+		PUT_LINE( tab & "SA" & tab & IMAGE( CODI.CUR_LEVEL ) & ", " & PAT );
+		COPIE_RECORD_CONTROLEE( SRC_EXP, REC_TYPE, PAT );
+	      end;
+
+	    elsif  RECORD_CONTROLE( REC_TYPE, NAME_TYPE.TY = DN_CONSTRAINED_RECORD )  then		--| lot 34 (LRM 5.2)
 	      COPIE_RECORD_CONTROLEE( SRC_EXP, REC_TYPE );
+
+	    elsif  SRC_EXP.TY = DN_AGGREGATE
+	      and then  not CODI.EST_RECORD_DYNAMIQUE( REC_TYPE )
+	      and then  not REPRESENTED_ITEMS.HAS_RECORD_REP( CODI.FULL_TYPE_VIEW( REC_TYPE ) )
+	      and then  REFERENCE_OBJET( SRC_EXP, DEFN )
+	    then
+	      declare									--| lot 50 (LRM 5.2) : l'agregat lit
+		TMP	:constant STRING	:= "__RAT" & NEW_LABEL;				--| la destination -- construit dans
+		LVL	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );			--| un temporaire, puis copie
+	      begin
+		PUT( "VAR " & TMP & "__dat, " );
+		CODI.REGIONS_PATH( D( XD_SOURCE_NAME, CODI.FULL_TYPE_VIEW( REC_TYPE ) ) );
+		PUT_LINE( CODI.TYPE_INFO_STR( CODI.FULL_TYPE_VIEW( REC_TYPE ) ) & ".size" );
+		PUT_LINE( tab & "LVA" & tab & LVL & ", " & TMP & "__dat" );
+		EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, REC_TYPE );
+		PUT( tab & "LI" & tab );
+		CODI.REGIONS_PATH( D( XD_SOURCE_NAME, CODI.FULL_TYPE_VIEW( REC_TYPE ) ) );
+		PUT_LINE( CODI.TYPE_INFO_STR( CODI.FULL_TYPE_VIEW( REC_TYPE ) ) & ".size" );
+		PUT_LINE( tab & "LVA" & tab & LVL & ", " & TMP & "__dat" );
+		PUT_LINE( tab & "BLKMOV" );							-- @DST LEN @SRC
+	      end;
 
 	    elsif  SRC_EXP.TY = DN_AGGREGATE  then
 	      EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, REC_TYPE );

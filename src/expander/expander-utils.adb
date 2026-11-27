@@ -768,13 +768,17 @@ is					-----
         end		SCALAR_IN_PARAMETER;
 			-------------------
 
-      elsif  D( SM_OBJ_TYPE, DEFN ).TY in CLASS_SCALAR
-	or else  EST_ACCES( D( SM_OBJ_TYPE, DEFN ) )  then						-- out/in_out SCALAIRE lu en expression :
+      elsif  ( D( SM_OBJ_TYPE, DEFN ).TY in CLASS_SCALAR  or else  EST_ACCES( D( SM_OBJ_TYPE, DEFN ) ) )
+	or else  ( DEFN.TY /= DN_IN_ID								--| lot 50 : vue pleine d'un formel
+		 and then  ( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, DEFN ) ).TY in CLASS_SCALAR		--| out / in out de type prive
+			     or else  EST_ACCES( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, DEFN ) ) ) ) )	--| scalaire (c61010a)
+      then
+												-- out/in_out SCALAIRE lu en expression :
 
 				--------------------							-- le slot contient l'ADRESSE, dereferencer
 				SCALAR_REF_PARAMETER:							-- (meme geste que la re-passe out->in de
         begin
-	PUT( tab & OPER_LOADI_STR( D( SM_OBJ_TYPE, DEFN ) ) & ' ' & INTEGER'IMAGE( DI( CD_LEVEL, DEFN ) ) & ',' );
+	PUT( tab & OPER_LOADI_STR( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, DEFN ) ) ) & ' ' & INTEGER'IMAGE( DI( CD_LEVEL, DEFN ) ) & ',' );
 	PUT( tab & '-' & PRINT_NAME( D( LX_SYMREP, DEFN ) ) );
 	PUT_LINE( "_ofs" );
 

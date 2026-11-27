@@ -1410,9 +1410,19 @@ is
 	end if;
         end;
 
-        PUT( tab & "LVA" & tab & LVL_STR & ", " );
-        REGIONS_PATH( TYPE_NAME );
-        PUT_LINE( TYPE_NAME_STR & ".SIZ__" );
+        if  A_PATRON_CONTRAINTE( TYPE_SPEC )							--| lot 51 (LRM 3.7.4) : objet CONTRAINT
+          and then  ( ( TYPE_SPEC.TY = DN_CONSTRAINED_RECORD						--| d'un sous-type anonyme (C : R (3)), ou
+		      and then  not ( ( TYPE_NAME.TY = DN_SUBTYPE_ID  or else  TYPE_NAME.TY = DN_TYPE_ID )	--| constante : patron anonyme contraint
+				      and then  D( SM_TYPE_SPEC, TYPE_NAME ) = TYPE_SPEC ) )		--| (un sous-type nomme a le sien)
+		    or else  VC_NAME.TY = DN_CONSTANT_ID )
+        then
+	CODE_PATRON_CONTRAINT( VC_STR & "__pat", TYPE_SPEC );
+	PUT_LINE( tab & "LVA" & tab & LVL_STR & ", " & VC_STR & "__pat" );
+        else
+	PUT( tab & "LVA" & tab & LVL_STR & ", " );
+	REGIONS_PATH( TYPE_NAME );
+	PUT_LINE( TYPE_NAME_STR & ".SIZ__" );
+        end if;
         PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & VC_STR & "__u" );
 
         DI( CD_LEVEL, VC_NAME, INTEGER( LVL ) );									--| constante differee : recopie sur SM_FIRST
@@ -2952,6 +2962,46 @@ is
 	-----------
 
 
+			-------------------
+  function		A_PATRON_CONTRAINTE	( T :TREE )			return BOOLEAN
+  is			-------------------
+	--| Lot 51 (LRM 3.7.4, 6.2) : record STATIQUE (non dynamique, non represente) a
+	--| discriminants par defaut.  Son patron porte, apres SIZ__ (deplacement 0), le mot
+	--| _CONTR (deplacement CODI.PATRON_CONTR) : 0 pour le type, 1 pour un sous-type
+	--| contraint.  Un formel out / in out le lit dans le patron de son doublet.  Le
+	--| record dynamique garde __MUTABLE (lot 32).
+    B			: TREE		:= BASE_RECORD( T );
+  begin
+    return  B.TY = DN_RECORD
+      and then  not REPRESENTED_ITEMS.HAS_RECORD_REP( B )
+      and then  not CODI.EST_RECORD_DYNAMIQUE( B )
+      and then  CODI.A_DISCRIMINANTS_PAR_DEFAUT( B );
+  end	A_PATRON_CONTRAINTE;
+	-------------------
+
+
+			---------------------
+  procedure		CODE_PATRON_CONTRAINT	( NOM :STRING;  T :TREE )
+  is			---------------------
+	--| Lot 51 : patron d'un sous-type contraint ANONYME de T (C : R (3), composant de
+	--| ARRAY (...) OF R (4)) dans deux cellules adjacentes du cadre courant, a la
+	--| disposition du patron du type : NOM = SIZ__ (recopie), NOM_c = _CONTR = 1.
+	--| L'appelant range @NOM dans le second mot du doublet.
+    B			: TREE		:= BASE_RECORD( T );
+    LVL			:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+  begin
+    PUT_LINE( "VAR " & NOM & ", D" );
+    PUT_LINE( "VAR " & NOM & "_c, D" );
+    PUT( tab & "LD" & tab & IMAGE( DI( CD_LEVEL, B ) ) & ", " );
+    REGIONS_PATH( D( XD_SOURCE_NAME, B ) );
+    PUT_LINE( TYPE_INFO_STR( B ) & ".SIZ__" );
+    PUT_LINE( tab & "SD" & tab & LVL & ", " & NOM );
+    PUT_LINE( tab & "LI" & tab & "1" );
+    PUT_LINE( tab & "SD" & tab & LVL & ", " & NOM & "_c" );
+  end	CODE_PATRON_CONTRAINT;
+	---------------------
+
+
 		--^^^^^^^^^^^^^^^^^^--
   function	  RECORD_A_VARIANTES	( T :TREE )	return BOOLEAN
   is		--------------------
@@ -4001,9 +4051,98 @@ is
 	---------------------
 
 
+			-----------------------------------
+  function		COMPOSANT_A_CONTRAINTE_DEPENDANTE	( COMP_ID :TREE )		return BOOLEAN
+  is			-----------------------------------
+	--| Lot 49 (LRM 3.7.2) : composant de sous-type record contraint dont une expression
+	--| de la contrainte reference un discriminant de l'englobant (C1 : REC (D3, F1)) :
+	--| sa compatibilite depend des discriminants de l'objet.
+    CT			: TREE;
+    EXP_S		: SEQ_TYPE;
+    EXP			: TREE;
+  begin
+    if  COMP_ID.TY /= DN_COMPONENT_ID  or else  REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )  then
+      return  FALSE;
+    end if;
+    CT := FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) );
+    if  CT.TY /= DN_CONSTRAINED_RECORD  then
+      return  FALSE;
+    end if;
+    EXP_S := LIST( D( SM_NORMALIZED_DSCRMT_S, CT ) );
+    while  not IS_EMPTY( EXP_S )  loop
+      POP( EXP_S, EXP );
+      if  CODI.CONTIENT_DISCRIMINANT( EXP )  then
+        return  TRUE;
+      end if;
+    end loop;
+    return  FALSE;
+  end	COMPOSANT_A_CONTRAINTE_DEPENDANTE;
+	---------------------------------
+
+
+			-----------------------
+  function		A_CONTRAINTE_DEPENDANTE	( REC_BASE :TREE )		return BOOLEAN
+  is			-----------------------
+	--| Lot 49 : un composant du record REC_BASE, variantes comprises, a une contrainte
+	--| qui depend d'un discriminant (COMPOSANT_A_CONTRAINTE_DEPENDANTE).
+
+		-----
+    function	LISTE	( CL :TREE )		return BOOLEAN
+    is		-----
+      L_S	: SEQ_TYPE;
+      L_D	: TREE;
+      VP	: TREE;
+      V_S	: SEQ_TYPE;
+      V_E	: TREE;
+    begin
+      if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+        return  FALSE;
+      end if;
+      L_S := LIST( D( AS_DECL_S, CL ) );
+      while  not IS_EMPTY( L_S )  loop
+        POP( L_S, L_D );
+        if  L_D.TY /= DN_NULL_COMP_DECL  then
+	declare
+	  I_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, L_D ) );
+	  I	: TREE;
+	begin
+	  while  not IS_EMPTY( I_S )  loop
+	    POP( I_S, I );
+	    if  COMPOSANT_A_CONTRAINTE_DEPENDANTE( I )  then
+	      return  TRUE;
+	    end if;
+	  end loop;
+	end;
+        end if;
+      end loop;
+      VP := D( AS_VARIANT_PART, CL );
+      if  VP = TREE_VOID  or else  VP = TREE_NIL  then
+        return  FALSE;
+      end if;
+      V_S := LIST( D( AS_VARIANT_S, VP ) );
+      while  not IS_EMPTY( V_S )  loop
+        POP( V_S, V_E );
+        if  V_E.TY = DN_VARIANT  and then  LISTE( D( AS_COMP_LIST, V_E ) )  then
+	return  TRUE;
+        end if;
+      end loop;
+      return  FALSE;
+    end	LISTE;
+	-----
+
+  begin
+    if  REC_BASE.TY /= DN_RECORD  then
+      return  FALSE;
+    end if;
+    return  LISTE( D( SM_COMP_LIST, REC_BASE ) );
+  end	A_CONTRAINTE_DEPENDANTE;
+	-----------------------
+
+
 			-------------
   procedure		INIT_RECORD_A	( REC_TYPE :TREE;  OBJ_VAR :STRING;
-					  COMP_ID, OWNER :TREE := TREE_VOID )				--| lot 34 : composant d'un record
+					  COMP_ID, OWNER :TREE := TREE_VOID;				--| lot 34 : composant d'un record
+					  CONTROLES_SEULS :BOOLEAN := FALSE )				--| lot 49 : contraintes seules
   is			-------------
 	-- Lot 26 : record (composant d'un record ou d'un tableau) dont l'adresse est dans
 	-- OBJ_VAR : ses discriminants -- ceux de la contrainte (LRM 3.7.2), evalues avec
@@ -4065,7 +4204,9 @@ is
       end;
     end loop;
 
-    if  not EST_RECORD_DYNAMIQUE( C_BASE )  and then  A_INIT_IMPLICITE( C_BASE )  then
+    if  CONTROLES_SEULS  then									--| lot 49 : ses composants a contrainte
+      CODE_INIT_IMPLICITE( C_TYPE, OBJ_VAR, CONTROLES_SEULS => TRUE );				--| dependante, sans valeur par defaut
+    elsif  not EST_RECORD_DYNAMIQUE( C_BASE )  and then  A_INIT_IMPLICITE( C_BASE )  then
       CODE_INIT_IMPLICITE( C_TYPE, OBJ_VAR );
     end if;
   end	INIT_RECORD_A;
@@ -4235,7 +4376,8 @@ is
 
 
 			------------------
-  procedure		CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING )
+  procedure		CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING;
+					  CONTROLES_SEULS :BOOLEAN := FALSE )
   is			------------------
 	-- Lot 25 (LRM 3.2.1, 3.7.2) : valeurs implicites des composants d'un objet record
 	-- dont l'adresse des donnees est dans la variable de cadre OBJ_VAR (niveau courant)
@@ -4249,6 +4391,10 @@ is
 	--     discriminants (contrainte, ou defauts), puis ses propres valeurs implicites.
 	-- L'objet record courant (lecture d'un discriminant dans un defaut) est OBJ_VAR
 	-- pendant le parcours ; celui de l'appelant est restaure en sortie.
+	-- Lot 49, CONTROLES_SEULS (objet d'essai de CONTROLER_COMPATIBILITE, LRM 3.7.2) :
+	-- aucune valeur par defaut n'est evaluee ; seuls les composants a contrainte
+	-- dependante recoivent leurs discriminants, controles, recursivement ; variante
+	-- choisie seule, comme pour un objet.
     LVL		: LEVEL_NUM	renames CODI.CUR_LEVEL;
     LVL_STR	:constant STRING	:= IMAGE( LVL );
     REC_BASE	: TREE		:= FULL_TYPE_VIEW( REC_TYPE );
@@ -4273,7 +4419,19 @@ is
       COMP_STR	:constant STRING	:= PRINT_NAME( D( LX_SYMREP, COMP_ID ) );
       C_TYPE	: TREE		:= FULL_TYPE_VIEW( COMP_TYPE );
     begin
-      if  EST_COMPOSANT_RECORD_DYNAMIQUE( COMP_ID )  then						--| lot 31 : objet composant deja pose
+      if  CONTROLES_SEULS  then									--| lot 49 : contraintes seules
+	if  COMPOSANT_A_CONTRAINTE_DEPENDANTE( COMP_ID )  then
+	  declare
+	    C_OBJ	:constant STRING	:= "__INI" & NEW_LABEL;
+	  begin
+	    PUT_LINE( "VAR " & C_OBJ & ", Q" );
+	    ADR_COMPOSANT( COMP_STR );
+	    PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & C_OBJ );
+	    INIT_RECORD_A( C_TYPE, C_OBJ, COMP_ID, RACINE_DISPOSITION( REC_BASE ), CONTROLES_SEULS => TRUE );
+	  end;
+	end if;
+
+      elsif  EST_COMPOSANT_RECORD_DYNAMIQUE( COMP_ID )  then						--| lot 31 : objet composant deja pose
 	if  FIELD_INIT /= TREE_VOID  then							--| (discriminants, descripteurs) a
 	  ADR_COMPOSANT( COMP_STR );								--| objet + OFS : valeur par defaut comme
 	  DESC_REC_VERS_OBJET( COMP_ID );							--| par affectation, sinon ses propres
@@ -4469,7 +4627,14 @@ is
     if  REC_BASE.TY = DN_CONSTRAINED_RECORD  then						-- base PRIVEE possible (derive d'un prive)
       REC_BASE := FULL_TYPE_VIEW( D( SM_BASE_TYPE, REC_BASE ) );
     end if;
-    if  REC_BASE.TY /= DN_RECORD  or else  not A_INIT_IMPLICITE( REC_BASE )  then
+    if  REC_BASE.TY /= DN_RECORD  then
+      return;
+    end if;
+    if  CONTROLES_SEULS  then
+      if  not A_CONTRAINTE_DEPENDANTE( REC_BASE )  then
+        return;
+      end if;
+    elsif  not A_INIT_IMPLICITE( REC_BASE )  then
       return;
     end if;
     POSER_REC_COURANT( LVL, OBJ_VAR );
@@ -4481,6 +4646,98 @@ is
     end if;
   end	CODE_INIT_IMPLICITE;
 	------------------
+
+
+			-----------------------
+  procedure		CONTROLER_COMPATIBILITE	( T :TREE;  ACCES, COMP_ID, OWNER :TREE := TREE_VOID;
+						  ANONYME_SEUL :BOOLEAN := FALSE )
+  is			-----------------------
+	--| Lot 49 (LRM 3.7.2) : une contrainte de discriminants est compatible si chaque
+	--| valeur appartient au sous-type de son discriminant ET si chaque sous-type de
+	--| composant qui depend d'un discriminant est compatible, valeurs substituees.  Le
+	--| controle se fait a l'ELABORATION de l'indication de sous-type T (record contraint
+	--| de base STATIQUE ; les records dynamiques ont l'objet d'essai du lot 34) : objet
+	--| d'essai de cadre, discriminants poses depuis la contrainte (valeurs elaborees du
+	--| proprietaire, d'ACCES, ou du composant COMP_ID de OWNER), puis CODE_INIT_IMPLICITE
+	--| en mode CONTROLES_SEULS (aucune valeur par defaut evaluee ; variante choisie).
+	--| Rien n'est emis si aucun composant n'a de contrainte dependante.  ANONYME_SEUL :
+	--| sous-type nomme deja controle a sa propre elaboration.
+    LVL_STR		:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+    C_TYPE		: TREE		:= FULL_TYPE_VIEW( T );
+    C_BASE		: TREE;
+    NOM			: TREE;
+    EXP_S		: SEQ_TYPE;
+    EXP			: TREE;
+    DECL_S		: SEQ_TYPE;
+    DECL		: TREE;
+  begin
+    if  C_TYPE.TY /= DN_CONSTRAINED_RECORD  then
+      return;
+    end if;
+    C_BASE := BASE_RECORD( C_TYPE );
+    if  C_BASE.TY /= DN_RECORD  or else  REPRESENTED_ITEMS.HAS_RECORD_REP( C_BASE )
+      or else  EST_RECORD_DYNAMIQUE( C_BASE )  or else  not A_CONTRAINTE_DEPENDANTE( C_BASE )
+    then
+      return;
+    end if;
+    NOM := RACINE_DISPOSITION( C_BASE );							--| taille encore inconnue (composant de
+    if  D( CD_IMPL_SIZE, NOM ) = TREE_VOID  or else  DI( CD_IMPL_SIZE, NOM ) <= 0  then		--| type prive non complete) : controle
+      return;											--| non fait (c37214a, c37216a)
+    end if;
+    if  ANONYME_SEUL  then
+      NOM := D( XD_SOURCE_NAME, C_TYPE );
+      if  NOM /= TREE_VOID  and then  ( NOM.TY = DN_SUBTYPE_ID  or else  NOM.TY = DN_TYPE_ID )
+        and then  D( SM_TYPE_SPEC, NOM ) = C_TYPE
+      then
+        return;
+      end if;
+    end if;
+
+    declare
+      ESSAI		:constant STRING	:= "__ESSAI" & NEW_LABEL;
+    begin
+      PUT( "VAR " & ESSAI & "__dat, " );
+      REGIONS_PATH( D( XD_SOURCE_NAME, C_BASE ) );
+      PUT_LINE( TYPE_INFO_STR( C_BASE ) & ".size" );
+      PUT_LINE( "VAR " & ESSAI & ", Q" );
+      PUT_LINE( tab & "LVA" & tab & LVL_STR & ", " & ESSAI & "__dat" );
+      PUT_LINE( tab & "SA" & tab & LVL_STR & ", " & ESSAI );
+
+      EXP_S  := LIST( D( SM_NORMALIZED_DSCRMT_S, C_TYPE ) );
+      DECL_S := LIST( D( SM_DISCRIMINANT_S, C_BASE ) );
+      while  not IS_EMPTY( DECL_S )  loop
+        POP( DECL_S, DECL );
+        declare
+	ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	ID	: TREE;
+        begin
+	while  not IS_EMPTY( ID_S )  and then  not IS_EMPTY( EXP_S )  loop
+	  POP( ID_S, ID );
+	  POP( EXP_S, EXP );
+	  PUT_LINE( tab & "LA  " & LVL_STR & ", " & ESSAI );					-- @essai.discriminant
+	  PUT( tab & "LI" & tab );
+	  REGIONS_PATH( D( XD_SOURCE_NAME, C_BASE ) );
+	  PUT_LINE( TYPE_INFO_STR( C_BASE ) & "." & PRINT_NAME( D( LX_SYMREP, ID ) ) );
+	  PUT_LINE( tab & "ADD" );
+	  if  COMP_ID /= TREE_VOID  and then  CODI.DISCR_ELABORE( COMP_ID, EXP )  then		--| valeur elaboree au type englobant
+	    PUT( tab & CODI.OPER_LOAD_STR( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) ) & tab
+	         & IMAGE( DI( CD_LEVEL, OWNER ) ) & ", " );
+	    REGIONS_PATH( D( XD_SOURCE_NAME, OWNER ) );
+	    PUT_LINE( TYPE_INFO_STR( OWNER ) & ".__DC_" & PRINT_NAME( D( LX_SYMREP, COMP_ID ) ) & '_'
+		      & PRINT_NAME( D( LX_SYMREP, ID ) ) );
+	  else
+	    EXPRESSIONS.CODE_VALEUR_DISCRIMINANT( C_TYPE, ACCES, ID, EXP );			--| valeur elaboree du proprietaire
+	  end if;
+	  EXPRESSIONS.CODE_RANGE_CHECK( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) );
+	  PUT_LINE( tab & "S" & OPER_SIZ_CHAR( D( SM_OBJ_TYPE, ID ) ) );
+	end loop;
+        end;
+      end loop;
+
+      CODE_INIT_IMPLICITE( C_TYPE, ESSAI, CONTROLES_SEULS => TRUE );
+    end;
+  end	CONTROLER_COMPATIBILITE;
+	-----------------------
 
 	------------
 end	DECLARATIONS;

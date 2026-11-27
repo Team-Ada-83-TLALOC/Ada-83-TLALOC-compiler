@@ -82,6 +82,8 @@ is
 	  DECLARATIONS.CODE_OBJET_DYNAMIQUE( DES, LIST( D( SM_NORMALIZED_DSCRMT_S, DES ) ),
 					     SUR_LE_TAS => FALSE );
 	  PUT_LINE( tab & "DROP" );
+	else											--| lot 49 : designe record STATIQUE
+	  DECLARATIONS.CONTROLER_COMPATIBILITE( DES, ACCES => TYPE_SPEC, ANONYME_SEUL => TRUE );
 	end if;
       end;
 
@@ -915,6 +917,10 @@ is
 	PUT_LINE( "VAR _FST_" & DIM_NBR_STR & ", D" );
 	PUT_LINE( "VAR _LST_" & DIM_NBR_STR & ", D" );
 
+	if  ELEMENT_SIZ > 0  and then  not CODI.EST_RECORD_DYNAMIQUE( COMP_TYPE )  then		--| lot 49 : composant record STATIQUE
+	  DECLARATIONS.CONTROLER_COMPATIBILITE( COMP_TYPE, ANONYME_SEUL => TRUE );			--| contraint (LRM 3.6.1, 3.7.2)
+	end if;
+
 	if  CODI.EST_RECORD_DYNAMIQUE( COMP_TYPE )  then
 		-- Lot 27 : composant record DYNAMIQUE (option B).  Pas = taille d'un
 		-- objet composant, auto-relatif, en bits ; le tableau suit le chemin
@@ -1746,6 +1752,11 @@ is
 
     PUT_LINE( "VAR use__info, Q" );
     PUT_LINE( "VAR SIZ__, D" );									-- Var taille de patron
+    if  DECLARATIONS.A_PATRON_CONTRAINTE( TYPE_SPEC )  then						--| lot 51 (LRM 3.7.4) : patron du TYPE
+      PUT_LINE( "VAR _CONTR, D" );									--| a defauts, adjacent a SIZ__ : non
+      PUT_LINE( tab & "LI" & tab & "0" );								--| contraint
+      PUT_LINE( tab & "SD" & tab & LVL_STR & ", _CONTR" );
+    end if;
     PUT_LINE( tab & "LVA" & tab & LVL_STR & ", SIZ__" );							-- Adresse de debut de patron
     PUT_LINE( tab & "SA" & tab & LVL_STR & ", use__info" );
 
@@ -2264,7 +2275,8 @@ is
 	    ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
 	    while  not IS_EMPTY( ID_S )  loop
 	      POP( ID_S, ID );
-	      if  CODI.EST_COMPOSANT_RECORD_DYNAMIQUE( ID )
+	      if  EST_DYNAMIQUE
+		and then  CODI.EST_COMPOSANT_RECORD_DYNAMIQUE( ID )
 		and then  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ).TY = DN_CONSTRAINED_RECORD	--| lot 32 : mutable, rien au type
 		and then  FIXE( CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) )
 	      then
@@ -2272,6 +2284,13 @@ is
 					   LIST( D( SM_NORMALIZED_DSCRMT_S, CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) ) ),
 					   SUR_LE_TAS => FALSE );
 		PUT_LINE( tab & "DROP" );
+	      elsif  ID.TY = DN_COMPONENT_ID						--| lot 49 : composant record STATIQUE
+		and then  not CODI.EST_COMPOSANT_RECORD_DYNAMIQUE( ID )			--| a contrainte fixe (LRM 3.7.2)
+		and then  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ).TY = DN_CONSTRAINED_RECORD
+		and then  FIXE( CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) )
+	      then
+		DECLARATIONS.CONTROLER_COMPATIBILITE( D( SM_OBJ_TYPE, ID ), COMP_ID => ID, OWNER => TYPE_SPEC,
+						      ANONYME_SEUL => TRUE );
 	      end if;
 	    end loop;
 	  end if;
@@ -2289,8 +2308,8 @@ is
       end	CTL_LISTE;
 		---------
     begin
-      if  EST_DYNAMIQUE  then
-	CTL_LISTE( D( SM_COMP_LIST, TYPE_SPEC ) );
+      if  EST_DYNAMIQUE  or else  D( SM_DERIVED, TYPE_SPEC ) = TREE_VOID  then			--| lot 49 : aussi les records statiques
+	CTL_LISTE( D( SM_COMP_LIST, TYPE_SPEC ) );						--| (derive : controles du parent)
       end if;
     end			CONTROLER_COMPOSANTS_RECORDS;
 			----------------------------
@@ -2419,16 +2438,35 @@ begin
   PUT_LINE( TYPE_STR & " = '" & TYPE_STR & "'" );
   PUT_LINE( "namespace " & TYPE_STR );
 
-  PUT( "use__info = " );
-  EMIT_BASE_PREFIX;
-  PUT_LINE( ".use__info" );
+  if  TYPE_SPEC.TY = DN_CONSTRAINED_RECORD  and then  DECLARATIONS.A_PATRON_CONTRAINTE( TYPE_SPEC )
+    and then  D( SM_TYPE_SPEC, TYPE_NAME ) = TYPE_SPEC
+  then										--| lot 51 (LRM 3.7.4) : sous-type CONTRAINT
+    PUT_LINE( "VAR use__info, Q" );							--| d'un record a defauts -- patron PROPRE,
+    PUT_LINE( "VAR SIZ__, D" );								--| disposition de celui du type, _CONTR = 1 ;
+												--| chaque nom a le sien (SUBTYPE T IS S :
+												--| noeud partage, XD_SOURCE_NAME renomme)
+    PUT_LINE( "VAR _CONTR, D" );
+    PUT_LINE( tab & "LVA" & tab & LVL_STR & ", SIZ__" );
+    PUT_LINE( tab & "SA" & tab & LVL_STR & ", use__info" );
+    PUT( tab & "LD" & tab & IMAGE( DI( CD_LEVEL, BASE_REC ) ) & ", " );
+    EMIT_BASE_PREFIX;
+    PUT_LINE( ".SIZ__" );
+    PUT_LINE( tab & "SD" & tab & LVL_STR & ", SIZ__" );
+    PUT_LINE( tab & "LI" & tab & "1" );
+    PUT_LINE( tab & "SD" & tab & LVL_STR & ", _CONTR" );
+
+  else
+    PUT( "use__info = " );
+    EMIT_BASE_PREFIX;
+    PUT_LINE( ".use__info" );
+
+    PUT( "SIZ__ = " );								-- objet d'un sous-type NOMME :
+    EMIT_BASE_PREFIX;								-- COMPILE_RECORD_VAR lit <sous-type>.SIZ__
+    PUT_LINE( ".SIZ__" );
+  end if;
 
   PUT( "SIZ = " );
   EMIT_BASE_PREFIX;
-  PUT_LINE( ".SIZ__" );
-
-  PUT( "SIZ__ = " );								-- objet d'un sous-type NOMME :
-  EMIT_BASE_PREFIX;								-- COMPILE_RECORD_VAR lit <sous-type>.SIZ__
   PUT_LINE( ".SIZ__" );
 
   PUT( "size = " );
@@ -2475,6 +2513,9 @@ begin
     DECLARATIONS.CODE_OBJET_DYNAMIQUE( TYPE_SPEC, LIST( D( SM_NORMALIZED_DSCRMT_S, TYPE_SPEC ) ),
 				       SUR_LE_TAS => FALSE );
     PUT_LINE( tab & "DROP" );
+  elsif  TYPE_SPEC.TY = DN_CONSTRAINED_RECORD  and then  D( XD_SOURCE_NAME, TYPE_SPEC ) = TYPE_NAME	--| lot 49 : record STATIQUE (LRM 3.7.2),
+  then												--| composants a contrainte dependante
+    DECLARATIONS.CONTROLER_COMPATIBILITE( TYPE_SPEC );
   end if;
 
   end	CODE_CONSTRAINED_RECORD_DECL;

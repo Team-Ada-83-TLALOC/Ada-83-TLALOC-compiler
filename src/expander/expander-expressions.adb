@@ -151,9 +151,9 @@ is
 
       elsif  NAME_EXP.TY = DN_INDEXED  then
         CODE_INDEXED( NAME_EXP );									-- LAISSE UNE ADRESSE
-        if  D( SM_EXP_TYPE, NAME_EXP ).TY in CLASS_SCALAR
-	or else  CODI.EST_ACCES( FULL_TYPE_VIEW( D( SM_EXP_TYPE, NAME_EXP ) ) )		--| composant d'acces : sa VALEUR (A(I)(J),
-        then											--| A(I).all, X := A(I))
+        if  FULL_TYPE_VIEW( D( SM_EXP_TYPE, NAME_EXP ) ).TY in CLASS_SCALAR			--| lot 50 : vue pleine (composant prive
+	or else  CODI.EST_ACCES( FULL_TYPE_VIEW( D( SM_EXP_TYPE, NAME_EXP ) ) )		--| scalaire, c61010a) ; composant d'acces :
+        then											--| sa VALEUR (A(I)(J), A(I).all, X := A(I))
 	PUT_LINE( tab & OPER_LOAD_STR( FULL_TYPE_VIEW( D( SM_EXP_TYPE, NAME_EXP ) ) ) );
         end if;
 
@@ -1368,12 +1368,35 @@ is
     function	COMP_SIZE_BITS	( T : TREE )	return INTEGER
     is		--------------
       E	: TREE	:= CODI.FULL_TYPE_VIEW( T );
+
+		-----------
+      function	TAILLE_BASE	( C : TREE )	return INTEGER				--| lot 49 : taille statique de la
+      is		-----------								--| base d'un record contraint, 0 sinon
+        B	: TREE	:= C;
+      begin
+        while  B.TY = DN_CONSTRAINED_RECORD  loop
+	B := CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, B ) );
+        end loop;
+        if  B.TY /= DN_RECORD  or else  D( CD_IMPL_SIZE, B ) = TREE_VOID  then
+	return  0;
+        end if;
+        return  DI( CD_IMPL_SIZE, B );
+      end	TAILLE_BASE;
+		-----------
     begin
       if  CODI.EST_ACCES( E )  then
         return CODI.ADDR_SIZE * CODI.STORAGE_UNIT;
 
       elsif  E.TY = DN_FLOAT  then
         return CODI.ADDR_SIZE * CODI.STORAGE_UNIT;
+
+      elsif  E.TY = DN_CONSTRAINED_RECORD  and then  TAILLE_BASE( E ) > 0  then
+			--| Lot 49 : composant record contraint -- la place est celle de
+			--| la BASE (disposition additive, toutes variantes ; meme regle que
+			--| TYPE_SIZE_BITS de l'elaboration des tableaux, _COMP_SIZ).  La
+			--| taille du sous-type contraint a variantes valait 1 octet : pas
+			--| d'agregat faux (tableau de CONS (-6), c37213e).
+        return  ( ( TAILLE_BASE( E ) + CODI.STORAGE_UNIT - 1 ) / CODI.STORAGE_UNIT ) * CODI.STORAGE_UNIT;
 
       else
         -- CD_IMPL_SIZE est la taille minimale en BITS posee par le front-end
@@ -3204,6 +3227,17 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	      PUT_LINE( tab & "OUX" );
 	    elsif  PREFIX_DEFN.TY = DN_COMPONENT_ID  then
 	      PUT_LINE( tab & "LI" & tab & "0" );						--| lot 32 : composant non contraint, defauts
+	    elsif  IS_FORMAL  and then  not CODI.IN_GENERIC_BODY
+	      and then  DECLARATIONS.A_PATRON_CONTRAINTE( TYPE_SPEC )
+	    then
+	      --| lot 51 (LRM 3.7.4, 6.2) : valeur EXACTE de l'actuel, lue dans le patron
+	      --| du doublet recu : _CONTR (deplacement 4, apres SIZ__)
+	      PUT_LINE( tab & "LA  " & IMAGE( DI( CD_LEVEL, PREFIX_DEFN ) ) & ", -"
+		      & PRINT_NAME( D( LX_SYMREP, PREFIX_DEFN ) ) & "_ofs" );			-- @doublet de l'actuel
+	      PUT_LINE( tab & "LA  ,  8" );							-- @patron
+	      PUT_LINE( tab & "LD  ,  4" );							-- _CONTR
+	      PUT_LINE( tab & "LI" & tab & "0" );
+	      PUT_LINE( tab & "CNE" );
 	    elsif  IS_FORMAL  then
 	      PUT_LINE( "; ATTRIBUTE CONSTRAINED formel mutable : approximation statique FALSE"
 			& " (valeur exacte = celle de l'actuel)" );
@@ -4192,6 +4226,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	TROU( "CODE_ATTRIBUTE 'PRED : forme directe AS_EXP imprevue" );
         end if;
         PUT_LINE( tab & "DEC" );
+        CODE_CONTROLE_TYPE_DE_BASE( PREFIX_TYPE_SPEC, "STANDARD.ce_raise_", DISCRET => TRUE );		--| lot 48 : LRM 3.5.5
 
       else TROU( "CODE_ATTRIBUTE '" & CHN_ATTR );
       end if;
@@ -4232,6 +4267,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	TROU( "CODE_ATTRIBUTE 'SUCC : forme directe AS_EXP imprevue" );
         end if;
         PUT_LINE( tab & "INC" );
+        CODE_CONTROLE_TYPE_DE_BASE( PREFIX_TYPE_SPEC, "STANDARD.ce_raise_", DISCRET => TRUE );		--| lot 48 : LRM 3.5.5
       elsif  CHN_ATTR( 6 ) = 'E'  then
         if  EST_FLOTTANT_MODELE  then CODE_FLOAT_MODEL( 'e' );						-- SAFE_EMAX
         else CODE_FLOAT_EMAX;
@@ -4256,6 +4292,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         if  D( AS_EXP, ATTRIBUTE ) /= TREE_VOID  then
 	TROU( "CODE_ATTRIBUTE 'VAL : forme directe AS_EXP imprevue" );
         end if;
+        CODE_CONTROLE_TYPE_DE_BASE( PREFIX_TYPE_SPEC, "STANDARD.ce_raise_", DISCRET => TRUE, OCTETS_PERMIS => TRUE );		--| lot 48 : LRM 3.5.5
       end if;
 
     when  'W' => CODE_WIDTH;							-- WIDTH
@@ -4405,6 +4442,33 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
 	    end	NB_POSITIONNELS;
 		---------------
+
+
+			--------
+	    function	NB_CHOIX		return NATURAL
+	    is		--------
+	      -- Lot 50 : nombre de choix (hors others) des associations nommees.
+	      SEQ		: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+	      ASSOC	: TREE;
+	      CHOICES	: SEQ_TYPE;
+	      CH		: TREE;
+	      N		: NATURAL	:= 0;
+	    begin
+	      while  not IS_EMPTY( SEQ )  loop
+	        POP( SEQ, ASSOC );
+	        if  ASSOC.TY = DN_NAMED  then
+		CHOICES := LIST( D( AS_CHOICE_S, ASSOC ) );
+		while  not IS_EMPTY( CHOICES )  loop
+		  POP( CHOICES, CH );
+		  if  CH.TY /= DN_CHOICE_OTHERS  then
+		    N := N + 1;
+		  end if;
+		end loop;
+	        end if;
+	      end loop;
+	      return  N;
+	    end	NB_CHOIX;
+		--------
 
 
 			------------------------
@@ -4879,9 +4943,12 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	      PUT_LINE( tab & "INC" );
 	      PUT_LINE( tab & "CLAMP0" );
 
-	    elsif  RNG = TREE_VOID  and then  NB_POSITIONNELS = 0  then
+	    elsif  ( RNG = TREE_VOID  or else  NB_CHOIX > 1 )  and then  NB_POSITIONNELS = 0  then
 	      -- AGREGAT NOMME a choix INDIVIDUELS (3 => A, 4 => B) : LRM 4.3.2,
 	      -- bornes = plus petit et plus grand choix ; COUNT = LST - FST + 1.
+	      -- Lot 50 : aussi a choix INTERVALLES multiples (1 .. 2 | 4 .. 10 => A,
+	      -- 3 => B ; statiques, LRM 4.3.2(3)) -- le premier intervalle seul
+	      -- donnait les bornes (c37208a).
 	      declare
 	        SEQ	: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
 	        ASSOC	: TREE;
@@ -4894,8 +4961,32 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 		CHOICES := LIST( D( AS_CHOICE_S, ASSOC ) );
 		while  not IS_EMPTY( CHOICES )  loop
 		  POP( CHOICES, CH );
-		  CODE_EXP( D( AS_EXP, CH ) );
-		  if  PREMIER  then
+		  if  CH.TY = DN_CHOICE_RANGE  then						--| lot 50 : intervalle -- sa borne
+		    CODE_DISCRETE_RANGE_BOUND( D( AS_DISCRETE_RANGE, CH ), IS_LAST => TRUE );	--| haute pour le maximum, puis sa
+		    if  PREMIER  then							--| borne basse comme une valeur
+		      PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info._LST_1" );
+		    else
+		      declare
+		        PAS_MAX	:constant STRING	:= LABEL_STR( NEW_LABEL );
+		      begin
+		        PUT_LINE( tab & "DUP" );
+		        PUT_LINE( tab & "LD  " & LVL & ", " & ANON & "_info._LST_1" );
+		        PUT_LINE( tab & "CGT" );
+		        PUT_LINE( tab & "BF" & tab & PAS_MAX );
+		        PUT_LINE( tab & "DUP" );
+		        PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info._LST_1" );
+		        PUT_LINE( PAS_MAX & ':' );
+		        PUT_LINE( tab & "DROP" );
+		      end;
+		    end if;
+		    CODE_DISCRETE_RANGE_BOUND( D( AS_DISCRETE_RANGE, CH ), IS_LAST => FALSE );
+		  else
+		    CODE_EXP( D( AS_EXP, CH ) );
+		  end if;
+		  if  PREMIER  and then  CH.TY = DN_CHOICE_RANGE  then
+		    PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info._FST_1" );
+		    PREMIER := FALSE;
+		  elsif  PREMIER  then
 		    PUT_LINE( tab & "DUP" );
 		    PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info._FST_1" );
 		    PUT_LINE( tab & "SD  " & LVL & ", " & ANON & "_info._LST_1" );
@@ -5937,14 +6028,27 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	ANON		:constant STRING	:= ANONYMOUS_NAME_AT( E );
 	LVL_STR		:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
 	REC_TYPE		: TREE		:= FULL_TYPE_VIEW( CONTEXT_TYPE );
+	SIZE_REC		: TREE;
 	SIZE_BITS		: INTEGER		:= 0;
         begin
 	if  REC_TYPE.TY = DN_CONSTRAINED_RECORD  then
 	  REC_TYPE := D( SM_BASE_TYPE, REC_TYPE );
 	end if;
-	if  D( CD_IMPL_SIZE, REC_TYPE ) /= TREE_VOID  then
-	  SIZE_BITS := DI( CD_IMPL_SIZE, REC_TYPE );
-	end if;
+	SIZE_REC := REC_TYPE;
+	loop
+	  if  D( CD_IMPL_SIZE, SIZE_REC ) /= TREE_VOID  then
+	    SIZE_BITS := DI( CD_IMPL_SIZE, SIZE_REC );
+	  end if;
+	  exit when  SIZE_BITS > 0  or else  SIZE_REC.TY /= DN_RECORD
+		or else  D( SM_DERIVED, SIZE_REC ) = TREE_VOID;
+			--| lot 49 : TYPE N IS NEW R (C) -- le record derive n'a pas de disposition
+			--| propre (LRM 3.4 : representation du parent, cf. RACINE_DERIVEE) ;
+			--| la taille statique est celle de l'ancetre qui la porte.
+	  SIZE_REC := FULL_TYPE_VIEW( D( SM_DERIVED, SIZE_REC ) );
+	  if  SIZE_REC.TY = DN_CONSTRAINED_RECORD  then
+	    SIZE_REC := FULL_TYPE_VIEW( D( SM_BASE_TYPE, SIZE_REC ) );
+	  end if;
+	end loop;
 	if  SIZE_BITS <= 0  then
 	  TROU( "CODE_RECORD_EQUALITY operande agregat : taille non statique", REC_TYPE );
 	end if;
@@ -6726,6 +6830,106 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	--------------------
 
 
+			-------------------------
+  procedure		CODE_CONTROLE_TYPE_DE_BASE	( RES_TYPE :TREE;
+						  EXCEPTION_LBL :STRING := "STANDARD.ne_raise_";
+						  DISCRET :BOOLEAN := FALSE;
+						  OCTETS_PERMIS :BOOLEAN := FALSE )
+  is			-------------------------
+	--| DISCRET (attributs 'SUCC, 'PRED, 'VAL, LRM 3.5.5) : CONSTRAINT_ERROR hors du type de
+	--| base, enumerations comprises (positions 0 .. n-1, sans clause de representation).
+	--| Lot 48 (LRM 4.5, 4.5.7 ; LLIR V8, « Arithmetique entiere ») : le resultat d'un
+	--| operateur arithmetique predefini d'un type entier dont le type de base fait moins de
+	--| 64 bits (INTEGER, SHORT_INTEGER, et les types derives d'eux) est calcule sur 64 bits
+	--| sans faute ; le code engendre le compare aux bornes du TYPE DE BASE (statiques) et
+	--| leve NUMERIC_ERROR hors de celles-ci.  Les types de 64 bits sont controles par la
+	--| machine (faute 129, lot 46).  Formels generiques et bornes non statiques : rien.
+	--| Pile : resultat au sommet, PRESERVE.
+    use ENTIERS_EXACTS;
+    T		: TREE;
+    BASE		: TREE;
+    INTERVALLE	: TREE;
+    BAS, HAUT	: TREE;
+  begin
+    if  not CODI.CHECKS_ENABLED  or else  RES_TYPE = TREE_VOID  then
+      return;
+    end if;
+    T := FULL_TYPE_VIEW( RES_TYPE );
+    if  DISCRET  and then  T /= TREE_VOID  and then  T.TY = DN_ENUMERATION  then
+      declare
+        LITS	: SEQ_TYPE	:= LIST( D( SM_LITERAL_S, D( SM_BASE_TYPE, T ) ) );
+        LIT	: TREE;
+        N	: INTEGER		:= 0;
+      begin
+        while  not IS_EMPTY( LITS )  loop
+	POP( LITS, LIT );
+	if  DI( SM_REP, LIT ) /= N  then
+	  return;									--| clause de representation : rien
+	end if;
+	N := N + 1;
+        end loop;
+        if  N = 0  then
+	return;
+        end if;
+        if  OCTETS_PERMIS  and then  N = 128  and then  PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, D( SM_BASE_TYPE, T ) ) ) ) = "CHARACTER"  then
+	return;									--| CHARACTER'VAL : 128 valeurs en Ada 83, mais le
+        end if;									--| runtime et TARGET_CODE transportent des octets
+										--| 0 .. 255 par CHARACTER'VAL (BIO.WRITE du binaire) :
+										--| pas de controle (choix d'implantation, lot 48) ;
+										--| 'SUCC et 'PRED restent controles
+        PUT_LINE( tab & "DUP" );
+        PUT_LINE( tab & "LI" & tab & "0" );
+        PUT_LINE( tab & "CLT" );
+        PUT_LINE( tab & "BT" & tab & EXCEPTION_LBL );
+        PUT_LINE( tab & "DUP" );
+        PUT_LINE( tab & "LI" & tab & IMAGE( N - 1 ) );
+        PUT_LINE( tab & "CGT" );
+        PUT_LINE( tab & "BT" & tab & EXCEPTION_LBL );
+      end;
+      return;
+    end if;
+    if  T = TREE_VOID  or else  T.TY /= DN_INTEGER  then
+      return;
+    end if;
+    if  CODI.IN_GENERIC_BODY  and then  IS_GENERIC_FORMAL_TYPE( D( XD_SOURCE_NAME, T ) )  then
+      return;
+    end if;
+    BASE := D( SM_BASE_TYPE, T );
+    if  BASE = TREE_VOID  or else  BASE.TY /= DN_INTEGER  then
+      return;
+    end if;
+    INTERVALLE := D( SM_RANGE, BASE );
+    if  INTERVALLE = TREE_VOID  or else  INTERVALLE.TY /= DN_RANGE  then
+      return;
+    end if;
+    BAS  := D( SM_VALUE, D( AS_EXP1, INTERVALLE ) );
+    HAUT := D( SM_VALUE, D( AS_EXP2, INTERVALLE ) );
+    if  BAS = TREE_VOID  or else  HAUT = TREE_VOID  then
+      return;
+    end if;
+    declare
+      B	: ENTIER_EXACT	:= LIRE( PRINT_NUM( BAS ) );
+      H	: ENTIER_EXACT	:= LIRE( PRINT_NUM( HAUT ) );
+    begin
+      if  EGAL( B, EXACT( LONG_INTEGER'FIRST ) )  and then  EGAL( H, EXACT( LONG_INTEGER'LAST ) )  then
+        return;										--| 64 bits : faute 129 de la machine
+      end if;
+      if  not TIENT_64( B )  or else  not TIENT_64( H )  then
+        return;
+      end if;
+      PUT_LINE( tab & "DUP" );
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( B ) );
+      PUT_LINE( tab & "CLT" );
+      PUT_LINE( tab & "BT" & tab & EXCEPTION_LBL );
+      PUT_LINE( tab & "DUP" );
+      PUT_LINE( tab & "LI" & tab & IMAGE_EXACTE( H ) );
+      PUT_LINE( tab & "CGT" );
+      PUT_LINE( tab & "BT" & tab & EXCEPTION_LBL );
+    end;
+  end	CODE_CONTROLE_TYPE_DE_BASE;
+	-------------------------
+
+
 				------------------
   procedure			CODE_FUNCTION_CALL		( FUNCTION_CALL :TREE )
   is				------------------
@@ -7080,17 +7284,18 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
         end if;
 
         if    OP_STR = """+"""   then
-	if IS_FLOAT then PUT_LINE( tab & "FADD" ); else PUT_LINE( tab & "ADD" ); end if;
+	if IS_FLOAT then PUT_LINE( tab & "FADD" ); else PUT_LINE( tab & "ADD" ); CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE ); end if;
         elsif OP_STR = """-"""   then
-	if IS_FLOAT then PUT_LINE( tab & "FSUB" ); else PUT_LINE( tab & "SUB" ); end if;
+	if IS_FLOAT then PUT_LINE( tab & "FSUB" ); else PUT_LINE( tab & "SUB" ); CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE ); end if;
         elsif OP_STR = """*"""   then
-	if IS_FLOAT then PUT_LINE( tab & "FMUL" ); else PUT_LINE( tab & "MUL" ); end if;
+	if IS_FLOAT then PUT_LINE( tab & "FMUL" ); else PUT_LINE( tab & "MUL" ); CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE ); end if;
         elsif OP_STR = """/"""   then
 	if IS_FLOAT then
 	  PUT_LINE( tab & "FDIV" );
 	else
 	  CODE_ZERO_DIVIDE_CHECK;								-- E-E
 	  PUT_LINE( tab & "DIV"	);
+	  CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE );						--| lot 48 : FIRST / -1
 	end if;
         elsif OP_STR = """MOD""" then
 	CODE_ZERO_DIVIDE_CHECK;
@@ -7147,6 +7352,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	elsif  PRM_1.TY = DN_NUMERIC_LITERAL  and then  DI( SM_VALUE, PRM_1 ) = 2  then
 	  PUT_LINE( tab & "DEC" );
 	  PUT_LINE( tab & "SHL" );
+	  CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE );						--| lot 48
 	else
 			--| Chantier C5 (recensement 28/07, 21 traversees ; temoin POW1) :
 			--| X**N general -> primitive Ada cachee STANDARD.INTEGER_POW
@@ -7173,6 +7379,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	      PUT_LINE( tab & "LQ  " & LVL_STR & ", " & POW_X );					-- puis N (sommet)
 	      PUT_LINE( tab & "CALL" & tab & "STANDARD. ,INTEGER_POW_L7" );				-- ATTENTION a ceci : changer synchro avec STANDARD
 	    end;
+	    CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE );						--| lot 48
 	  end if;
 
 	elsif OP_STR = """AND""" then  PUT_LINE( tab & "ET"  );
@@ -7183,10 +7390,10 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	return;
 <<UNARY>>
 	if  OP_STR = """-"""   then
-	  if IS_FLOAT then PUT_LINE( tab & "FNEG" ); else PUT_LINE( tab & "NEG" ); end if;
+	  if IS_FLOAT then PUT_LINE( tab & "FNEG" ); else PUT_LINE( tab & "NEG" ); CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE ); end if;
 	end if;
 	if  OP_STR = """ABS"""  then
-	if  IS_FLOAT  then PUT_LINE( tab & "FABS" ); else PUT_LINE( tab & "ABS" ); end if;
+	if  IS_FLOAT  then PUT_LINE( tab & "FABS" ); else PUT_LINE( tab & "ABS" ); CODE_CONTROLE_TYPE_DE_BASE( RES_TYPE ); end if;
 	end if;
 
 	if  OP_STR = """NOT"""  then
@@ -8654,13 +8861,103 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 			-------------
     procedure		EMIT_ONE_COMP	( COMP :TREE; DEPTH :NATURAL )
     is			-------------
+
+		----------------------
+      procedure	CONTROLE_SOUS_AGREGAT	( C_TYPE :TREE )
+      is		----------------------
+	--| Lot 52 (LRM 4.3, 4.3.2) : agregat composant d'un tableau de tableaux dont le
+	--| sous-type composant est CONTRAINT (une dimension, bornes statiques) : pas de
+	--| glissement pour une expression de composant -- ses bornes (choix nommes sans
+	--| others : min .. max ; positionnel : nombre de composants) doivent etre celles
+	--| du sous-type, sinon CONSTRAINT_ERROR (c43213a).  Tout statique, sinon rien.
+	CT	: TREE		:= FULL_TYPE_VIEW( C_TYPE );
+	IDX_S	: SEQ_TYPE;
+	IDX	: TREE;
+	RNG	: TREE;
+	SEQ	: SEQ_TYPE		:= LIST( D( SM_NORMALIZED_COMP_S, COMP ) );
+	ASSOC	: TREE;
+	CS	: SEQ_TYPE;
+	CH	: TREE;
+	FST, LST	: INTEGER		:= 0;
+	MIN, MAX	: INTEGER		:= 0;
+	CLO, CHI	: INTEGER;
+	OK	: BOOLEAN;
+	NB_POS	: NATURAL		:= 0;
+	NB_NOM	: NATURAL		:= 0;
+
+	procedure	VALEUR	( E :TREE;  V :out INTEGER;  LU :out BOOLEAN )
+	is
+	  SV	: TREE;
+	begin
+	  V := 0;  LU := FALSE;
+	  if  E = TREE_VOID  or else  E = TREE_NIL  or else  E.TY = DN_USED_NAME_ID  or else  E.TY = DN_USED_OP  then
+	    return;
+	  end if;
+	  SV := D( SM_VALUE, E );
+	  if  SV.PT = HI  and then  SV.NOTY = DN_NUM_VAL  then
+	    V := DI( SM_VALUE, E );  LU := TRUE;
+	  end if;
+	end	VALEUR;
+      begin
+	if  CT.TY /= DN_CONSTRAINED_ARRAY  or else  not CODI.CHECKS_ENABLED  then
+	  return;
+	end if;
+	IDX_S := LIST( D( SM_INDEX_SUBTYPE_S, CT ) );
+	if  IS_EMPTY( IDX_S )  then
+	  return;
+	end if;
+	POP( IDX_S, IDX );
+	if  not IS_EMPTY( IDX_S )  then
+	  return;										-- une dimension seulement
+	end if;
+	RNG := D( SM_RANGE, FULL_TYPE_VIEW( IDX ) );
+	if  RNG = TREE_VOID  or else  RNG = TREE_NIL  or else  RNG.TY /= DN_RANGE  then
+	  return;
+	end if;
+	VALEUR( D( AS_EXP1, RNG ), FST, OK );
+	if  not OK  then  return;  end if;
+	VALEUR( D( AS_EXP2, RNG ), LST, OK );
+	if  not OK  or else  LST < FST  then  return;  end if;
+	while  not IS_EMPTY( SEQ )  loop
+	  POP( SEQ, ASSOC );
+	  if  ASSOC.TY = DN_NAMED  then
+	    CS := LIST( D( AS_CHOICE_S, ASSOC ) );
+	    while  not IS_EMPTY( CS )  loop
+	      POP( CS, CH );
+	      if  CH.TY = DN_CHOICE_OTHERS  then
+	        return;									-- bornes du sous-type
+	      end if;
+	      BORNES_CHOIX( CH, CLO, CHI, OK );
+	      if  not OK  or else  CHI < CLO  then
+	        return;
+	      end if;
+	      if  NB_NOM = 0  or else  CLO < MIN  then  MIN := CLO;  end if;
+	      if  NB_NOM = 0  or else  CHI > MAX  then  MAX := CHI;  end if;
+	      NB_NOM := NB_NOM + 1;
+	    end loop;
+	  else
+	    NB_POS := NB_POS + 1;
+	  end if;
+	end loop;
+	if  ( NB_NOM > 0  and then  NB_POS = 0  and then  ( MIN /= FST  or else  MAX /= LST ) )
+	  or else  ( NB_POS > 0  and then  NB_NOM = 0  and then  NB_POS /= LST - FST + 1 )
+	then
+	  PUT_LINE( tab & "BRA" & tab & "STANDARD.ce_raise_" );					-- bornes /= celles du sous-type
+	end if;
+      end	CONTROLE_SOUS_AGREGAT;
+	---------------------
+
     begin
       if  COMP.TY = DN_AGGREGATE  then
         PUT_LINE( tab & "LA  " & LVL_STR & ", " & PTR_NAME( DEPTH ) );
 
         if  DEPTH < NB_DIMS  then
+	if  DEPTH = NB_MULTI  then								--| lot 52 : dimension suivante = celle
+	  CONTROLE_SOUS_AGREGAT( D( SM_COMP_TYPE, FULL_TYPE_VIEW( D( SM_BASE_TYPE, TYPE_SPEC ) ) ) );	--| du composant (tableau de tableaux)
+	end if;
 	EMIT_AGG_AT_DEPTH( COMP, DEPTH + 1 );
         else
+	CONTROLE_SOUS_AGREGAT( COMP_TYPE );							--| lot 52
 	CODE_AGGREGATE( COMP, COMP_TYPE );
         end if;
 
@@ -9334,6 +9631,89 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 	is		------------------
 	  COMP_TYPE	: TREE		:= D( SM_OBJ_TYPE, COMP_ID );
 	  COMP_STR	:constant STRING	:= PRINT_NAME( D( LX_SYMREP, COMP_ID ) );
+
+			-------------------------
+	  procedure	CONTROLER_CONTRAINTE_COMPOSANT
+	  is		-------------------------
+		--| Lot 50 (LRM 4.3, 4.3.1) : valeur d'un composant de sous-type record CONTRAINT
+		--| (D : REC (C)) -- ses discriminants, ecrits dans la destination, egaux a ceux
+		--| de la contrainte, sinon CONSTRAINT_ERROR.  Une expression de la contrainte qui
+		--| nomme un discriminant de l'englobant le lit dans l'agregat en construction
+		--| (discriminants ecrits les premiers) : objet record courant.  Expression sans
+		--| discriminant : valeur elaboree au type (__DC_, lot 34).  Pile : @record, rendue.
+	    CT		: TREE		:= FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) );
+	    CB		: TREE;
+	    PROPRIO	: TREE		:= EFFECTIVE_TYPE;
+	    LVL		:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	    AGD		:constant STRING	:= "__AGD" & LABEL_STR( NEW_LABEL );
+	    AGC		:constant STRING	:= "__AGC" & LABEL_STR( NEW_LABEL );
+	    SAUVE_NOM	:constant STRING	:= CODI.REC_COURANT_NOM( 1 .. CODI.REC_COURANT_LEN );
+	    SAUVE_LVL	:constant LEVEL_NUM	:= CODI.REC_COURANT_LVL;
+	    EXP_S	: SEQ_TYPE;
+	    EXP		: TREE;
+	    DECL_S	: SEQ_TYPE;
+	    DECL	: TREE;
+	  begin
+	    if  not CODI.CHECKS_ENABLED  or else  CT.TY /= DN_CONSTRAINED_RECORD  then
+	      return;
+	    end if;
+	    CB := FULL_TYPE_VIEW( D( SM_BASE_TYPE, CT ) );
+	    while  CB.TY = DN_CONSTRAINED_RECORD  loop
+	      CB := FULL_TYPE_VIEW( D( SM_BASE_TYPE, CB ) );
+	    end loop;
+	    if  CB.TY /= DN_RECORD  or else  REPRESENTED_ITEMS.HAS_RECORD_REP( CB )  then
+	      return;
+	    end if;
+	    while  D( SM_DERIVED, PROPRIO ) /= TREE_VOID  loop					--| __DC_ : chez le record qui
+	      PROPRIO := FULL_TYPE_VIEW( D( SM_DERIVED, PROPRIO ) );				--| declare le composant
+	      while  PROPRIO.TY = DN_CONSTRAINED_RECORD  loop
+	        PROPRIO := FULL_TYPE_VIEW( D( SM_BASE_TYPE, PROPRIO ) );
+	      end loop;
+	    end loop;
+	    PUT_LINE( "VAR " & AGD & ", Q" );
+	    PUT_LINE( "VAR " & AGC & ", Q" );
+	    PUT_LINE( tab & "DUP" );
+	    PUT_LINE( tab & "SA" & tab & LVL & ", " & AGD );					-- @record en construction
+	    PUT( tab & "LIVA" & tab & LVL & ", " & AGD & ", " );
+	    CODI.REGIONS_PATH( TYPE_NAME );
+	    PUT_LINE( TYPE_NAME_STR & "." & COMP_STR );
+	    PUT_LINE( tab & "SA" & tab & LVL & ", " & AGC );					-- @composant
+	    CODI.POSER_REC_COURANT( CODI.CUR_LEVEL, AGD );
+	    EXP_S  := LIST( D( SM_NORMALIZED_DSCRMT_S, CT ) );
+	    DECL_S := LIST( D( SM_DISCRIMINANT_S, CB ) );
+	    while  not IS_EMPTY( DECL_S )  loop
+	      POP( DECL_S, DECL );
+	      declare
+	        ID_S	: SEQ_TYPE	:= LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	        ID	: TREE;
+	      begin
+	        while  not IS_EMPTY( ID_S )  and then  not IS_EMPTY( EXP_S )  loop
+		POP( ID_S, ID );
+		POP( EXP_S, EXP );
+		PUT( tab & OPER_LOADI_STR( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) ) & tab & LVL & ", " & AGC & ", " );
+		CODI.REGIONS_PATH( D( XD_SOURCE_NAME, CB ) );
+		PUT_LINE( TYPE_INFO_STR( CB ) & "." & PRINT_NAME( D( LX_SYMREP, ID ) ) );
+		if  CODI.DISCR_ELABORE( COMP_ID, EXP )  then
+		  PUT( tab & OPER_LOAD_STR( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) ) & tab
+		       & IMAGE( DI( CD_LEVEL, PROPRIO ) ) & ", " );
+		  CODI.REGIONS_PATH( D( XD_SOURCE_NAME, PROPRIO ) );
+		  PUT_LINE( TYPE_INFO_STR( PROPRIO ) & ".__DC_" & COMP_STR & '_'
+			    & PRINT_NAME( D( LX_SYMREP, ID ) ) );
+		else
+		  CODE_VALEUR_DISCRIMINANT( CT, TREE_VOID, ID, EXP );
+		end if;
+		PUT_LINE( tab & "CNE" );
+		PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+	        end loop;
+	      end;
+	    end loop;
+	    if  SAUVE_NOM'LENGTH > 0  then
+	      CODI.POSER_REC_COURANT( SAUVE_LVL, SAUVE_NOM );
+	    else
+	      CODI.OTER_REC_COURANT;
+	    end if;
+	  end	CONTROLER_CONTRAINTE_COMPOSANT;
+		------------------------------
 	begin
 	  if  CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
 			--| Option B : la destination a deja ses descripteurs (objet neuf ou
@@ -9411,6 +9791,9 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
 	  if  COMP_EXP.TY = DN_AGGREGATE  then
 	    CODE_AGGREGATE( COMP_EXP, COMP_TYPE );
+	    if  COMP_TYPE.TY = DN_RECORD  then							--| lot 50 : contrainte du composant
+	      CONTROLER_CONTRAINTE_COMPOSANT;
+	    end if;
 
 	  elsif  COMP_TYPE.TY = DN_RECORD  then
 	    PUT( tab & "LI" & tab );
@@ -9419,6 +9802,7 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
 	    CODE_COMPOSITE_DATA_ADDRESS( COMP_EXP );
 	    PUT_LINE( tab & "BLKMOV" );
+	    CONTROLER_CONTRAINTE_COMPOSANT;							--| lot 50
 
 	  elsif  COMP_TYPE.TY = DN_CONSTRAINED_ARRAY  then
 	    declare
@@ -9436,7 +9820,8 @@ elsif  DESIGNATOR_DEFN.TY in CLASS_PARAM_NAME  then
 
 	  else
 	    CODE_EXP( COMP_EXP );
-	    PUT_LINE( tab & "S" & CODI.OPER_SIZ_CHAR( COMP_TYPE ) );
+	    CODE_RANGE_CHECK( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) ) );			--| lot 50 (LRM 4.3) : sous-type du composant
+	    PUT_LINE( tab & "S" & CODI.OPER_SIZ_CHAR( COMP_TYPE ) );				--| (discriminant compris)
 	  end if;
 
 	end	EMIT_ONE_COMPONENT;
@@ -10917,6 +11302,34 @@ SCAN_IDS:
     SRC_EXP	: TREE		:= D( AS_EXP,      QUALIFIED );
     VAL		: TREE		:= D( SM_VALUE,    QUALIFIED );
 
+		------------------
+    function	UN_SEUL_INTERVALLE	( AGG :TREE )		return BOOLEAN
+    is		------------------
+	-- Lot 50 : agregat de la seule forme T'(L .. H => X), que la voie historique
+	-- ci-dessous sait traiter (premier choix lu comme DN_RANGE) ; toute autre forme
+	-- (positionnelle, choix multiples, valeur) faisait planter l'expanseur.
+      SEQ	: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_COMP_S, AGG ) );
+      ASSOC	: TREE;
+      CHOICES	: SEQ_TYPE;
+      CH	: TREE;
+    begin
+      if  IS_EMPTY( SEQ )  then
+        return  FALSE;
+      end if;
+      POP( SEQ, ASSOC );
+      if  not IS_EMPTY( SEQ )  or else  ASSOC.TY /= DN_NAMED  then
+        return  FALSE;
+      end if;
+      CHOICES := LIST( D( AS_CHOICE_S, ASSOC ) );
+      if  IS_EMPTY( CHOICES )  then
+        return  FALSE;
+      end if;
+      POP( CHOICES, CH );
+      return  IS_EMPTY( CHOICES )  and then  CH.TY = DN_CHOICE_RANGE
+        and then  D( AS_DISCRETE_RANGE, CH ).TY = DN_RANGE;
+    end	UN_SEUL_INTERVALLE;
+	------------------
+
   begin
     -- Si la valeur est connue statiquement, emettre un LI direct
     if  VAL /= TREE_VOID
@@ -10936,8 +11349,10 @@ SCAN_IDS:
         declare
 	AGG_TYPE : TREE := D( SM_EXP_TYPE, QUALIFIED );
         begin
-	if  AGG_TYPE.TY = DN_ARRAY  and then  NB_DIMENSIONS_DE( AGG_TYPE ) > 1  then		--| lot 35 (dette D6) : bornes de
-	  CODE_ARRAY_AGGREGATE_OPERAND( SRC_EXP, ANONYMOUS_NAME_AT( SRC_EXP ), AGG_TYPE );		--| l'agregat ; laisse @doublet
+	if  AGG_TYPE.TY = DN_ARRAY
+	  and then  ( NB_DIMENSIONS_DE( AGG_TYPE ) > 1  or else  not UN_SEUL_INTERVALLE( SRC_EXP ) )	--| lot 35 (dette D6) : bornes de
+	then											--| l'agregat ; laisse @doublet.  Lot 50 :
+	  CODE_ARRAY_AGGREGATE_OPERAND( SRC_EXP, ANONYMOUS_NAME_AT( SRC_EXP ), AGG_TYPE );		--| aussi T'(5 => A, 3 | 4 => B), T'(A, B)
 
 	elsif  AGG_TYPE.TY = DN_ARRAY  then
 	  -- =========================================================

@@ -414,6 +414,14 @@ begin:
 	LIVA 	, 0, STANDARD.SEQUENTIAL_IO._FILE_TYPE.ID
 	LI	1
 	NEG
+	DUP
+	LI	-2147483648
+	CLT
+	BT	STANDARD.ne_raise_
+	DUP
+	LI	2147483647
+	CGT
+	BT	STANDARD.ne_raise_
 	SD
 	LA 1, -FILE_ofs
 	LIVA 	, 0, STANDARD.SEQUENTIAL_IO._FILE_TYPE.IS_OPENED
@@ -822,6 +830,14 @@ VAR SIZE_BYTES_disp, D
 	CEQ
 	BT	STANDARD.ne_raise_
 	DIV
+	DUP
+	LI	-2147483648
+	CLT
+	BT	STANDARD.ne_raise_
+	DUP
+	LI	2147483647
+	CGT
+	BT	STANDARD.ne_raise_
 	SD  1,	SIZE_BYTES_disp
 
  hexa_show ' disp ', SIZE_BYTES_disp
@@ -938,6 +954,14 @@ VAR SIZE_BYTES_disp, D
 	CEQ
 	BT	STANDARD.ne_raise_
 	DIV
+	DUP
+	LI	-2147483648
+	CLT
+	BT	STANDARD.ne_raise_
+	DUP
+	LI	2147483647
+	CGT
+	BT	STANDARD.ne_raise_
 	SD  1,	SIZE_BYTES_disp
 
  hexa_show ' disp ', SIZE_BYTES_disp

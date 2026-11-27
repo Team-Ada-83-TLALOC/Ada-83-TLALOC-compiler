@@ -1,0 +1,52 @@
+WITH REPORT; USE REPORT;
+PROCEDURE CSTR1 IS
+     TYPE REC1 (DISC : INTEGER := 7) IS RECORD V : INTEGER := 0; END RECORD;
+     SUBTYPE S3 IS REC1 (IDENT_INT (3));
+     SUBTYPE T3 IS S3;
+     TYPE TAB IS ARRAY (1 .. 3) OF REC1 (4);
+     TYPE TABU IS ARRAY (1 .. 3) OF REC1;
+     U : REC1;
+     C : REC1 (3);
+     S : S3;
+     T : T3;
+     A : TAB;
+     B : TABU;
+     COMPTE : INTEGER := 0;
+     PROCEDURE P (X : IN OUT REC1; ATTENDU : BOOLEAN; M : STRING) IS
+     BEGIN
+          IF X'CONSTRAINED /= ATTENDU THEN FAILED ("'CONSTRAINED " & M); END IF;
+          BEGIN
+               X := (DISC => IDENT_INT (0), V => 1);
+               IF ATTENDU THEN FAILED ("PAS D'EXCEPTION " & M); END IF;
+          EXCEPTION
+               WHEN CONSTRAINT_ERROR =>
+                    IF NOT ATTENDU THEN FAILED ("EXCEPTION " & M); END IF;
+                    COMPTE := COMPTE + 1;
+          END;
+     END P;
+     PROCEDURE Q (Y : IN OUT REC1; ATTENDU : BOOLEAN; M : STRING) IS
+     BEGIN
+          P (Y, ATTENDU, M & " (TRANSMIS)");
+     END Q;
+     PROCEDURE O (Z : OUT REC1; ATTENDU : BOOLEAN; M : STRING) IS
+     BEGIN
+          IF Z'CONSTRAINED /= ATTENDU THEN FAILED ("OUT 'CONSTRAINED " & M); END IF;
+     END O;
+BEGIN
+     TEST ("CSTR1", "'CONSTRAINED ET AFFECTATION D'UN FORMEL DE RECORD A DEFAUTS (LRM 3.7.4, 5.2, 6.2)");
+     P (C, TRUE, "C : REC1 (3)");
+     P (S, TRUE, "S : S3");
+     P (T, TRUE, "T : T3");
+     P (A (2), TRUE, "A (2)");
+     Q (C, TRUE, "C");
+     O (S, TRUE, "S");
+     IF COMPTE /= 5 THEN FAILED ("EXCEPTIONS :" & INTEGER'IMAGE (COMPTE)); END IF;
+     IF C.DISC /= 3 OR S.DISC /= 3 OR A (2).DISC /= 4 THEN FAILED ("DISCRIMINANTS MODIFIES"); END IF;
+     P (U, FALSE, "U : REC1");
+     IF U.DISC /= 0 OR U.V /= 1 THEN FAILED ("U NON AFFECTE"); END IF;
+     P (B (2), FALSE, "B (2)");
+     IF B (2).DISC /= 0 THEN FAILED ("B (2) NON AFFECTE"); END IF;
+     Q (B (3), FALSE, "B (3)");
+     O (U, FALSE, "U");
+     RESULT;
+END CSTR1;

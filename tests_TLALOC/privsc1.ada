@@ -1,0 +1,52 @@
+WITH REPORT; USE REPORT;
+PROCEDURE PRIVSC1 IS
+     PACKAGE PKG IS
+          TYPE ITYPE IS LIMITED PRIVATE;
+          PROCEDURE LOOK (X : IN ITYPE; V : INTEGER; M : STRING);
+          PROCEDURE LOOK_IO (X : IN OUT ITYPE; V : INTEGER; M : STRING);
+          PROCEDURE SET_I (X : IN OUT ITYPE; V : INTEGER);
+     PRIVATE
+          TYPE ITYPE IS NEW INTEGER RANGE 0 .. 99;
+     END PKG;
+     USE PKG;
+     I1 : ITYPE;
+     TYPE ATYPE IS ARRAY (1 .. 3) OF ITYPE;
+     A1 : ATYPE;
+     PACKAGE BODY PKG IS
+          PROCEDURE LOOK (X : IN ITYPE; V : INTEGER; M : STRING) IS
+          BEGIN
+               IF INTEGER (X) /= V THEN FAILED ("IN " & M & INTEGER'IMAGE (INTEGER (X))); END IF;
+          END LOOK;
+          PROCEDURE LOOK_IO (X : IN OUT ITYPE; V : INTEGER; M : STRING) IS
+          BEGIN
+               IF INTEGER (X) /= V THEN FAILED ("IO " & M & INTEGER'IMAGE (INTEGER (X))); END IF;
+          END LOOK_IO;
+          PROCEDURE SET_I (X : IN OUT ITYPE; V : INTEGER) IS
+          BEGIN
+               X := ITYPE (IDENT_INT (V));
+          END SET_I;
+     BEGIN
+          I1 := ITYPE (IDENT_INT (2));
+          FOR I IN A1'RANGE LOOP A1 (I) := ITYPE (3 + IDENT_INT (I)); END LOOP;
+     END PKG;
+     PROCEDURE CHK_IO (X : IN OUT ITYPE; OV, NV : INTEGER; M : STRING) IS
+     BEGIN
+          LOOK_IO (X, OV, M & " A");
+          SET_I (X, NV);
+          LOOK_IO (X, NV, M & " B");
+          LOOK (X, NV, M & " C");
+     END CHK_IO;
+     PROCEDURE CHK_A (X : IN ATYPE; V : INTEGER; M : STRING) IS
+     BEGIN
+          FOR I IN X'RANGE LOOP LOOK (X (I), V + I, M & INTEGER'IMAGE (I)); END LOOP;
+     END CHK_A;
+BEGIN
+     TEST ("PRIVSC1", "PARAMETRES DE TYPE PRIVE SCALAIRE");
+     LOOK (I1, 2, "DIRECT");
+     LOOK_IO (I1, 2, "DIRECT IO");
+     LOOK (A1 (2), 5, "A1 (2)");
+     CHK_IO (I1, 2, 3, "CHK_IO");
+     LOOK (I1, 3, "APRES");
+     CHK_A (A1, 3, "CHK_A");
+     RESULT;
+END PRIVSC1;
