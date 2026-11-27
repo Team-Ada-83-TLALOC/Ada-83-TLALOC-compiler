@@ -1429,6 +1429,76 @@ end	SUBPROGRAM_ORIGIN;
 	-----------------------
 
 
+		--^^^^^^^^^^^^^^--
+  function	  BORNE_ELABOREE	( COMP_ID :TREE;  IS_LAST :BOOLEAN )	return BOOLEAN
+  is		----------------
+	-- Lot 34 (LRM 3.7, 3.6.1) : composant tableau dependant d'un discriminant
+	-- (C : T (F .. D)) -- une borne qui ne reference PAS de discriminant est evaluee
+	-- UNE fois, a l'elaboration du type record, et rangee dans <record>.__BF_C
+	-- (__BL_C pour la borne haute) ; un litteral reste re-emis.
+    T		: TREE;
+    IDX_S	: SEQ_TYPE;
+    IDX		: TREE;
+    RNG		: TREE;
+    EXP		: TREE;
+  begin
+    if  not EST_COMPOSANT_DISCR( COMP_ID )  then
+      return  FALSE;
+    end if;
+    T := D( SM_OBJ_TYPE, COMP_ID );
+    IDX_S := LIST( D( SM_INDEX_SUBTYPE_S, T ) );
+    POP( IDX_S, IDX );
+    RNG := D( SM_RANGE, IDX );
+    if  RNG = TREE_VOID  or else  RNG.TY /= DN_RANGE  then
+      return  FALSE;
+    end if;
+    if  IS_LAST  then  EXP := D( AS_EXP2, RNG );  else  EXP := D( AS_EXP1, RNG );  end if;
+    return  EXP.TY /= DN_NUMERIC_LITERAL  and then  not CONTIENT_DISCRIMINANT( EXP );
+
+  end	BORNE_ELABOREE;
+	--------------
+
+
+
+
+		--^^^^^^^^^^^^^--
+  function	  DISCR_ELABORE	( COMP_ID, EXP :TREE )	return BOOLEAN
+  is		---------------
+	-- Lot 34 (LRM 3.7) : expression de la contrainte de discriminants d'un composant
+	-- record dynamique (C : R (D, F)) qui ne reference pas de discriminant : evaluee
+	-- UNE fois a l'elaboration du type englobant, rangee dans <record>.__DC_C_<discr>.
+  begin
+    return  COMP_ID.TY = DN_COMPONENT_ID
+      and then  FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) ).TY = DN_CONSTRAINED_RECORD
+      and then  MARQUE_ALIGNEMENT( FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) ) ) /= 1
+      and then  EXP.TY /= DN_NUMERIC_LITERAL
+      and then  not CONTIENT_DISCRIMINANT( EXP );
+
+  end	DISCR_ELABORE;
+	-------------
+
+
+		--^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^--
+  function	  EST_COMPOSANT_RECORD_DYNAMIQUE	( COMP_ID :TREE )	return BOOLEAN
+  is		--------------------------------
+	-- Lot 31 : composant dont le sous-type est un record DYNAMIQUE (option B) CONTRAINT
+	-- (C : T (D), C : T (1)) : descripteur OFS | TAILLE dans la partie statique de
+	-- l'englobant, objet composant auto-relatif a objet + OFS (zone dynamique).
+	-- Lot 32 : aussi le composant NON contraint (C : R, discriminants par defaut) --
+	-- MUTABLE : place de taille maximale, __MUTABLE = 1 dans l'objet composant.
+    T		: TREE;
+  begin
+    if  COMP_ID.TY /= DN_COMPONENT_ID  then
+      return  FALSE;
+    end if;
+    T := FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) );
+    return  ( T.TY = DN_CONSTRAINED_RECORD  or else  T.TY = DN_RECORD )
+      and then  EST_RECORD_DYNAMIQUE( T );
+
+  end	EST_COMPOSANT_RECORD_DYNAMIQUE;
+	------------------------------
+
+
 		--^^^^^^^^^^^^^^^^^^^--
   function	  EST_COMPOSANT_DISCR	( COMP_ID :TREE )	return BOOLEAN
   is		-------------------
@@ -1489,7 +1559,7 @@ end	SUBPROGRAM_ORIGIN;
 	ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
 	while  not IS_EMPTY( ID_S )  loop
 	  POP( ID_S, ID );
-	  if  EST_COMPOSANT_DYNAMIQUE( ID )  then
+	  if  EST_COMPOSANT_DYNAMIQUE( ID )  or else  EST_COMPOSANT_RECORD_DYNAMIQUE( ID )  then
 	    return  TRUE;
 	  end if;
 	end loop;
@@ -1541,6 +1611,24 @@ end	SUBPROGRAM_ORIGIN;
 
   end	DESC_VERS_DONNEES;
 	-----------------
+
+
+		--^^^^^^^^^^^^^^^^^^^--
+  procedure	  DESC_REC_VERS_OBJET	( COMP_ID :TREE )
+  is		---------------------
+	-- Lot 31 : @desc = objet + COMP ; objet composant = objet + [@desc + OFS]
+	--        = @desc + [@desc + OFS] - COMP
+  begin
+    PUT_LINE( tab & "DUP" );
+    PUT_LINE( tab & "LD" & tab & "," & INTEGER'IMAGE( DESC_REC_OFS ) );
+    PUT_LINE( tab & "ADD" );
+    PUT( tab & "LI" & tab );
+    REGIONS_PATH( COMP_ID );
+    PUT_LINE( PRINT_NAME( D( LX_SYMREP, COMP_ID ) ) );
+    PUT_LINE( tab & "SUB" );
+
+  end	DESC_REC_VERS_OBJET;
+	-------------------
 
 
 		--^^^^^^^^^^^^^^^^^^^^^^^--

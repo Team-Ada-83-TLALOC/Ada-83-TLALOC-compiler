@@ -151,18 +151,16 @@ debutA=$(date +%s)
 
 if [ "${1:-}" = "T1" ]
 then
-#  rm -f T2.exe
-#  echo "          ----------------------"
-#  echo "          Assemble T2 with fasmg"
-#  echo "          ----------------------"
-#  cd ./ADA__LIB
+  rm -f T2f.exe
+  echo "          ----------------------"
+  echo "          Assemble T2 with fasmg"
+  echo "          ----------------------"
+  cd ./ADA__LIB
 
-# TLALOC EST DEVENU TROP GROS FASMG TAPE LES 4Go (POINTEURS 32 BITS ! )
-
-#  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T2.exe || exit 1
-#  chmod u+x ./T2.exe
-#  mv ./T2.exe ../
-#  cd ..
+  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T2f.exe || exit 1
+  chmod u+x ./T2f.exe
+  mv ./T2f.exe ../
+  cd ..
 
   echo "          ----------------------------"
   echo "          Assemble T2 with TARGET_CODE"
@@ -170,6 +168,7 @@ then
 # PROBLEME A VOIR :
 #  ./TLALOC BIND TLALOC # Piege ici avec le fas modifié manuellement pour les withs non inclus recopie du .fas reference de bin/ADA__LIB
   # ceci pour la pile de gnat
+  rm -f T2.exe
   ulimit -s 1048576
   ./T1 CODE /TARGET_CPU=X86_64 TLALOC
   cd ./ADA__LIB
@@ -178,17 +177,15 @@ then
 
 else
 
-#  echo "          ----------------------"
-#  echo "          Assemble T3 with fasmg"
-#  echo "          ----------------------"
-#  cd ./ADA__LIB
+  echo "          ----------------------"
+  echo "          Assemble T3 with fasmg"
+  echo "          ----------------------"
+  cd ./ADA__LIB
 
-# TLALOC EST DEVENU TROP GROS FASMG TAPE LES 4Go (POINTEURS 32 BITS ! )
-
-#  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T3f.exe
-#  chmod u+x ./T3f.exe
-#  mv ./T3f.exe ../
-#  cd ..
+  ./fasmg -p20 ./TLALOC.X86_64LFAS ./T3f.exe || exit 1
+  chmod u+x ./T3f.exe
+  mv ./T3f.exe ../
+  cd ..
 
   echo "          ----------------------------"
   echo "          Assemble T3 with TARGET_CODE"

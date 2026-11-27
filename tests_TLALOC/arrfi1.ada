@@ -29,12 +29,13 @@ BEGIN
      IF LT (FT (IDENT_INT (-7)) - 0.6) /= -8 THEN FAILED ("LT"); END IF;
      IF LONG_INTEGER (LONG_FLOAT (IDENT_INT (3)) / 4.0) /= 1 THEN FAILED ("LONG_INTEGER"); END IF;
      CREATE (F, OUT_FILE, "arrfi1.tmp");
-     FIO.PUT (F, 4.7, 2, 3, 2);      NEW_LINE (F);
-     FIO.PUT (F, -0.0625, 2, 2, 2);  NEW_LINE (F);
-     FIO.PUT (F, 9.96, 2, 1, 2);     NEW_LINE (F);
-     FIO.PUT (F, 123.456, 3, 4, 3);  NEW_LINE (F);
-     FIO.PUT (F, 0.0, 2, 2, 2);      NEW_LINE (F);
+     FIO.PUT (F, 4.7, 2, 3, 3);      NEW_LINE (F);
+     FIO.PUT (F, -0.0625, 2, 2, 3);  NEW_LINE (F);
+     FIO.PUT (F, 9.96, 2, 1, 3);     NEW_LINE (F);
+     FIO.PUT (F, 123.456, 3, 4, 4);  NEW_LINE (F);
+     FIO.PUT (F, 0.0, 2, 2, 3);      NEW_LINE (F);
      RESET (F, IN_FILE);
+     -- EXP compte le signe (LRM 14.3.8, lot 39) : EXP => 3 donne E+00.
      LIGNE (" 4.700E+00");
      LIGNE ("-6.25E-02");
      LIGNE (" 1.0E+01");

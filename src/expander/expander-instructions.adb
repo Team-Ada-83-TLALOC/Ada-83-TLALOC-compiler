@@ -859,6 +859,12 @@ separate ( EXPANDER )
 	    ACT_TYPE := D( SM_TYPE_SPEC, ACT_TYPE );
 	  end loop;
 
+	  while  ACT_TYPE.TY = DN_CONSTRAINED_RECORD							--| lot 31 : remede annonce ci-dessous --
+	    and then  CODI.EST_RECORD_DYNAMIQUE( ACT_TYPE )						--| use__info de la BASE dans le doublet
+	  loop											--| (composant record dynamique contraint)
+	    ACT_TYPE := CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, ACT_TYPE ) );
+	  end loop;
+
 	  if  ACT_TYPE.TY = DN_CONSTRAINED_RECORD  then
 			--| Vague 2 (n 112, dette commune SELARG/INDARG) : vue contrainte
 			--| absente du test composite -- l'actuel serait retombe dans la
@@ -1490,10 +1496,21 @@ separate ( EXPANDER )
 	      PUT_LINE( tab & "SA  " & SRC_LVL_STR & ", " & INFO_SRC );
 	      PUT_LINE( tab & "DROP" );
 
-      -- Copier 16 octets d'info vers info_ptr_dest = [@doublet_dest + 8].
+      -- Copier l'info vers info_ptr_dest = [@doublet_dest + 8] : 16 octets pour une
+      -- dimension, + 12 par dimension de plus (lot 35 : SIZ_K, FST_K, LST_K).
 	      PUT_LINE( tab & "LA  " & RES_LVL_STR & ", -result__ofs" );
 	      PUT_LINE( tab & "LA  ,  8" );
-	      PUT_LINE( tab & "LI" & tab & "16" );
+	      declare
+	        IDX_S	: SEQ_TYPE	:= LIST( D( SM_INDEX_S, CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, CODI.FULL_TYPE_VIEW( RETURN_SUBTYPE ) ) ) ) );
+	        IDX	: TREE;
+	        LONG	: NATURAL		:= 4;
+	      begin
+	        while  not IS_EMPTY( IDX_S )  loop
+		POP( IDX_S, IDX );
+		LONG := LONG + 12;
+	        end loop;
+	        PUT_LINE( tab & "LI" & tab & IMAGE( LONG ) );
+	      end;
 	      PUT_LINE( tab & "LA  " & SRC_LVL_STR & ", " & INFO_SRC );
 	      PUT_LINE( tab & "BLKMOV" );
 	    end;
@@ -2038,6 +2055,85 @@ separate ( EXPANDER )
 	---------
 
 
+			---------------
+  function		RECORD_CONTROLE	( REC_TYPE :TREE;  SOUS_TYPE_CONTRAINT :BOOLEAN )	return BOOLEAN
+  is			---------------
+	--| Lot 34 (LRM 5.2) : affectation a un record STATIQUE a discriminants dont la
+	--| destination est CONTRAINTE (sous-type contraint, objet designe, ou type sans
+	--| defauts) : les discriminants de la valeur doivent etre ceux de la destination.
+    BASE	: TREE	:= CODI.FULL_TYPE_VIEW( REC_TYPE );
+  begin
+    return  CODI.CHECKS_ENABLED
+      and then  BASE.TY = DN_RECORD
+      and then  not CODI.EST_RECORD_DYNAMIQUE( BASE )
+      and then  not IS_EMPTY( LIST( D( SM_DISCRIMINANT_S, BASE ) ) )
+      and then  not REPRESENTED_ITEMS.HAS_RECORD_REP( BASE )
+      and then  ( SOUS_TYPE_CONTRAINT  or else  not CODI.A_DISCRIMINANTS_PAR_DEFAUT( BASE ) );
+  end	RECORD_CONTROLE;
+	---------------
+
+
+			----------------------
+  procedure		COPIE_RECORD_CONTROLEE	( SRC_EXP, REC_TYPE :TREE )
+  is			----------------------
+	--| Lot 34 : pile = @DST.  Source (agregat : temporaire de cadre) ; discriminants
+	--| egaux, sinon CONSTRAINT_ERROR avant toute ecriture ; copie de .size octets.
+    N	:constant STRING	:= NEW_LABEL;
+    LVL	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+    DST	:constant STRING	:= "__RDD" & N;
+    SRC	:constant STRING	:= "__RDS" & N;
+    TMP	:constant STRING	:= "__RDT" & N;
+    BASE	: TREE		:= CODI.FULL_TYPE_VIEW( REC_TYPE );
+    DECL_S	: SEQ_TYPE;
+    DECL	: TREE;
+    ID_S	: SEQ_TYPE;
+    ID	: TREE;
+
+    procedure	CHAMP	( V :STRING;  DISCR :TREE )
+    is
+    begin
+      PUT( tab & CODI.OPER_LOADI_STR( D( SM_OBJ_TYPE, DISCR ) ) & tab & LVL & ", " & V & ", " );
+      CODI.REGIONS_PATH( D( XD_SOURCE_NAME, BASE ) );
+      PUT_LINE( '_' & PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, BASE ) ) ) & "."
+    	    & PRINT_NAME( D( LX_SYMREP, DISCR ) ) );
+    end	CHAMP;
+  begin
+    PUT_LINE( "VAR " & DST & ", Q" );
+    PUT_LINE( "VAR " & SRC & ", Q" );
+    PUT_LINE( tab & "SA" & tab & LVL & ", " & DST );
+    if  SRC_EXP.TY = DN_AGGREGATE  then							--| agregat : temporaire de cadre
+      PUT( "VAR " & TMP & "__dat, " );
+      CODI.REGIONS_PATH( D( XD_SOURCE_NAME, BASE ) );
+      PUT_LINE( '_' & PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, BASE ) ) ) & ".size" );
+      PUT_LINE( tab & "LVA" & tab & LVL & ", " & TMP & "__dat" );
+      EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, REC_TYPE );
+      PUT_LINE( tab & "LVA" & tab & LVL & ", " & TMP & "__dat" );
+    else
+      EXPRESSIONS.CODE_COMPOSITE_DATA_ADDRESS( SRC_EXP );
+    end if;
+    PUT_LINE( tab & "SA" & tab & LVL & ", " & SRC );
+    DECL_S := LIST( D( SM_DISCRIMINANT_S, BASE ) );
+    while  not IS_EMPTY( DECL_S )  loop
+      POP( DECL_S, DECL );
+      ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
+      while  not IS_EMPTY( ID_S )  loop
+        POP( ID_S, ID );
+        CHAMP( DST, ID );
+        CHAMP( SRC, ID );
+        PUT_LINE( tab & "CNE" );
+        PUT_LINE( tab & "BT" & tab & "STANDARD.ce_raise_" );
+      end loop;
+    end loop;
+    PUT_LINE( tab & "LA" & tab & LVL & ", " & DST );
+    PUT( tab & "LI" & tab );
+    CODI.REGIONS_PATH( D( XD_SOURCE_NAME, BASE ) );
+    PUT_LINE( '_' & PRINT_NAME( D( LX_SYMREP, D( XD_SOURCE_NAME, BASE ) ) ) & ".size" );
+    PUT_LINE( tab & "LA" & tab & LVL & ", " & SRC );
+    PUT_LINE( tab & "BLKMOV" );
+  end	COPIE_RECORD_CONTROLEE;
+	----------------------
+
+
 				-----------
   procedure			CODE_ASSIGN		( ASSIGN :TREE )
   is				-----------
@@ -2099,7 +2195,9 @@ separate ( EXPANDER )
 
 	EXPRESSIONS.CODE_OBJECT_ADDRESS( DST_NAME );							-- @objet designe
 
-	if  DST_TYPE.TY = DN_RECORD  then
+	if  DST_TYPE.TY = DN_RECORD  and then  RECORD_CONTROLE( DST_TYPE, TRUE )  then		--| lot 34 : objet designe, contraint
+	  COPIE_RECORD_CONTROLEE( SRC_EXP, DST_TYPE );
+	elsif  DST_TYPE.TY = DN_RECORD  then
 	  if  SRC_EXP.TY = DN_AGGREGATE  then								--| LEN n'est empile que pour BLKMOV : avant,
 	    EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, DST_TYPE );						--| CODE_AGGREGATE le prenait pour @DST
 
@@ -2173,10 +2271,11 @@ separate ( EXPANDER )
 			--------------------
 			DESTINATION_SELECTED:
         declare
-	DST_TYPE : TREE := D( SM_EXP_TYPE, DST_NAME );
+	DST_TYPE : TREE := CODI.FULL_TYPE_VIEW( D( SM_EXP_TYPE, DST_NAME ) );				--| lot 31 : vue complete (composant de type
+												--| prive, c61010a : retombait au scalaire)
         begin
 	if  DST_TYPE.TY = DN_CONSTRAINED_RECORD  then						-- pilier 3.7 : vue contrainte -> base
-	  DST_TYPE := D( SM_BASE_TYPE, DST_TYPE );
+	  DST_TYPE := CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, DST_TYPE ) );
 	end if;
 
 	if  CODI.EST_SELECTION_DYNAMIQUE( DST_NAME )  then
@@ -2227,6 +2326,9 @@ separate ( EXPANDER )
 
 	  if  SRC_EXP.TY = DN_AGGREGATE  then
 	    EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, DST_TYPE );
+
+	  elsif  CODI.EST_RECORD_DYNAMIQUE( DST_TYPE )  then					--| lot 31 : composant record dynamique --
+	    EXPRESSIONS.CODE_COPIE_RECORD_DYNAMIQUE( SRC_EXP, DST_TYPE );			--| __TAILLE de la source, discriminants
 
 	  else
 	    PUT( tab & "LI" & tab );
@@ -2412,7 +2514,11 @@ separate ( EXPANDER )
 	    end if;
 	    EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, NAME_TYPE );
 
-	  else
+	  elsif  ( ( SRC_EXP.TY = DN_INDEXED  or else  SRC_EXP.TY = DN_SELECTED )		--| composant tableau inline (bornes non
+		    and then  not CODI.EST_SELECTION_DYNAMIQUE( SRC_EXP ) )			--| re-emissibles en general), agregat
+	    or else  ( SRC_EXP.TY = DN_QUALIFIED							--| qualifie (bornes d'un agregat vide
+		       and then  D( AS_EXP, SRC_EXP ).TY = DN_AGGREGATE )			--| multidimensionnel non fiables, c52103s) :
+	  then										--| copie non controlee, comme avant le lot 30
 			-- Convention BLKMOV : pile = @DST, LEN, @SRC.
 	    CODI.LOAD_MEM( DEFN );									-- @doublet destination (variable ou parametre)
 	    PUT_LINE( tab & "LA" );									-- @DST = data_ptr (offset 0 du doublet)
@@ -2455,6 +2561,24 @@ separate ( EXPANDER )
 	    end if;
 
 	    PUT_LINE( tab & "BLKMOV" );
+
+	  else										--| lot 30 (LRM 5.2.1) : conversion implicite
+	    declare									--| au sous-type de la variable -- longueurs
+	      N	:constant STRING	:= NEW_LABEL;					--| controlees, bornes de la variable
+	      LVL	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
+	      DD	:constant STRING	:= "__AFV" & N;
+	      DIC	:constant STRING	:= "__AFW" & N;
+	    begin
+	      PUT_LINE( "VAR " & DD & ", Q" );
+	      PUT_LINE( "VAR " & DIC & ", Q" );
+	      CODI.LOAD_MEM( DEFN );							-- @doublet destination (variable ou parametre)
+	      PUT_LINE( tab & "DUP" );
+	      PUT_LINE( tab & "LA" );							-- @donnees
+	      PUT_LINE( tab & "SA" & tab & LVL & ", " & DD );
+	      PUT_LINE( tab & "LA" & tab & "," & INTEGER'IMAGE( CODI.ADDR_SIZE ) );		-- @info
+	      PUT_LINE( tab & "SA" & tab & LVL & ", " & DIC );
+	      EXPRESSIONS.CODE_COPIE_TABLEAU( SRC_EXP, NAME_TYPE, DD, DIC );
+	    end;
 	  end if;
 
 
@@ -2498,7 +2622,10 @@ separate ( EXPANDER )
 	    end if;
 	    PUT_LINE( tab & "LA" );									-- @DST (adresse des data)
 
-	    if  SRC_EXP.TY = DN_AGGREGATE  then
+	    if  RECORD_CONTROLE( REC_TYPE, NAME_TYPE.TY = DN_CONSTRAINED_RECORD )  then		--| lot 34 (LRM 5.2)
+	      COPIE_RECORD_CONTROLEE( SRC_EXP, REC_TYPE );
+
+	    elsif  SRC_EXP.TY = DN_AGGREGATE  then
 	      EXPRESSIONS.CODE_AGGREGATE( SRC_EXP, REC_TYPE );
 
 	    elsif  CODI.EST_RECORD_DYNAMIQUE( REC_TYPE )  then						--| option B : LEN = __TAILLE de la source

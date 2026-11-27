@@ -63,17 +63,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	0
-	SB	0, FST
+	SD	0, FST
 	LI	18
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.MACHINE_CODE._ASM_OPCODE.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _ASM_OPCODE_1 = '_ASM_OPCODE_1'
 namespace _ASM_OPCODE_1
@@ -81,17 +89,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	19
-	SB	0, FST
+	SD	0, FST
 	LI	24
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.MACHINE_CODE._ASM_OPCODE.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _ASM_OPCODE_2 = '_ASM_OPCODE_2'
 namespace _ASM_OPCODE_2
@@ -99,17 +115,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	25
-	SB	0, FST
+	SD	0, FST
 	LI	35
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.MACHINE_CODE._ASM_OPCODE.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _ASM_OPCODE_3 = '_ASM_OPCODE_3'
 namespace _ASM_OPCODE_3
@@ -117,17 +141,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	36
-	SB	0, FST
+	SD	0, FST
 	LI	45
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.MACHINE_CODE._ASM_OPCODE.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _ASM_OP_0 = '_ASM_OP_0'
 namespace _ASM_OP_0

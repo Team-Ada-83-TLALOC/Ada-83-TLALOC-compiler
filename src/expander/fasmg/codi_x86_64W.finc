@@ -2137,6 +2137,7 @@ macro			COPY_STRING_APPEND_NUL			; donne le descripteur pointe par RSI, copie la
   db 0x48, 0x8B, 0x36						; mov rsi, qword ptr[rsi]	(rsi= adresse des caracteres)
   db 0x48, 0x8D, 0x7D, 0x08						; lea rdi, [rbp+0x8]	(on va empiler la chaine sur la pile)
   db 0xFC								; cld			(direction flag montant)
+  db 0xE3, 0x04							; jrcxz +4		(chaine vide : sans ce saut, loop copierait 2**64 octets)
 ; transfer:
   db 0xAC								; lods al, BYTE PTR ds:[rsi]
   db 0xAA								; stos BYTE PTR es:[rdi], al

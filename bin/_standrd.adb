@@ -37,6 +37,18 @@ is				--------
 			end record;
   EXC_CTX0		: EXCEPTION_CONTEXT;							-- contexte-sentinelle : 7 qwords d'en-tete + FP(0)
 
+
+				-- PRIMITIVES APPELEES PAR L'EXPANSEUR (CALL STANDARD. ,NOM_Lnn) : declarees ici,
+				-- avant tout corps, pour que leurs etiquettes ne dependent pas du code des corps.
+				-- Ajouter une primitive EN FIN de liste ; resynchroniser l'expanseur si l'on change
+				-- ce qui precede (types, objets).
+  function		WIDTH		( BIT_SIZE :INTEGER )			return INTEGER;
+  function		INTEGER_IMAGE	( ITEM :LONG_INTEGER )			return STRING;
+  function		ENUM_IMAGE	( IMAGES :STRING; REP :INTEGER )	return STRING;
+  function		INTEGER_VALUE	( S :STRING )				return LONG_INTEGER;
+  function		INTEGER_POW	( X, N : LONG_INTEGER )			return LONG_INTEGER;
+  function		CONCAT_STRING	( L, R :STRING )			return STRING;
+
 			-----
   function		WIDTH	( BIT_SIZE :INTEGER )	return INTEGER
   is			-----
@@ -240,6 +252,25 @@ is				--------
 
   end	INTEGER_POW;
 	-----------
+
+
+			-------------
+  function		CONCAT_STRING	( L, R :STRING )	return STRING
+  is			-------------
+  -- Concatenation HORS LIGNE (taille de TLALOC, 26 novembre 2026).  Le code
+  -- genere appelle cette fonction pour tout "&" dont les composants font un
+  -- octet (CONCATENATION_OPERATOR) : convention fonction-tableau, descripteur
+  -- resultat, puis R, puis L.  Meme resultat que le developpement en ligne :
+  -- bornes 1 .. L'LENGTH + R'LENGTH, octets de L puis de R.  Ecrite SANS "&"
+  -- (elle s'appellerait elle-meme).  Etiquette fixee par la declaration en
+  -- tete de corps (CONCAT_STRING_L8, lot 30).
+    RES		: STRING( 1 .. L'LENGTH + R'LENGTH );
+  begin
+    RES( 1 .. L'LENGTH ) := L;
+    RES( L'LENGTH + 1 .. RES'LAST ) := R;
+    return  RES;
+  end	CONCAT_STRING;
+	-------------
 
 
 	--------

@@ -716,7 +716,21 @@ is					--------
 -- MODIF V.MORIN 18/6/2025 le xd_source_name d'un type_spec de subtype_decl pointait sur le type_id de base
 -- semble incorrect pour cet attribut non Diana
 --
-	D( XD_SOURCE_NAME, TYPE_SPEC, SOURCE_NAME );
+-- Lot 33 : SANS contrainte (SUBTYPE S IS R), TYPE_SPEC est le noeud MEME du type (ou
+-- sous-type) nomme, partage : le renommer cassait la visibilite par selection des
+-- composants (XD_REGION des composants /= XD_SOURCE_NAME du type : NOT VISIBLE BY
+-- SELECTION, c37206a, c37404a/b...) et le nom du patron dans l'expanseur (c37213d).
+-- On ne renomme que le noeud NOUVEAU d'une contrainte -- pour un RECORD seulement
+-- (tableaux, scalaires : l'expanseur nomme le patron du sous-type d'apres ce nom,
+-- notamment dans une instance, cc3224a).
+	if  TYPE_SPEC /= TREE_VOID
+	  and then  ( TYPE_SPEC.TY /= DN_RECORD
+		      or else  D( XD_SOURCE_NAME, TYPE_SPEC ) = TREE_VOID
+		      or else  D( XD_SOURCE_NAME, TYPE_SPEC ).TY not in CLASS_TYPE_NAME
+		      or else  D( SM_TYPE_SPEC, D( XD_SOURCE_NAME, TYPE_SPEC ) ) /= TYPE_SPEC )
+	then
+	  D( XD_SOURCE_NAME, TYPE_SPEC, SOURCE_NAME );
+	end if;
 --put_line( "; NOD_WALK 722 subtype_decl source_name : " & PRINT_NAME( D( LX_SYMREP, SOURCE_NAME ) ) );
 --
 	if  TYPE_SPEC /= TREE_VOID  then

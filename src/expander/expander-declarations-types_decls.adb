@@ -76,6 +76,13 @@ is
 	EXPRESSIONS.ELABORER_DISCRIMINANTS( DES );
         end if;
         PUT_LINE( "end namespace" );
+	if  DES.TY = DN_CONSTRAINED_RECORD								--| lot 34 (LRM 3.7.2) : designe record
+	  and then  CODI.EST_RECORD_DYNAMIQUE( DES )						--| dynamique contraint -- compatibilite
+	then											--| controlee a l'elaboration du type
+	  DECLARATIONS.CODE_OBJET_DYNAMIQUE( DES, LIST( D( SM_NORMALIZED_DSCRMT_S, DES ) ),
+					     SUR_LE_TAS => FALSE );
+	  PUT_LINE( tab & "DROP" );
+	end if;
       end;
 
 			-- PRIVATE / LIMITED PRIVATE / INCOMPLETE TYPES
@@ -212,17 +219,25 @@ is
         PUT_LINE( "VAR SIZ__, D" );
         PUT_LINE( tab & "LVA" & tab & LVL_STR & ", SIZ__" );
         PUT_LINE( tab & "SA" & tab & LVL_STR & ", use__info" );
-        PUT_LINE( "VAR FST, " & SIZE_CHAR );
-        PUT_LINE( "VAR LST, " & SIZE_CHAR );
+        PUT_LINE( "VAR FST, D" );								--| lot 29 : disposition
+        PUT_LINE( "VAR LST, D" );								--| d'ENUMERATION_SUBTYPE
         PUT_LINE( tab & "LI" & tab & IMAGE( DI( CD_IMPL_SIZE, BASE ) ) );
         PUT_LINE( tab & "SD" & tab & LVL_STR & ", SIZ__" );
         EXPRESSIONS.CODE_EXP( D( AS_EXP1, RNG ) );
-        PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", FST" );
+        PUT_LINE( tab & "SD" & tab & LVL_STR & ", FST" );
         EXPRESSIONS.CODE_EXP( D( AS_EXP2, RNG ) );
-        PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", LST" );
+        PUT_LINE( tab & "SD" & tab & LVL_STR & ", LST" );
+        PUT_LINE( "VAR IMAGES__d, Q" );
+        PUT_LINE( "VAR IMAGES__i, Q" );
         PUT_LINE( "VAR PARENT__u, Q" );
         PUT_LINE( tab & "LA" & tab & LVL_STR & ", " & BASE_STR & ".use__info" );
         PUT_LINE( tab & "SA" & tab & LVL_STR & ", PARENT__u" );
+        PUT_LINE( tab & "LA" & tab & LVL_STR & ", PARENT__u" );
+        PUT_LINE( tab & "LA  ,  16" );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", IMAGES__d" );
+        PUT_LINE( tab & "LA" & tab & LVL_STR & ", PARENT__u" );
+        PUT_LINE( tab & "LA  ,  24" );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", IMAGES__i" );
         PUT_LINE( "end namespace" );
       end;
       return;
@@ -902,7 +917,7 @@ is
 	    end if;
 	    if  E_TYPE.TY = DN_CONSTRAINED_RECORD  then
 	      DECLARATIONS.CODE_OBJET_DYNAMIQUE( E_TYPE, LIST( D( SM_NORMALIZED_DSCRMT_S, E_TYPE ) ),
-					 SUR_LE_TAS => FALSE );
+					 SUR_LE_TAS => FALSE, INITIALISER => TRUE );
 	      PUT_LINE( tab & "SA" & tab & LVL_STR & ", _GABARIT" );
 	      PUT( tab & "LID" & tab & LVL_STR & ", _GABARIT, " );
 	      CODI.REGIONS_PATH( D( XD_SOURCE_NAME, E_BASE ) );
@@ -1540,6 +1555,12 @@ is
       elsif  TS.TY = DN_ARRAY  then
         return  0;											-- INTENTIONNEL : non contraint -> non statique
 
+      elsif  TS.TY = DN_FLOAT  then									--| lot 32 : FLOAT et LONG_FLOAT sont portes en
+	return  64;										--| double (LIQ / SQ) : 8 octets dans un record,
+												--| comme dans un tableau (COMP_SIZE_BITS) ; avec
+												--| 4, le champ suivant ecrasait la moitie haute
+												--| (C : R := (5, 6.0, TRUE), c37009a)
+
       elsif  TS.TY in CLASS_SCALAR  or else  TS.TY in CLASS_CONSTRAINED  then
         if  D( CD_IMPL_SIZE, TS ) /= TREE_VOID  then
 	return  NATURAL( DI( CD_IMPL_SIZE, TS ) );
@@ -1712,7 +1733,7 @@ is
 			------------------------
 			INSERE_LES_DISCRIMINANTS:
     declare
-      DSCRMT_DECL_S		: SEQ_TYPE	:= LIST( D( AS_DSCRMT_DECL_S, TYPE_DECL ) );
+      DSCRMT_DECL_S		: SEQ_TYPE	:= LIST( D( SM_DISCRIMINANT_S, TYPE_SPEC ) );		--| lot 33 : discriminants HERITES compris (TYPE D IS NEW R)
       DSCRMT_DECL		: TREE;
     begin
       while  not IS_EMPTY( DSCRMT_DECL_S )  loop
@@ -1839,7 +1860,9 @@ is
 		PUT_LINE( COMP_TYPE_STR & ".use__info" );
 	        end if;
 
-	        if  STATIC_TYPE_SIZE_BITS( COMP_TYPE ) = 0  and then  not CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )  then
+	        if  STATIC_TYPE_SIZE_BITS( COMP_TYPE ) = 0  and then  not CODI.EST_COMPOSANT_DYNAMIQUE( COMP_ID )
+		  and then  not CODI.EST_COMPOSANT_RECORD_DYNAMIQUE( COMP_ID )					--| lot 31 : descripteur OFS | TAILLE
+		then
 		IS_STATIC := FALSE;
 	        end if;
 
@@ -1888,7 +1911,7 @@ is
 			-------------------------
 			TRAITER_LES_DISCRIMINANTS:
     declare
-      DSCRMT_DECL_S		: SEQ_TYPE	:= LIST( D( AS_DSCRMT_DECL_S, TYPE_DECL ) );
+      DSCRMT_DECL_S		: SEQ_TYPE	:= LIST( D( SM_DISCRIMINANT_S, TYPE_SPEC ) );		--| lot 33 : discriminants HERITES compris (TYPE D IS NEW R)
       DSCRMT_DECL		: TREE;
     begin
       while  not IS_EMPTY( DSCRMT_DECL_S )  loop
@@ -1939,6 +1962,103 @@ is
 			------------------
 			TRAITER_LES_CHAMPS:
     declare
+		---------------
+      procedure	ELABORER_BORNES	( CL : TREE )
+      is		---------------
+	DECL_S	: SEQ_TYPE;
+	DECL	: TREE;
+	ID_S	: SEQ_TYPE;
+	ID	: TREE;
+	VP	: TREE;
+	VAR_S	: SEQ_TYPE;
+	VAR_E	: TREE;
+
+		---
+	procedure	UNE	( COMP_ID :TREE;  IS_LAST :BOOLEAN;  NOM :STRING )
+	is		---
+	  IDX_S	: SEQ_TYPE;
+	  IDX	: TREE;
+	begin
+	  if  CODI.BORNE_ELABOREE( COMP_ID, IS_LAST )  then
+	    IDX_S := LIST( D( SM_INDEX_SUBTYPE_S, D( SM_OBJ_TYPE, COMP_ID ) ) );
+	    POP( IDX_S, IDX );
+	    PUT_LINE( "VAR " & NOM & PRINT_NAME( D( LX_SYMREP, COMP_ID ) ) & ", D" );
+	    EXPRESSIONS.CODE_DISCRETE_RANGE_BOUND( D( SM_RANGE, IDX ), IS_LAST );
+	    PUT_LINE( tab & "SD" & tab & LVL_STR & ", " & NOM & PRINT_NAME( D( LX_SYMREP, COMP_ID ) ) );
+	  end if;
+	end	UNE;
+		---
+
+		------
+	procedure	DISCRS	( COMP_ID :TREE )						--| composant record : expressions de
+	is		------							--| contrainte sans discriminant
+	  C	: TREE;
+	  EXPS	: SEQ_TYPE;
+	  DS	: SEQ_TYPE;
+	  DD	: TREE;
+	  IDS	: SEQ_TYPE;
+	  DI_ID	: TREE;
+	  EXP	: TREE;
+	begin
+	  if  COMP_ID.TY /= DN_COMPONENT_ID  or else  REPRESENTED_ITEMS.HAS_COMPONENT_REP( COMP_ID )  then
+	    return;
+	  end if;
+	  C := CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, COMP_ID ) );
+	  if  C.TY /= DN_CONSTRAINED_RECORD  then
+	    return;
+	  end if;
+	  EXPS := LIST( D( SM_NORMALIZED_DSCRMT_S, C ) );
+	  DS := LIST( D( SM_DISCRIMINANT_S, CODI.FULL_TYPE_VIEW( D( SM_BASE_TYPE, C ) ) ) );
+	  while  not IS_EMPTY( DS )  loop
+	    POP( DS, DD );
+	    IDS := LIST( D( AS_SOURCE_NAME_S, DD ) );
+	    while  not IS_EMPTY( IDS )  and then  not IS_EMPTY( EXPS )  loop
+	      POP( IDS, DI_ID );
+	      POP( EXPS, EXP );
+	      if  CODI.DISCR_ELABORE( COMP_ID, EXP )  then
+		declare
+		  NOM	:constant STRING	:= "__DC_" & PRINT_NAME( D( LX_SYMREP, COMP_ID ) ) & '_'
+						   & PRINT_NAME( D( LX_SYMREP, DI_ID ) );
+		begin
+		  PUT_LINE( "VAR " & NOM & ", Q" );
+		  EXPRESSIONS.CODE_EXP( EXP );						--| controle a la creation de l'objet
+		  PUT_LINE( tab & "S" & OPER_SIZ_CHAR( D( SM_OBJ_TYPE, DI_ID ) ) & tab & LVL_STR & ", " & NOM );
+		end;
+	      end if;
+	    end loop;
+	  end loop;
+	end	DISCRS;
+		------
+      begin
+	if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+	  return;
+	end if;
+	DECL_S := LIST( D( AS_DECL_S, CL ) );
+	while  not IS_EMPTY( DECL_S )  loop
+	  POP( DECL_S, DECL );
+	  if  DECL.TY /= DN_NULL_COMP_DECL  then
+	    ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	    while  not IS_EMPTY( ID_S )  loop
+	      POP( ID_S, ID );
+	      UNE( ID, FALSE, "__BF_" );
+	      UNE( ID, TRUE,  "__BL_" );
+	      DISCRS( ID );
+	    end loop;
+	  end if;
+	end loop;
+	VP := D( AS_VARIANT_PART, CL );
+	if  VP /= TREE_VOID  and then  VP /= TREE_NIL  then
+	  VAR_S := LIST( D( AS_VARIANT_S, VP ) );
+	  while  not IS_EMPTY( VAR_S )  loop
+	    POP( VAR_S, VAR_E );
+	    if  VAR_E.TY = DN_VARIANT  then
+	      ELABORER_BORNES( D( AS_COMP_LIST, VAR_E ) );
+	    end if;
+	  end loop;
+	end if;
+      end	ELABORER_BORNES;
+		---------------
+
 		-----------------
       procedure	TRAITER_COMP_LIST	( CL : TREE )
       is		-----------------
@@ -1987,6 +2107,13 @@ is
 		PUT_LINE( "STATOFS " & COMP_ID_STR & ',' & INTEGER'IMAGE( CODI.DESC_TAILLE ) & ", 4" );
 		STATIC_SIZE := ( ( STATIC_SIZE + 31 ) / 32 ) * 32
 			   + CODI.DESC_TAILLE * CODI.STORAGE_UNIT;
+
+	        elsif  IS_STATIC  and then  CODI.EST_COMPOSANT_RECORD_DYNAMIQUE( COMP_ID )  then
+		--| Lot 31 : composant record dynamique contraint -- descripteur OFS | TAILLE
+		--| (aligne sur 4) ; l'objet composant est dans la zone dynamique.
+		PUT_LINE( "STATOFS " & COMP_ID_STR & ',' & INTEGER'IMAGE( CODI.DESC_REC ) & ", 4" );
+		STATIC_SIZE := ( ( STATIC_SIZE + 31 ) / 32 ) * 32
+			   + CODI.DESC_REC * CODI.STORAGE_UNIT;
 
 	        elsif  IS_STATIC  then
 		COMP_SIZE := STATIC_TYPE_SIZE_BITS( COMP_TYPE );
@@ -2061,6 +2188,10 @@ is
         end if;
       end if;
 
+      if  D( SM_DERIVED, TYPE_SPEC ) = TREE_VOID  then						--| lot 34 : bornes sans discriminant
+	ELABORER_BORNES( D( SM_COMP_LIST, TYPE_SPEC ) );						--| evaluees UNE fois, ici (derive :
+      end if;											--| celles du parent)
+
       if  D( SM_SIZE, TYPE_SPEC ) /= TREE_VOID  then
         DI( CD_IMPL_SIZE, TYPE_SPEC, DI( SM_SIZE, TYPE_SPEC ) );
       end if;
@@ -2069,6 +2200,81 @@ is
 		------------------
 
     PUT_LINE( "end namespace" );
+
+			-------------------------------
+			CONTROLER_COMPOSANTS_RECORDS:
+    declare
+	--| Lot 31 (LRM 3.7, 3.7.2) : un composant record dynamique a contrainte FIXE (C : T (1),
+	--| sans discriminant englobant) a sa contrainte elaboree avec le type : sa compatibilite
+	--| (bornes des composants dependants dans leurs sous-types d'indice) est controlee ICI,
+	--| en fabriquant un objet composant d'essai (CONSTRAINT_ERROR a l'elaboration du type).
+		-----------
+      procedure	CTL_LISTE	( CL :TREE )
+      is		-----------
+	DECL_S	: SEQ_TYPE;
+	DECL	: TREE;
+	ID_S	: SEQ_TYPE;
+	ID	: TREE;
+	VP	: TREE;
+	VAR_S	: SEQ_TYPE;
+	VAR_E	: TREE;
+
+		------
+	function	FIXE	( C :TREE )	return BOOLEAN
+	is		------
+	  EXP_S	: SEQ_TYPE	:= LIST( D( SM_NORMALIZED_DSCRMT_S, C ) );
+	  EXP	: TREE;
+	begin
+	  while  not IS_EMPTY( EXP_S )  loop
+	    POP( EXP_S, EXP );
+	    if  CODI.CONTIENT_DISCRIMINANT( EXP )  then
+	      return  FALSE;
+	    end if;
+	  end loop;
+	  return  TRUE;
+	end	FIXE;
+		----
+      begin
+	if  CL = TREE_VOID  or else  CL = TREE_NIL  then
+	  return;
+	end if;
+	DECL_S := LIST( D( AS_DECL_S, CL ) );
+	while  not IS_EMPTY( DECL_S )  loop
+	  POP( DECL_S, DECL );
+	  if  DECL.TY /= DN_NULL_COMP_DECL  then
+	    ID_S := LIST( D( AS_SOURCE_NAME_S, DECL ) );
+	    while  not IS_EMPTY( ID_S )  loop
+	      POP( ID_S, ID );
+	      if  CODI.EST_COMPOSANT_RECORD_DYNAMIQUE( ID )
+		and then  CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ).TY = DN_CONSTRAINED_RECORD	--| lot 32 : mutable, rien au type
+		and then  FIXE( CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) )
+	      then
+		DECLARATIONS.CODE_OBJET_DYNAMIQUE( CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ),
+					   LIST( D( SM_NORMALIZED_DSCRMT_S, CODI.FULL_TYPE_VIEW( D( SM_OBJ_TYPE, ID ) ) ) ),
+					   SUR_LE_TAS => FALSE );
+		PUT_LINE( tab & "DROP" );
+	      end if;
+	    end loop;
+	  end if;
+	end loop;
+	VP := D( AS_VARIANT_PART, CL );
+	if  VP /= TREE_VOID  and then  VP /= TREE_NIL  then
+	  VAR_S := LIST( D( AS_VARIANT_S, VP ) );
+	  while  not IS_EMPTY( VAR_S )  loop
+	    POP( VAR_S, VAR_E );
+	    if  VAR_E.TY = DN_VARIANT  then
+	      CTL_LISTE( D( AS_COMP_LIST, VAR_E ) );
+	    end if;
+	  end loop;
+	end if;
+      end	CTL_LISTE;
+		---------
+    begin
+      if  EST_DYNAMIQUE  then
+	CTL_LISTE( D( SM_COMP_LIST, TYPE_SPEC ) );
+      end if;
+    end			CONTROLER_COMPOSANTS_RECORDS;
+			----------------------------
 
   end	CODE_RECORD_DECL;
 	----------------
@@ -2084,6 +2290,24 @@ is
     return R;
   end ROOT_RECORD;
 
+		-------------
+  function	RACINE_DERIVEE	( NOM, T : TREE )	return TREE
+  is		-------------
+	--| Lot 31 : TYPE N IS NEW R (C) -- la base de la vue contrainte est le record DERIVE
+	--| anonyme, dont le nom source est N lui-meme et qui n'a pas de disposition propre
+	--| (alias de N sur N : symboles introuvables, derrec1).  Remonter SM_DERIVED jusqu'au
+	--| record qui porte la disposition (representation identique, LRM 3.4).
+    R	: TREE	:= ROOT_RECORD( T );
+  begin
+    while  R.TY = DN_RECORD  and then  D( XD_SOURCE_NAME, R ) = NOM
+      and then  D( SM_DERIVED, R ) /= TREE_VOID
+    loop
+      R := ROOT_RECORD( D( SM_DERIVED, R ) );
+    end loop;
+    return  R;
+  end	RACINE_DERIVEE;
+	--------------
+
 		----------------------------
   procedure	CODE_CONSTRAINED_RECORD_DECL  ( TYPE_NAME : TREE; TYPE_SPEC : TREE )
   is
@@ -2091,7 +2315,7 @@ is
     LVL_STR	:constant STRING	:= IMAGE( CODI.CUR_LEVEL );
 
 
-    BASE_REC	: TREE		:= ROOT_RECORD( TYPE_SPEC );
+    BASE_REC	: TREE		:= RACINE_DERIVEE( TYPE_NAME, TYPE_SPEC );				--| lot 31
     BASE_NAME	: TREE		:= D( XD_SOURCE_NAME, BASE_REC );
     BASE_STR	: constant STRING	:= '_' & PRINT_NAME( D( LX_SYMREP, BASE_NAME ) );
 
@@ -2214,6 +2438,10 @@ begin
 
   -- Composants ordinaires et variants du record racine.
   EMIT_COMP_LIST_ALIASES( D( SM_COMP_LIST, BASE_REC ) );
+  if  CODI.EST_RECORD_DYNAMIQUE( BASE_REC )  then						--| lot 31 : champs caches de l'option B
+    EMIT_ALIAS( "__TAILLE" );								--| (TYPE N IS NEW R (C) d'un record dynamique)
+    EMIT_ALIAS( "__MUTABLE" );
+  end if;
 
   -- LRM 3.7.2 : contrainte evaluee UNE fois, controlee, rangee (<vue>.__D_x)
   if  TYPE_SPEC.TY = DN_CONSTRAINED_RECORD  and then  D( XD_SOURCE_NAME, TYPE_SPEC ) = TYPE_NAME  then
@@ -2221,6 +2449,14 @@ begin
   end if;
 
   PUT_LINE( "end namespace" );
+
+  if  TYPE_SPEC.TY = DN_CONSTRAINED_RECORD  and then  D( XD_SOURCE_NAME, TYPE_SPEC ) = TYPE_NAME		--| lot 34 (LRM 3.7.2) : compatibilite de la
+    and then  CODI.EST_RECORD_DYNAMIQUE( BASE_REC )						--| contrainte d'un record dynamique controlee
+  then												--| a l'elaboration du sous-type : objet d'essai
+    DECLARATIONS.CODE_OBJET_DYNAMIQUE( TYPE_SPEC, LIST( D( SM_NORMALIZED_DSCRMT_S, TYPE_SPEC ) ),
+				       SUR_LE_TAS => FALSE );
+    PUT_LINE( tab & "DROP" );
+  end if;
 
   end	CODE_CONSTRAINED_RECORD_DECL;
 	----------------------------
@@ -2508,22 +2744,38 @@ begin
         PUT_LINE( tab & "LVA" & tab & LVL_STR & ", SIZ__" );						-- Adresse debut patron
         PUT_LINE( tab & "SA" & tab & LVL_STR & ", use__info" );
 
-        PUT_LINE( "VAR FST, " & SIZE_CHAR );
-        PUT_LINE( "VAR LST, " & SIZE_CHAR );
+			--| Lot 29 : disposition de STANDARD._ENUM_USE_INFO et du bloc d'un type
+			--| enumere (END_BLOC_DEF) -- SIZ@0, FST@4, LST@8 (D), doublet des
+			--| IMAGES du type de base @16 / @24, puis PARENT__u @32.  Le code
+			--| generique lit FST / LST en D a +4 / +8 (GENERIC_FIRST_LAST) et
+			--| ENUMERATION_IO les images a +16 sur l'info de l'ACTUEL : avec un
+			--| SOUS-TYPE actuel il lisait des octets voisins (FST, LST d'un octet)
+			--| et de la memoire au-dela du patron.  Les lectures symboliques
+			--| (L<taille> _S.FST) restent justes : poids faible en tete.
+        PUT_LINE( "VAR FST, D" );
+        PUT_LINE( "VAR LST, D" );
         PUT_LINE( tab & "LI" & tab & IMAGE( DI( CD_IMPL_SIZE, TYPE_SPEC ) ) );
         PUT_LINE( tab & "SD" & tab & LVL_STR & ", SIZ__" );							-- Taille patron
 
         EXPRESSIONS.CODE_EXP( EXP_FST );
-        PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", FST" );
+        PUT_LINE( tab & "SD" & tab & LVL_STR & ", FST" );
 
         EXPRESSIONS.CODE_EXP( EXP_LST );
-        PUT_LINE( tab & 'S' & SIZE_CHAR & tab & LVL_STR & ", LST" );
+        PUT_LINE( tab & "SD" & tab & LVL_STR & ", LST" );
 
-        PUT_LINE( "VAR PARENT__u, Q" );
+        PUT_LINE( "VAR IMAGES__d, Q" );								-- @16 : doublet des images
+        PUT_LINE( "VAR IMAGES__i, Q" );								-- @24   du type de base
+        PUT_LINE( "VAR PARENT__u, Q" );								-- @32
         PUT( tab & "LA " & IMAGE( DI( CD_LEVEL, BASE_TYPE ) ) & tab & ", " );
         REGIONS_PATH( D( XD_SOURCE_NAME, BASE_TYPE ) );
         PUT_LINE(  BASETYPE_STR & ".use__info"	);
         PUT_LINE( tab & "SA" & tab & LVL_STR & ", PARENT__u" );
+        PUT_LINE( tab & "LA" & tab & LVL_STR & ", PARENT__u" );
+        PUT_LINE( tab & "LA  ,  16" );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", IMAGES__d" );
+        PUT_LINE( tab & "LA" & tab & LVL_STR & ", PARENT__u" );
+        PUT_LINE( tab & "LA  ,  24" );
+        PUT_LINE( tab & "SA" & tab & LVL_STR & ", IMAGES__i" );
 
         PUT_LINE( "end namespace" );
 

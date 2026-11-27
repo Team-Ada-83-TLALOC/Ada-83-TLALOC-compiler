@@ -9,6 +9,7 @@ is					-------
   STDOUT_PAGE		: POSITIVE_COUNT	:= 1;
   STDOUT_LINE		: POSITIVE_COUNT	:= 1;
   STDOUT_COL		: POSITIVE_COUNT	:= 1;
+  TEMP_COUNT		: NATURAL		:= 0;						-- fichiers temporaires crees (CREATE sans nom)
 
   DEFAULT_INPUT		: FILE_TYPE;
   DEFAULT_OUTPUT		: FILE_TYPE;
@@ -17,7 +18,7 @@ is					-------
 
 
 			-- Tampons d'entree-sortie par descripteur Linux (hors LRM).
-			-- Indexes par FILE.ID et non loges dans FILE_TYPE, dont les
+			-- Indexes par ETATS( FILE.SLOT ).ID et non loges dans FILE_TYPE, dont les
 			-- valeurs sont copiees (DEFAULT_OUTPUT := FILE). Un ID hors
 			-- table prend l'ancien chemin : un syscall par PUT_RAW/GET_RAW.
 
@@ -33,6 +34,87 @@ is					-------
 			end record;
 
   BUFS			: array( 0 .. MAX_BUF_ID ) of IO_BUFFER;
+
+
+			-- Etat des fichiers ouverts (hors LRM), indexe par FILE.SLOT.
+			-- LRM 14.2.1 : CURRENT_OUTPUT et les autres copies d'un
+			-- FILE_TYPE designent le meme fichier ; elles partagent donc
+			-- l'etat (compteurs, anticipation, mode, ouverture).
+			-- SLOT -1 : fichier jamais ouvert, toujours ferme, jamais ecrit.
+			-- SLOT  0 : entree standard ; SLOT 1 : sortie standard (console).
+			-- SLOT  2 .. MAX_ETAT : fichiers, alloues en tourniquet pour
+			-- qu'une copie perimee ne designe pas aussitot un autre fichier.
+
+  MAX_ETAT		:constant		:= 31;
+  PREMIER_SLOT		:constant		:= 2;
+  MAX_LOOK		:constant		:= 4;						-- 3 caracteres d'anticipation + 1 remis
+
+  type ETAT_FICHIER		is record
+			  ID		: INTEGER;						-- descripteur Linux, -1 : console
+			  NAME		: FILE_NAME_BUFFER;
+			  NAME_LEN		: NATURAL;
+			  IS_OPENED		: BOOLEAN;
+			  MODE		: FILE_MODE;
+			  PAGE_LENGTH	: COUNT;						-- LRM 14.3.3 : 0 = non borne
+			  LINE_LENGTH	: COUNT;
+			  PAGE,
+			  LINE,
+			  COL		: POSITIVE_COUNT;
+			  PREC_PAGE,								-- compteurs avant le dernier caractere
+			  PREC_LINE,								-- consomme, pour REMETTRE
+			  PREC_COL		: POSITIVE_COUNT;
+			  IS_DEFAULT_IO	: BOOLEAN;
+			  LOOK		: STRING( 1 .. MAX_LOOK );				-- caracteres logiques a venir, deja lus
+			  NB_LOOK		: NATURAL;
+			  DERNIER		: CHARACTER;						-- dernier caractere logique produit
+			  FIN_PHYSIQUE	: BOOLEAN;						-- fin physique du fichier atteinte
+			  AT_END_OF_FILE	: BOOLEAN;						-- GET_RAW a rencontre la fin logique
+			  IS_TEMP		: BOOLEAN;						-- LRM 14.2.1 : CREATE sans nom
+			end record;
+
+  ETATS			: array( INTEGER range -1 .. MAX_ETAT ) of ETAT_FICHIER;		-- INTEGER : -1 seul serait ambigu (COUNT...)
+  PROCHAIN_SLOT		: INTEGER		:= PREMIER_SLOT;
+
+
+			-- Analyse lexicale des GET (hors LRM) : un automate commun aux
+			-- quatre paquetages generiques, ecrit hors des generiques.
+			-- LRM 14.3.5 : on lit le plus long prefixe de la syntaxe du
+			-- lexeme ; le premier caractere qui ne le prolonge pas reste a
+			-- lire. Si le prefixe n'est pas un lexeme complet : DATA_ERROR.
+
+  MAX_LEXEME		:constant		:= 255;
+
+  type GENRE_LEXEME		is ( LEX_ENTIER,							-- [signe] litteral entier (LRM 2.4)
+			     LEX_REEL,							-- [signe] litteral reel : point obligatoire
+			     LEX_ENUM );							-- identificateur ou litteral caractere
+
+  type PHASE_LEXEME		is ( P_DEBUT, P_SIGNE,
+			     P_ENT, P_ENT_SOUL,						-- chiffres decimaux (ou base avant #)
+			     P_OUVERT, P_BASE, P_BASE_SOUL,					-- litteral base : apres # ou :
+			     P_BASE_PT, P_BASE_FR, P_BASE_FR_SOUL,
+			     P_FERME,							-- apres le delimiteur fermant
+			     P_PT, P_FR, P_FR_SOUL,						-- partie fractionnaire decimale
+			     P_EXP, P_EXP_SIGNE, P_EXP_CH, P_EXP_SOUL,
+			     P_ID, P_ID_SOUL,						-- identificateur
+			     P_CAR_OUVERT, P_CAR, P_CAR_FERME );				-- litteral caractere
+
+			-- Element d'un PUT numerique ou enumere (LRM 14.3.5) : sur une
+			-- ligne bornee, ses caracteres sont d'abord captes, pour connaitre
+			-- sa longueur (LAYOUT_ERROR s'il depasse la ligne, NEW_LINE s'il ne
+			-- tient pas dans ce qu'il en reste), puis ecrits. Ligne non bornee :
+			-- aucune capture, ecriture directe.
+
+  MAX_CAPTE		:constant		:= 4096;
+  CAPTE_SLOT		: INTEGER		:= -2;						-- -2 : aucune capture en cours
+  CAPTE		: STRING( 1 .. MAX_CAPTE );
+  CAPTE_LEN		: NATURAL		:= 0;
+
+  type AUTOMATE_LEXEME	is record
+			  GENRE	: GENRE_LEXEME;
+			  PHASE	: PHASE_LEXEME;
+			  DELIM	: CHARACTER;						-- # ou : d'ouverture (LRM 2.10)
+			  POINT	: BOOLEAN;
+			end record;
 
 
 			---------
@@ -98,6 +180,18 @@ is					-------
 	---------
 
 
+			----------
+  procedure		FLUSH_TOUT							-- toutes les sorties en attente partent :
+  is			----------							-- un fichier externe ouvert deux fois
+  begin												-- (ecriture et lecture) se relit a jour
+    for  ID in 0 .. MAX_BUF_ID  loop
+      FLUSH_OUT( ID );
+    end loop;
+
+  end	FLUSH_TOUT;
+	----------
+
+
 			------------
   procedure		RESET_BUFFER	( ID :INTEGER )						-- oublie tout (ouverture, fermeture, reset, delete)
   is			------------
@@ -109,6 +203,65 @@ is					-------
 
   end	RESET_BUFFER;
 	------------
+
+
+			---------
+  procedure		INSTALLER		( FILE :in out FILE_TYPE;				-- prend un SLOT libre et y installe
+					  ID   :in INTEGER;					-- l'etat initial d'un fichier ouvert
+					  NAME :in STRING;
+					  MODE :in FILE_MODE
+					)
+  is			---------
+
+    S		: INTEGER	:= PROCHAIN_SLOT;
+
+  begin
+    loop												-- tourniquet sur PREMIER_SLOT .. MAX_ETAT
+      exit when  not ETATS( S ).IS_OPENED;
+      S := S + 1;
+      if  S > MAX_ETAT  then S := PREMIER_SLOT; end if;
+      if  S = PROCHAIN_SLOT  then raise USE_ERROR; end if;						-- table pleine
+    end loop;
+    PROCHAIN_SLOT := S + 1;
+    if  PROCHAIN_SLOT > MAX_ETAT  then PROCHAIN_SLOT := PREMIER_SLOT; end if;
+
+    FILE.SLOT := S;
+    ETATS( S ).ID		:= ID;
+    ETATS( S ).NAME( 1 .. NAME'LENGTH ) := NAME;
+    ETATS( S ).NAME_LEN	:= NAME'LENGTH;
+    ETATS( S ).IS_OPENED	:= TRUE;
+    ETATS( S ).MODE		:= MODE;
+    ETATS( S ).PAGE_LENGTH	:= STDOUT_PAGE_LENGTH;
+    ETATS( S ).LINE_LENGTH	:= STDOUT_LINE_LENGTH;
+    ETATS( S ).PAGE		:= 1;
+    ETATS( S ).LINE		:= 1;
+    ETATS( S ).COL		:= 1;
+    ETATS( S ).PREC_PAGE	:= 1;
+    ETATS( S ).PREC_LINE	:= 1;
+    ETATS( S ).PREC_COL	:= 1;
+    ETATS( S ).IS_DEFAULT_IO	:= FALSE;
+    ETATS( S ).NB_LOOK	:= 0;
+    ETATS( S ).DERNIER	:= ASCII.NUL;
+    ETATS( S ).FIN_PHYSIQUE	:= FALSE;
+    ETATS( S ).AT_END_OF_FILE	:= FALSE;
+    ETATS( S ).IS_TEMP	:= FALSE;
+
+  end	INSTALLER;
+	---------
+
+
+			-------------
+  function		PAGE_TERMINEE	( FILE :in FILE_TYPE )		return BOOLEAN		-- sortie : la page courante est deja
+  is			-------------						-- terminee (juste apres NEW_PAGE) ;
+  begin												-- toute ecriture change LINE ou COL
+    return  ETATS( FILE.SLOT ).PAGE > 1  and then  ETATS( FILE.SLOT ).LINE = 1
+					and then  ETATS( FILE.SLOT ).COL = 1;
+
+  end	PAGE_TERMINEE;
+	-------------
+
+
+  procedure		TERMINER_FICHIER	( FILE :in FILE_TYPE );				-- corps apres PUT_RAW
 
 
 			--   F I L E   M A N A G E M E N T
@@ -136,24 +289,21 @@ is					-------
 	------------------
 
   begin
-    if  FILE.IS_OPENED  then raise STATUS_ERROR; end if;					-- LRM 14.2.1(4)
+    if  ETATS( FILE.SLOT ).IS_OPENED  then raise STATUS_ERROR; end if;					-- LRM 14.2.1(4)
+    if  NAME'LENGTH = 0  then								-- LRM 14.2.1(3) : nom nul -> fichier
+      TEMP_COUNT := TEMP_COUNT + 1;							-- temporaire, nom engendre dans le
+      declare										-- repertoire courant, supprime a CLOSE
+        NUM	:constant STRING	:= INTEGER'IMAGE( TEMP_COUNT );
+      begin
+        CREATE( FILE, MODE, "TLALOC_TMP_" & NUM( NUM'FIRST + 1 .. NUM'LAST ) & ".tmp", FORM );
+      end;
+      ETATS( FILE.SLOT ).IS_TEMP := TRUE;
+      return;
+    end if;
     ERR_OR_ID := CREATE_SYSTEM_CALL( NAME );
     if  ERR_OR_ID >= 0  then
       RESET_BUFFER( ERR_OR_ID );
-      FILE.ID := ERR_OR_ID;
-      FILE.NAME( 1 .. NAME'LENGTH ) := NAME;
-      FILE.NAME_LEN := NAME'LENGTH;
-      FILE.IS_OPENED := TRUE;
-      FILE.MODE := MODE;
-      FILE.PAGE_LENGTH := STDOUT_PAGE_LENGTH;
-      FILE.LINE_LENGTH := STDOUT_LINE_LENGTH;
-      FILE.PAGE := 1;
-      FILE.LINE := 1;
-      FILE.COL  := 1;
-      FILE.IS_DEFAULT_IO	:= FALSE;
-      FILE.LOOK_AHEAD	:= ASCII.NUL;
-      FILE.HAS_LOOK_AHEAD	:= FALSE;
-      FILE.AT_END_OF_FILE	:= FALSE;
+      INSTALLER( FILE, ERR_OR_ID, NAME, MODE );
     else
       raise USE_ERROR;									-- LRM 14.2.1(6) creation impossible
     end if;
@@ -184,24 +334,12 @@ is					-------
 	----------------
 
   begin
-    if  FILE.IS_OPENED  then raise STATUS_ERROR; end if;					-- LRM 14.2.1(4)
+    if  ETATS( FILE.SLOT ).IS_OPENED  then raise STATUS_ERROR; end if;					-- LRM 14.2.1(4)
+    FLUSH_TOUT;
     ERR_OR_ID := OPEN_SYSTEM_CALL( NAME );
     if  ERR_OR_ID >= 0  then
       RESET_BUFFER( ERR_OR_ID );
-      FILE.ID := ERR_OR_ID;
-      FILE.NAME( 1 .. NAME'LENGTH ) := NAME;
-      FILE.NAME_LEN := NAME'LENGTH;
-      FILE.IS_OPENED := TRUE;
-      FILE.MODE := MODE;
-      FILE.PAGE_LENGTH := STDOUT_PAGE_LENGTH;
-      FILE.LINE_LENGTH := STDOUT_LINE_LENGTH;
-      FILE.PAGE := 1;
-      FILE.LINE := 1;
-      FILE.COL  := 1;
-      FILE.IS_DEFAULT_IO	:= FALSE;
-      FILE.LOOK_AHEAD	:= ASCII.NUL;
-      FILE.HAS_LOOK_AHEAD	:= FALSE;
-      FILE.AT_END_OF_FILE	:= FALSE;
+      INSTALLER( FILE, ERR_OR_ID, NAME, MODE );
     else
       raise NAME_ERROR;									-- LRM 14.2.1(7), piege n 45 desamorce
     end if;
@@ -227,13 +365,32 @@ is					-------
     end	CLOSE_SYSTEM_CALL;
     -----------------
 
+		------------------
+    function	DELETE_SYSTEM_CALL  ( NAME : STRING )	return INTEGER			-- fichier temporaire : supprime
+    is		------------------							-- a la fermeture (LRM 14.2.1)
+    begin
+      ASM_OP_2'( OPCODE => La, LVL => 2, OFS => -8 );
+      ASM_OP_0'( OPCODE => SYS_FILE_DELETE );
+      ASM_OP_2'( OPCODE => SD, LVL => 2, OFS => -16 );
+
+    end	DELETE_SYSTEM_CALL;
+	------------------
+
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    FLUSH_OUT( FILE.ID );									-- ce qui attend dans le tampon part avant la fermeture
-    ERR_CODE := CLOSE_SYSTEM_CALL( FILE.ID );
-    RESET_BUFFER( FILE.ID );
-    FILE.ID := -1;
-    FILE.IS_OPENED := FALSE;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE = OUT_FILE  then
+      TERMINER_FICHIER( FILE );
+    end if;
+    FLUSH_OUT( ETATS( FILE.SLOT ).ID );									-- ce qui attend dans le tampon part avant la fermeture
+    ERR_CODE := CLOSE_SYSTEM_CALL( ETATS( FILE.SLOT ).ID );
+    RESET_BUFFER( ETATS( FILE.SLOT ).ID );
+    ETATS( FILE.SLOT ).ID := -1;
+    ETATS( FILE.SLOT ).IS_OPENED := FALSE;
+    if  ETATS( FILE.SLOT ).IS_TEMP  then
+      ERR_CODE := DELETE_SYSTEM_CALL( ETATS( FILE.SLOT ).NAME( 1 .. ETATS( FILE.SLOT ).NAME_LEN ) );
+      ETATS( FILE.SLOT ).IS_TEMP := FALSE;
+    end if;
+    FILE.SLOT := -1;										-- les copies (CURRENT_OUTPUT...) gardent l'ancien SLOT, ferme
 
   end	CLOSE;
 	-----
@@ -258,11 +415,13 @@ is					-------
 	------------------
 
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    CLOSE( FILE );
-    ERR_CODE := DELETE_SYSTEM_CALL( FILE.NAME( 1 .. FILE.NAME_LEN ) );
-    RESET_BUFFER( FILE.ID );								-- rien a ecrire : le fichier n'existe plus
-    FILE.IS_OPENED := FALSE;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    declare
+      S	:constant INTEGER	:= FILE.SLOT;							-- CLOSE remet FILE.SLOT a -1 ; le nom
+    begin											-- reste dans ETATS( S )
+      CLOSE( FILE );
+      ERR_CODE := DELETE_SYSTEM_CALL( ETATS( S ).NAME( 1 .. ETATS( S ).NAME_LEN ) );
+    end;
 
   end	DELETE;
 	------
@@ -286,17 +445,59 @@ is					-------
     end	SEEK_SYSTEM_CALL;
 	--------------
 
+		-----------------
+    function	CLOSE_SYSTEM_CALL	( FILE_ID :in INTEGER )	return INTEGER
+    is		-----------------
+    begin
+      ASM_OP_2'( OPCODE => Ld, LVL => 2, OFS => -8 );
+      ASM_OP_0'( OPCODE => SYS_FILE_CLOSE );
+      ASM_OP_2'( OPCODE => SD, LVL => 2, OFS => -16 );
+
+    end	CLOSE_SYSTEM_CALL;
+	-----------------
+
+		------------------
+    function	CREATE_SYSTEM_CALL  ( NAME :in STRING ) return INTEGER			-- O_TRUNC : vide le fichier
+    is		------------------
+    begin
+      ASM_OP_2'( OPCODE => LA, LVL => 2, OFS => -8 );
+      ASM_OP_0'( OPCODE => SYS_FILE_CREATE );
+      ASM_OP_2'( OPCODE => SD, LVL => 2, OFS => -16 );
+
+    end	CREATE_SYSTEM_CALL;
+	------------------
+
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    FLUSH_OUT( FILE.ID );									-- ecrire a l'ancienne position avant de revenir au debut
-    ERR_CODE := SEEK_SYSTEM_CALL( FILE.ID );
-    RESET_BUFFER( FILE.ID );								-- la lecture anticipee ne vaut plus
-    FILE.MODE := MODE;
-    FILE.PAGE := 1;
-    FILE.LINE := 1;
-    FILE.COL  := 1;
-    FILE.AT_END_OF_FILE := FALSE;
-    FILE.HAS_LOOK_AHEAD := FALSE;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE = OUT_FILE  then							-- comme CLOSE
+      TERMINER_FICHIER( FILE );
+    end if;
+    FLUSH_OUT( ETATS( FILE.SLOT ).ID );									-- ecrire a l'ancienne position avant de revenir au debut
+    if  MODE = OUT_FILE  then										-- LRM 14.2.1 : l'ecriture reprend au debut,
+      ERR_CODE := CLOSE_SYSTEM_CALL( ETATS( FILE.SLOT ).ID );						-- l'ancien contenu ne doit pas survivre
+      RESET_BUFFER( ETATS( FILE.SLOT ).ID );								-- au-dela : fermer puis recreer (O_TRUNC)
+      ERR_CODE := CREATE_SYSTEM_CALL( ETATS( FILE.SLOT ).NAME( 1 .. ETATS( FILE.SLOT ).NAME_LEN ) );
+      if  ERR_CODE < 0  then
+        ETATS( FILE.SLOT ).IS_OPENED := FALSE;
+        raise USE_ERROR;
+      end if;
+      ETATS( FILE.SLOT ).ID := ERR_CODE;
+    else
+      ERR_CODE := SEEK_SYSTEM_CALL( ETATS( FILE.SLOT ).ID );
+    end if;
+    RESET_BUFFER( ETATS( FILE.SLOT ).ID );								-- la lecture anticipee ne vaut plus
+    ETATS( FILE.SLOT ).MODE := MODE;
+    if  MODE = OUT_FILE  then										-- LRM 14.3.3 : longueurs non bornees
+      ETATS( FILE.SLOT ).LINE_LENGTH := 0;
+      ETATS( FILE.SLOT ).PAGE_LENGTH := 0;
+    end if;
+    ETATS( FILE.SLOT ).PAGE := 1;
+    ETATS( FILE.SLOT ).LINE := 1;
+    ETATS( FILE.SLOT ).COL  := 1;
+    ETATS( FILE.SLOT ).NB_LOOK	:= 0;
+    ETATS( FILE.SLOT ).DERNIER	:= ASCII.NUL;
+    ETATS( FILE.SLOT ).FIN_PHYSIQUE	:= FALSE;
+    ETATS( FILE.SLOT ).AT_END_OF_FILE	:= FALSE;
 
   end	RESET;
 	-----
@@ -306,8 +507,8 @@ is					-------
   procedure		RESET		( FILE :in out FILE_TYPE )
   is			-----
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    RESET( FILE, FILE.MODE );
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    RESET( FILE, ETATS( FILE.SLOT ).MODE );
 
   end	RESET;
 	-----
@@ -317,8 +518,8 @@ is					-------
   function		MODE		( FILE :in FILE_TYPE )		return FILE_MODE
   is			----
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    return FILE.MODE;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    return ETATS( FILE.SLOT ).MODE;
 
   end	MODE;
 	----
@@ -328,8 +529,8 @@ is					-------
   function		NAME		( FILE :in FILE_TYPE )		return STRING
   is			----
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    return FILE.NAME( 1 .. FILE.NAME_LEN );
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    return ETATS( FILE.SLOT ).NAME( 1 .. ETATS( FILE.SLOT ).NAME_LEN );
 
   end	NAME;
 	----
@@ -339,7 +540,7 @@ is					-------
   function		FORM		( FILE :in FILE_TYPE )		return STRING
   is			----
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
     return "";
 
   end	FORM;
@@ -350,7 +551,7 @@ is					-------
   function		IS_OPEN		( FILE :in FILE_TYPE )		return BOOLEAN
   is			-------
   begin
-    return FILE.IS_OPENED;
+    return ETATS( FILE.SLOT ).IS_OPENED;
 
   end	IS_OPEN;
 	-------
@@ -363,8 +564,8 @@ is					-------
   procedure		SET_INPUT		( FILE :in FILE_TYPE )
   is			---------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
     DEFAULT_INPUT := FILE;
 
   end	SET_INPUT;
@@ -375,8 +576,8 @@ is					-------
   procedure		SET_OUTPUT	( FILE :in FILE_TYPE )
   is			----------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
     DEFAULT_OUTPUT := FILE;
 
   end	SET_OUTPUT;
@@ -425,21 +626,23 @@ is					-------
 
 		-- Primitives brutes (hors LRM)
 		--
-		-- Niveau RAW : flux d'octets pur. Aucune mise en page (COL/LINE/
-		-- PAGE), aucune exception TEXT_IO ; a EOF, GET_RAW arme
-		-- AT_END_OF_FILE et rend NUL. Consommateurs legitimes : les
-		-- scanners tokenisants (INTEGER_IO, FLOAT_IO, FIXED_IO,
-		-- ENUMERATION_IO), les lecteurs de structure (SKIP_LINE,
-		-- SKIP_PAGE, END_OF_LINE/PAGE/FILE, GET_LINE) et les emetteurs
-		-- de terminateurs (NEW_LINE, NEW_PAGE, SET_COL/SET_LINE).
-		-- L'interface publique conforme LRM (GET/PUT) est construite
-		-- au-dessus et ne touche jamais le flux directement ; le niveau
-		-- RAW, lui, n'appelle jamais le niveau public.
+		-- Deux niveaux d'entree. LIRE_PHYSIQUE lit les octets du fichier
+		-- et arme FIN_PHYSIQUE a la fin. Au-dessus, le flux logique :
+		-- CR retires (CR LF compte pour un seul terminateur de ligne) et
+		-- fin physique precedee des terminateurs manquants, de sorte que
+		-- tout fichier lu se termine par LF FF puis la fin (LRM 14.3).
+		-- REGARDER via TERMINE_A / CAR_A anticipe jusqu'a 3 caracteres
+		-- logiques sans les consommer ; GET_RAW consomme un caractere
+		-- logique et tient PAGE / LINE / COL a jour (seul endroit) ;
+		-- REMETTRE annule le dernier GET_RAW (scanners numeriques). A la
+		-- fin logique, GET_RAW arme AT_END_OF_FILE et rend NUL.
+		-- En sortie, PUT_RAW ecrit les octets ; les terminateurs sont LF
+		-- (ligne) et FF (page), la fin physique termine le fichier.
 
 
-			-------
-  procedure		GET_RAW		( FILE :in FILE_TYPE; ITEM :out CHARACTER )
-  is			-------
+			-------------
+  procedure		LIRE_PHYSIQUE	( FILE :in FILE_TYPE; ITEM :out CHARACTER )
+  is			-------------
 
     BYTES_READ	: INTEGER;
 
@@ -457,39 +660,642 @@ is					-------
 	-----------------
 
   begin
-    if  FILE.HAS_LOOK_AHEAD  then
-      ITEM := FILE.LOOK_AHEAD;
-      FILE.HAS_LOOK_AHEAD := FALSE;
-
-    elsif  FILE.ID = -1  then										-- standard console input
+    if  ETATS( FILE.SLOT ).ID = -1  then										-- standard console input
       ASM_OP_2'( OPCODE => La, LVL => 1, OFS => -16 );							-- push @ITEM : charge l'adresse destination (out param GET level 1 offset -16)
       ASM_OP_0'( OPCODE => SYS_GET_CHAR );								-- get console char
 
-    elsif  FILE.ID > MAX_BUF_ID  then									-- descripteur hors table : ancien chemin
-      BYTES_READ := READ_SYSTEM_CALL( FILE.ID );								-- general file
-      if  BYTES_READ = 0  then
-        FILE.AT_END_OF_FILE := TRUE;
+    elsif  ETATS( FILE.SLOT ).ID > MAX_BUF_ID  then									-- descripteur hors table : ancien chemin
+      BYTES_READ := READ_SYSTEM_CALL( ETATS( FILE.SLOT ).ID );								-- general file
+      if  BYTES_READ <= 0  then
+        ETATS( FILE.SLOT ).FIN_PHYSIQUE := TRUE;
         ITEM := ASCII.NUL;
       end if;
 
     else												-- fichier tamponne : blocs de BUF_SIZE
-      if  BUFS( FILE.ID ).IN_POS >= BUFS( FILE.ID ).IN_LEN  then
-        BYTES_READ := READ_RAW( FILE.ID, BUFS( FILE.ID ).DATA );
+      if  BUFS( ETATS( FILE.SLOT ).ID ).IN_POS >= BUFS( ETATS( FILE.SLOT ).ID ).IN_LEN  then
+        FLUSH_TOUT;
+        BYTES_READ := READ_RAW( ETATS( FILE.SLOT ).ID, BUFS( ETATS( FILE.SLOT ).ID ).DATA );
         if  BYTES_READ < 0  then BYTES_READ := 0; end if;						-- erreur assimilee a la fin de fichier
-        BUFS( FILE.ID ).IN_LEN := BYTES_READ;
-        BUFS( FILE.ID ).IN_POS := 0;
+        BUFS( ETATS( FILE.SLOT ).ID ).IN_LEN := BYTES_READ;
+        BUFS( ETATS( FILE.SLOT ).ID ).IN_POS := 0;
       end if;
-      if  BUFS( FILE.ID ).IN_LEN = 0  then
-        FILE.AT_END_OF_FILE := TRUE;
+      if  BUFS( ETATS( FILE.SLOT ).ID ).IN_LEN = 0  then
+        ETATS( FILE.SLOT ).FIN_PHYSIQUE := TRUE;
         ITEM := ASCII.NUL;
       else
-        BUFS( FILE.ID ).IN_POS := BUFS( FILE.ID ).IN_POS + 1;
-        ITEM := BUFS( FILE.ID ).DATA( BUFS( FILE.ID ).IN_POS );
+        BUFS( ETATS( FILE.SLOT ).ID ).IN_POS := BUFS( ETATS( FILE.SLOT ).ID ).IN_POS + 1;
+        ITEM := BUFS( ETATS( FILE.SLOT ).ID ).DATA( BUFS( ETATS( FILE.SLOT ).ID ).IN_POS );
       end if;
     end if;
 
+  end	LIRE_PHYSIQUE;
+	-------------
+
+
+			---------------
+  procedure		SUIVANT_LOGIQUE	( FILE :in FILE_TYPE; FIN :out BOOLEAN )		-- ajoute a la file LOOK le caractere
+  is			---------------						-- logique suivant ; FIN : il n'y en a plus
+
+    S		:constant INTEGER	:= FILE.SLOT;
+    CH		: CHARACTER;
+
+  begin
+    if  not ETATS( S ).FIN_PHYSIQUE  then
+      loop
+        LIRE_PHYSIQUE( FILE, CH );
+        exit when  ETATS( S ).FIN_PHYSIQUE;
+        if  CH /= ASCII.CR  then									-- CR LF : un seul terminateur de ligne
+	ETATS( S ).NB_LOOK := ETATS( S ).NB_LOOK + 1;
+	ETATS( S ).LOOK( ETATS( S ).NB_LOOK ) := CH;
+	ETATS( S ).DERNIER := CH;
+	FIN := FALSE;
+	return;
+        end if;
+      end loop;
+    end if;
+
+    if  ETATS( S ).DERNIER = ASCII.FF  then								-- fichier bien termine : LF FF puis fin
+      FIN := TRUE;
+    else												-- terminateurs implicites avant la fin
+      if  ETATS( S ).DERNIER = ASCII.LF  then CH := ASCII.FF;					-- physique (fichier ecrit par un autre
+      else				  CH := ASCII.LF;					-- outil, ou fichier vide)
+      end if;
+      ETATS( S ).NB_LOOK := ETATS( S ).NB_LOOK + 1;
+      ETATS( S ).LOOK( ETATS( S ).NB_LOOK ) := CH;
+      ETATS( S ).DERNIER := CH;
+      FIN := FALSE;
+    end if;
+
+  end	SUIVANT_LOGIQUE;
+	---------------
+
+
+			-------
+  procedure		REMPLIR		( FILE :in FILE_TYPE; K :in POSITIVE )			-- au moins K caracteres dans LOOK,
+  is			-------								-- sauf fin logique avant
+    FIN		: BOOLEAN	:= FALSE;
+  begin
+    while  ETATS( FILE.SLOT ).NB_LOOK < K  loop
+      SUIVANT_LOGIQUE( FILE, FIN );
+      exit when  FIN;
+    end loop;
+
+  end	REMPLIR;
+	-------
+
+
+			---------
+  function		TERMINE_A		( FILE :in FILE_TYPE; K :in POSITIVE )	return BOOLEAN	-- la fin logique vient avant le
+  is			---------							-- K-ieme caractere a venir
+  begin
+    REMPLIR( FILE, K );
+    return ETATS( FILE.SLOT ).NB_LOOK < K;
+
+  end	TERMINE_A;
+	---------
+
+
+			-----
+  function		CAR_A		( FILE :in FILE_TYPE; K :in POSITIVE )	return CHARACTER	-- K-ieme caractere a venir, NUL
+  is			-----								-- apres la fin logique
+  begin
+    REMPLIR( FILE, K );
+    if  ETATS( FILE.SLOT ).NB_LOOK < K  then return ASCII.NUL; end if;
+    return ETATS( FILE.SLOT ).LOOK( K );
+
+  end	CAR_A;
+	-----
+
+
+			-------
+  procedure		GET_RAW		( FILE :in FILE_TYPE; ITEM :out CHARACTER )		-- consomme un caractere logique
+  is			-------
+
+    S		:constant INTEGER	:= FILE.SLOT;
+    CH		: CHARACTER;
+
+  begin
+    REMPLIR( FILE, 1 );
+    if  ETATS( S ).NB_LOOK = 0  then									-- fin logique
+      ETATS( S ).AT_END_OF_FILE := TRUE;
+      ITEM := ASCII.NUL;
+      return;
+    end if;
+    CH := ETATS( S ).LOOK( 1 );
+    for  I in 1 .. ETATS( S ).NB_LOOK - 1  loop
+      ETATS( S ).LOOK( I ) := ETATS( S ).LOOK( I + 1 );
+    end loop;
+    ETATS( S ).NB_LOOK := ETATS( S ).NB_LOOK - 1;
+
+    ETATS( S ).PREC_PAGE := ETATS( S ).PAGE;								-- pour REMETTRE
+    ETATS( S ).PREC_LINE := ETATS( S ).LINE;
+    ETATS( S ).PREC_COL  := ETATS( S ).COL;
+    if  CH = ASCII.LF  then										-- LRM 14.3.4 et 14.3.6 : terminateur de
+      ETATS( S ).LINE := ETATS( S ).LINE + 1;								-- ligne, puis de page
+      ETATS( S ).COL  := 1;
+    elsif  CH = ASCII.FF  then
+      ETATS( S ).PAGE := ETATS( S ).PAGE + 1;
+      ETATS( S ).LINE := 1;
+      ETATS( S ).COL  := 1;
+    else
+      ETATS( S ).COL  := ETATS( S ).COL + 1;
+    end if;
+    ITEM := CH;
+
   end	GET_RAW;
 	-------
+
+
+			--------
+  procedure		REMETTRE		( FILE :in FILE_TYPE; ITEM :in CHARACTER )		-- annule le dernier GET_RAW : ITEM
+  is			--------								-- redevient le prochain caractere
+    S		:constant INTEGER	:= FILE.SLOT;
+  begin
+    for  I in reverse 1 .. ETATS( S ).NB_LOOK  loop
+      ETATS( S ).LOOK( I + 1 ) := ETATS( S ).LOOK( I );
+    end loop;
+    ETATS( S ).LOOK( 1 ) := ITEM;
+    ETATS( S ).NB_LOOK := ETATS( S ).NB_LOOK + 1;
+    ETATS( S ).PAGE := ETATS( S ).PREC_PAGE;
+    ETATS( S ).LINE := ETATS( S ).PREC_LINE;
+    ETATS( S ).COL  := ETATS( S ).PREC_COL;
+    ETATS( S ).AT_END_OF_FILE := FALSE;
+
+  end	REMETTRE;
+	--------
+
+
+			-------
+  procedure		AVANCER		( A	   :in out AUTOMATE_LEXEME;			-- l'automate accepte-t-il CH ? S'il
+					  CH	   :in CHARACTER;				-- l'accepte, il avance ; sinon il ne
+					  ACCEPTE :out BOOLEAN				-- change pas
+					)
+  is			-------
+
+    P		: PHASE_LEXEME	:= A.PHASE;
+    OK		: BOOLEAN		:= TRUE;
+
+    function	CHIFFRE	( C :CHARACTER )	return BOOLEAN
+    is
+    begin
+      return  C >= '0'  and then  C <= '9';
+    end	CHIFFRE;
+
+    function	ETENDU	( C :CHARACTER )	return BOOLEAN			-- LRM 2.4.2 : chiffre etendu ; sa valeur
+    is										-- est controlee a la conversion
+    begin
+      return  CHIFFRE( C )  or else  ( C >= 'A'  and then  C <= 'F' )
+			or else  ( C >= 'a'  and then  C <= 'f' );
+    end	ETENDU;
+
+    function	LETTRE	( C :CHARACTER )	return BOOLEAN
+    is
+    begin
+      return  ( C >= 'A'  and then  C <= 'Z' )  or else  ( C >= 'a'  and then  C <= 'z' );
+    end	LETTRE;
+
+    function	EXPOSANT	( C :CHARACTER )	return BOOLEAN
+    is
+    begin
+      return  C = 'E'  or else  C = 'e';
+    end	EXPOSANT;
+
+  begin
+    case  A.PHASE  is
+      when P_DEBUT =>
+        if  A.GENRE = LEX_ENUM  then
+	if    LETTRE( CH )  then P := P_ID;
+	elsif CH = '''    then P := P_CAR_OUVERT;
+	else			   OK := FALSE;
+	end if;
+        elsif  CH = '+'  or else  CH = '-'  then P := P_SIGNE;
+        elsif  CHIFFRE( CH )		    then P := P_ENT;
+        else					 OK := FALSE;
+        end if;
+      when P_SIGNE =>
+        if  CHIFFRE( CH )  then P := P_ENT; else OK := FALSE; end if;
+      when P_ENT =>
+        if    CHIFFRE( CH )			  then null;
+        elsif CH = '_'			  then P := P_ENT_SOUL;
+        elsif CH = '#'  or else  CH = ':'	  then P := P_OUVERT;
+        elsif CH = '.'  and then  A.GENRE = LEX_REEL then P := P_PT;
+        elsif EXPOSANT( CH )  and then  A.GENRE = LEX_ENTIER then P := P_EXP;			-- reel : point avant l'exposant
+        else					       OK := FALSE;
+        end if;
+      when P_ENT_SOUL =>
+        if  CHIFFRE( CH )  then P := P_ENT; else OK := FALSE; end if;
+      when P_OUVERT =>
+        if  ETENDU( CH )  then P := P_BASE; else OK := FALSE; end if;
+      when P_BASE =>
+        if    ETENDU( CH )			  then null;
+        elsif CH = '_'			  then P := P_BASE_SOUL;
+        elsif CH = A.DELIM  and then  A.GENRE = LEX_ENTIER then P := P_FERME;			-- reel : point avant le # fermant
+        elsif CH = '.'  and then  A.GENRE = LEX_REEL then P := P_BASE_PT;
+        else					       OK := FALSE;
+        end if;
+      when P_BASE_SOUL =>
+        if  ETENDU( CH )  then P := P_BASE; else OK := FALSE; end if;
+      when P_BASE_PT =>
+        if  ETENDU( CH )  then P := P_BASE_FR; else OK := FALSE; end if;
+      when P_BASE_FR =>
+        if    ETENDU( CH )	then null;
+        elsif CH = '_'	then P := P_BASE_FR_SOUL;
+        elsif CH = A.DELIM	then P := P_FERME;
+        else		     OK := FALSE;
+        end if;
+      when P_BASE_FR_SOUL =>
+        if  ETENDU( CH )  then P := P_BASE_FR; else OK := FALSE; end if;
+      when P_FERME =>
+        if  EXPOSANT( CH )  then P := P_EXP; else OK := FALSE; end if;
+      when P_PT =>
+        if  CHIFFRE( CH )  then P := P_FR; else OK := FALSE; end if;
+      when P_FR =>
+        if    CHIFFRE( CH )	then null;
+        elsif CH = '_'	then P := P_FR_SOUL;
+        elsif EXPOSANT( CH )	then P := P_EXP;
+        else		     OK := FALSE;
+        end if;
+      when P_FR_SOUL =>
+        if  CHIFFRE( CH )  then P := P_FR; else OK := FALSE; end if;
+      when P_EXP =>										-- LRM 2.4.1 : le signe - d'un exposant
+        if    CH = '+'  or else  CH = '-'	then P := P_EXP_SIGNE;					-- d'entier est refuse a la conversion
+        elsif CHIFFRE( CH )		then P := P_EXP_CH;
+        else				     OK := FALSE;
+        end if;
+      when P_EXP_SIGNE =>
+        if  CHIFFRE( CH )  then P := P_EXP_CH; else OK := FALSE; end if;
+      when P_EXP_CH =>
+        if    CHIFFRE( CH )  then null;
+        elsif CH = '_'     then P := P_EXP_SOUL;
+        else		  OK := FALSE;
+        end if;
+      when P_EXP_SOUL =>
+        if  CHIFFRE( CH )  then P := P_EXP_CH; else OK := FALSE; end if;
+      when P_ID =>
+        if    LETTRE( CH )  or else  CHIFFRE( CH )  then null;
+        elsif CH = '_'				then P := P_ID_SOUL;
+        else					     OK := FALSE;
+        end if;
+      when P_ID_SOUL =>
+        if  LETTRE( CH )  or else  CHIFFRE( CH )  then P := P_ID; else OK := FALSE; end if;
+      when P_CAR_OUVERT =>									-- LRM 2.5 : caractere graphique
+        if  CHARACTER'POS( CH ) >= 32  and then  CHARACTER'POS( CH ) <= 126  then P := P_CAR;
+        else										     OK := FALSE;
+        end if;
+      when P_CAR =>
+        if  CH = '''  then P := P_CAR_FERME; else OK := FALSE; end if;
+      when P_CAR_FERME =>
+        OK := FALSE;
+    end case;
+
+    if  OK  then
+      if  P = P_OUVERT  then A.DELIM := CH; end if;
+      if  P = P_PT  or else  P = P_BASE_PT  then A.POINT := TRUE; end if;
+      A.PHASE := P;
+    end if;
+    ACCEPTE := OK;
+
+  end	AVANCER;
+	-------
+
+
+			-------
+  function		COMPLET		( A :in AUTOMATE_LEXEME )	return BOOLEAN		-- le prefixe lu est un lexeme entier
+  is			-------
+  begin
+    case  A.GENRE  is
+      when LEX_ENTIER =>
+        return  not A.POINT  and then
+	  ( A.PHASE = P_ENT  or else  A.PHASE = P_FERME  or else  A.PHASE = P_EXP_CH );
+      when LEX_REEL =>
+        return  A.POINT  and then
+	  ( A.PHASE = P_FR  or else  A.PHASE = P_FERME  or else  A.PHASE = P_EXP_CH );
+      when LEX_ENUM =>
+        return  A.PHASE = P_ID  or else  A.PHASE = P_CAR_FERME;
+    end case;
+
+  end	COMPLET;
+	-------
+
+
+			-----------
+  procedure		LIRE_LEXEME	( FILE   :in FILE_TYPE;				-- GET sur fichier, LRM 14.3.5 : collecte
+					  WIDTH  :in FIELD;					-- le champ dans TAMPON( 1 .. LONG )
+					  GENRE  :in GENRE_LEXEME;
+					  TAMPON :out STRING;
+					  LONG   :out NATURAL
+					)
+  is			-----------
+
+    A		: AUTOMATE_LEXEME	:= ( GENRE => GENRE, PHASE => P_DEBUT, DELIM => '#', POINT => FALSE );
+    CH		: CHARACTER;
+    OK		: BOOLEAN;
+    L		: NATURAL		:= 0;
+    TROP		: BOOLEAN		:= FALSE;
+
+  begin
+    if  WIDTH = 0  then
+      loop											-- blancs et terminateurs sautes ;
+        if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;					-- END_ERROR sur le terminateur de fichier
+        CH := CAR_A( FILE, 1 );
+        exit when  CH /= ' '  and then  CH /= ASCII.HT
+		and then  CH /= ASCII.LF  and then  CH /= ASCII.FF;
+        GET_RAW( FILE, CH );
+      end loop;
+      loop											-- plus long prefixe de la syntaxe
+        exit when  TERMINE_A( FILE, 1 );
+        AVANCER( A, CAR_A( FILE, 1 ), OK );
+        exit when  not OK;
+        GET_RAW( FILE, CH );
+        if  L < TAMPON'LENGTH  then L := L + 1; TAMPON( TAMPON'FIRST + L - 1 ) := CH;
+        else			      TROP := TRUE;
+        end if;
+      end loop;
+    else
+      if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;
+      loop											-- WIDTH caracteres au plus, sans franchir
+        exit when  L >= WIDTH;										-- un terminateur de ligne (blancs de tete
+        exit when  TERMINE_A( FILE, 1 )								-- compris)
+	or else  CAR_A( FILE, 1 ) = ASCII.LF  or else  CAR_A( FILE, 1 ) = ASCII.FF;
+        GET_RAW( FILE, CH );
+        if  L < TAMPON'LENGTH  then L := L + 1; TAMPON( TAMPON'FIRST + L - 1 ) := CH;
+        else			      TROP := TRUE; exit;
+        end if;
+      end loop;
+    end if;
+    if  TROP  then raise DATA_ERROR; end if;							-- lexeme plus long que MAX_LEXEME
+    LONG := L;
+
+  end	LIRE_LEXEME;
+	-----------
+
+
+			--------
+  procedure		ANALYSER		( FROM  :in STRING;					-- GET sur chaine, LRM 14.3.5 : blancs
+					  GENRE :in GENRE_LEXEME;				-- sautes (END_ERROR s'il n'y a qu'eux),
+					  DEBUT :out INTEGER;				-- puis lexeme FROM( DEBUT .. FIN )
+					  FIN   :out INTEGER
+					)
+  is			--------
+
+    A		: AUTOMATE_LEXEME	:= ( GENRE => GENRE, PHASE => P_DEBUT, DELIM => '#', POINT => FALSE );
+    P		: INTEGER		:= FROM'FIRST;
+    K		: INTEGER;
+    OK		: BOOLEAN;
+
+  begin
+    while  P <= FROM'LAST  and then  ( FROM( P ) = ' '  or else  FROM( P ) = ASCII.HT )  loop
+      P := P + 1;
+    end loop;
+    if  P > FROM'LAST  then raise END_ERROR; end if;
+    K := P;
+    while  K <= FROM'LAST  loop
+      AVANCER( A, FROM( K ), OK );
+      exit when  not OK;
+      K := K + 1;
+    end loop;
+    if  not COMPLET( A )  then raise DATA_ERROR; end if;
+    DEBUT := P;
+    FIN   := K - 1;
+
+  end	ANALYSER;
+	--------
+
+
+			-----------
+  procedure		FIN_DE_CHAMP	( CHAMP :in STRING; DERNIER :in INTEGER )			-- WIDTH > 0 : apres le lexeme, des
+  is			-----------								-- blancs seulement
+  begin
+    for  I in DERNIER + 1 .. CHAMP'LAST  loop
+      if  CHAMP( I ) /= ' '  and then  CHAMP( I ) /= ASCII.HT  then raise DATA_ERROR; end if;
+    end loop;
+
+  end	FIN_DE_CHAMP;
+	-----------
+
+
+			--------------
+  function		VALEUR_CHIFFRE	( C :CHARACTER )		return INTEGER		-- chiffre etendu ; 99 sinon
+  is			--------------
+  begin
+    if    C >= '0'  and then  C <= '9'  then return CHARACTER'POS( C ) - CHARACTER'POS( '0' );
+    elsif C >= 'A'  and then  C <= 'F'  then return CHARACTER'POS( C ) - CHARACTER'POS( 'A' ) + 10;
+    elsif C >= 'a'  and then  C <= 'f'  then return CHARACTER'POS( C ) - CHARACTER'POS( 'a' ) + 10;
+    end if;
+    return 99;
+
+  end	VALEUR_CHIFFRE;
+	--------------
+
+
+			--------------
+  function		VALEUR_ENTIERE	( S :in STRING )		return LONG_INTEGER	-- lexeme LEX_ENTIER complet ; DATA_ERROR
+  is			--------------							-- si base, chiffre ou valeur hors limites
+
+    LIM		:constant LONG_INTEGER	:= LONG_INTEGER'LAST;
+    I		: INTEGER		:= S'FIRST;
+    NEG		: BOOLEAN		:= FALSE;
+    BASE		: LONG_INTEGER	:= 10;
+    V		: LONG_INTEGER	:= 0;
+    D		: LONG_INTEGER;
+    E		: LONG_INTEGER	:= 0;
+
+  begin
+    if  S( I ) = '-'  then NEG := TRUE; I := I + 1;
+    elsif  S( I ) = '+'  then I := I + 1;
+    end if;
+    while  I <= S'LAST  and then  ( S( I ) in '0' .. '9'  or else  S( I ) = '_' )  loop		-- numeral decimal
+      if  S( I ) /= '_'  then
+        D := LONG_INTEGER( VALEUR_CHIFFRE( S( I ) ) );
+        if  V > ( LIM - D ) / 10  then raise DATA_ERROR; end if;
+        V := 10 * V + D;
+      end if;
+      I := I + 1;
+    end loop;
+    if  I <= S'LAST  and then  ( S( I ) = '#'  or else  S( I ) = ':' )  then				-- litteral base : V est la base
+      if  V < 2  or else  V > 16  then raise DATA_ERROR; end if;					-- LRM 2.4.2
+      BASE := V;
+      V := 0;
+      I := I + 1;
+      while  S( I ) /= '#'  and then  S( I ) /= ':'  loop
+        if  S( I ) /= '_'  then
+	D := LONG_INTEGER( VALEUR_CHIFFRE( S( I ) ) );
+	if  D >= BASE  then raise DATA_ERROR; end if;
+	if  V > ( LIM - D ) / BASE  then raise DATA_ERROR; end if;
+	V := BASE * V + D;
+        end if;
+        I := I + 1;
+      end loop;
+      I := I + 1;
+    end if;
+    if  I <= S'LAST  then										-- exposant
+      I := I + 1;
+      if  S( I ) = '-'  then raise DATA_ERROR; end if;						-- LRM 2.4.1 : pas d'exposant negatif
+      if  S( I ) = '+'  then I := I + 1; end if;
+      while  I <= S'LAST  loop
+        if  S( I ) /= '_'  then
+	D := LONG_INTEGER( VALEUR_CHIFFRE( S( I ) ) );
+	if  E > 10_000  then E := 10_000; else E := 10 * E + D; end if;
+        end if;
+        I := I + 1;
+      end loop;
+      if  V /= 0  then
+        for  N in 1 .. E  loop
+	if  V > LIM / BASE  then raise DATA_ERROR; end if;
+	V := V * BASE;
+        end loop;
+      end if;
+    end if;
+    if  NEG  then return -V; end if;
+    return V;
+
+  end	VALEUR_ENTIERE;
+	--------------
+
+
+			-------------
+  function		VALEUR_REELLE	( S :in STRING )		return LONG_FLOAT	-- lexeme LEX_REEL complet, pour FIXED_IO :
+  is			-------------							-- accumulation en flottant (inexacte,
+											-- comme avant le lot 39 ; a reprendre)
+    I		: INTEGER		:= S'FIRST;
+    NEG		: BOOLEAN		:= FALSE;
+    BASE		: INTEGER		:= 10;
+    B		: INTEGER		:= 0;
+    V		: LONG_FLOAT	:= 0.0;
+    D		: INTEGER;
+    FRAC		: INTEGER		:= 0;
+    APRES_POINT	: BOOLEAN		:= FALSE;
+    E		: INTEGER		:= 0;
+    E_NEG		: BOOLEAN		:= FALSE;
+    BASEE		: BOOLEAN		:= FALSE;
+
+  begin
+    if  S( I ) = '-'  then NEG := TRUE; I := I + 1;
+    elsif  S( I ) = '+'  then I := I + 1;
+    end if;
+    declare
+      J	: INTEGER	:= I;
+    begin
+      while  J <= S'LAST  and then  ( S( J ) in '0' .. '9'  or else  S( J ) = '_' )  loop
+        if  S( J ) /= '_'  and then  B <= 16  then B := 10 * B + VALEUR_CHIFFRE( S( J ) ); end if;
+        J := J + 1;
+      end loop;
+      if  J <= S'LAST  and then  ( S( J ) = '#'  or else  S( J ) = ':' )  then
+        if  B < 2  or else  B > 16  then raise DATA_ERROR; end if;					-- LRM 2.4.2
+        BASE  := B;
+        BASEE := TRUE;
+        I := J + 1;
+      end if;
+    end;
+    while  I <= S'LAST  loop										-- mantisse
+      exit when  S( I ) = '#'  or else  S( I ) = ':'
+	or else  ( not BASEE  and then  ( S( I ) = 'E'  or else  S( I ) = 'e' ) );
+      if  S( I ) = '.'  then
+        APRES_POINT := TRUE;
+      elsif  S( I ) /= '_'  then
+        D := VALEUR_CHIFFRE( S( I ) );
+        if  D >= BASE  then raise DATA_ERROR; end if;
+        V := V * LONG_FLOAT( BASE ) + LONG_FLOAT( D );
+        if  APRES_POINT  then FRAC := FRAC + 1; end if;
+      end if;
+      I := I + 1;
+    end loop;
+    if  BASEE  then I := I + 1; end if;								-- delimiteur fermant
+    if  I <= S'LAST  then										-- exposant : puissance de la base
+      I := I + 1;
+      if    S( I ) = '-'  then E_NEG := TRUE; I := I + 1;
+      elsif S( I ) = '+'  then I := I + 1;
+      end if;
+      while  I <= S'LAST  loop
+        if  S( I ) /= '_'  then
+	if  E < 10_000  then E := 10 * E + VALEUR_CHIFFRE( S( I ) ); end if;
+        end if;
+        I := I + 1;
+      end loop;
+    end if;
+    if  E_NEG  then E := -E; end if;
+    E := E - FRAC;
+    if  V /= 0.0  then
+      if  E > 0  then
+        for  N in 1 .. E  loop
+	if  V > LONG_FLOAT'LAST / LONG_FLOAT( BASE )  then raise DATA_ERROR; end if;
+	V := V * LONG_FLOAT( BASE );
+        end loop;
+      else
+        for  N in 1 .. -E  loop
+	V := V / LONG_FLOAT( BASE );
+        end loop;
+      end if;
+    end if;
+    if  NEG  then return -V; end if;
+    return V;
+
+  end	VALEUR_REELLE;
+	-------------
+
+
+			-------------
+  procedure		DEBUT_ELEMENT	( FILE :in FILE_TYPE )					-- ligne bornee : capter l'element
+  is			-------------
+  begin
+    if  ETATS( FILE.SLOT ).IS_OPENED  and then  ETATS( FILE.SLOT ).MODE = OUT_FILE
+      and then  ETATS( FILE.SLOT ).LINE_LENGTH /= 0
+    then
+      CAPTE_SLOT := FILE.SLOT;
+      CAPTE_LEN  := 0;
+    end if;
+
+  end	DEBUT_ELEMENT;
+	-------------
+
+
+			-----------
+  procedure		FIN_ELEMENT		( FILE :in FILE_TYPE )					-- LRM 14.3.5 : l'element capte est ecrit
+  is			-----------								-- s'il tient dans une ligne
+  begin
+    if  CAPTE_SLOT = FILE.SLOT  then
+      CAPTE_SLOT := -2;
+      if  COUNT( CAPTE_LEN ) > ETATS( FILE.SLOT ).LINE_LENGTH  then raise LAYOUT_ERROR; end if;
+      if  ETATS( FILE.SLOT ).COL + COUNT( CAPTE_LEN ) - 1 > ETATS( FILE.SLOT ).LINE_LENGTH  then
+        NEW_LINE( FILE );										-- pas la place dans le reste de la ligne
+      end if;
+      PUT( FILE, CAPTE( 1 .. CAPTE_LEN ) );
+    end if;
+
+  end	FIN_ELEMENT;
+	-----------
+
+
+			---------------
+  procedure		ABANDON_ELEMENT							-- exception pendant l'element : rien
+  is			---------------							-- n'est ecrit
+  begin
+    CAPTE_SLOT := -2;
+
+  end	ABANDON_ELEMENT;
+	---------------
+
+
+			--------------
+  function		IMAGE_EXPOSANT	( E :in NATURAL; EXP :in FIELD )	return STRING		-- LRM 14.3.8 : exposant de EXP - 1
+  is			--------------							-- chiffres au moins (EXP compte le signe)
+    B		: STRING( 1 .. 40 )	:= ( others => '0' );
+    P		: INTEGER		:= B'LAST + 1;
+    V		: NATURAL		:= E;
+  begin
+    loop
+      P := P - 1;
+      B( P ) := CHARACTER'VAL( CHARACTER'POS( '0' ) + V mod 10 );
+      V := V / 10;
+      exit when  V = 0;
+    end loop;
+    while  B'LAST - P + 1 < EXP - 1  and then  P > B'FIRST  loop					-- zeros de tete
+      P := P - 1;
+    end loop;
+    return  B( P .. B'LAST );
+
+  end	IMAGE_EXPOSANT;
+	--------------
 
 
 			-------
@@ -511,19 +1317,19 @@ is					-------
     end	WRITE_SYSTEM_CALL;
 	-----------------
   begin
-    if  FILE.ID = -1  then										-- standard console output
+    if  ETATS( FILE.SLOT ).ID = -1  then										-- standard console output
       ASM_OP_2'( OPCODE => LB, LVL => 1, OFS => -16 );
       ASM_OP_0'( OPCODE => SYS_PUT_CHAR );
 
-    elsif  FILE.ID > MAX_BUF_ID  then									-- descripteur hors table : ancien chemin
-      ERR_CODE := WRITE_SYSTEM_CALL( FILE.ID );								-- general file
+    elsif  ETATS( FILE.SLOT ).ID > MAX_BUF_ID  then									-- descripteur hors table : ancien chemin
+      ERR_CODE := WRITE_SYSTEM_CALL( ETATS( FILE.SLOT ).ID );								-- general file
 
     else												-- fichier tamponne
-      if  BUFS( FILE.ID ).OUT_LEN = BUF_SIZE  then
-        FLUSH_OUT( FILE.ID );
+      if  BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN = BUF_SIZE  then
+        FLUSH_OUT( ETATS( FILE.SLOT ).ID );
       end if;
-      BUFS( FILE.ID ).OUT_LEN := BUFS( FILE.ID ).OUT_LEN + 1;
-      BUFS( FILE.ID ).DATA( BUFS( FILE.ID ).OUT_LEN ) := ITEM;
+      BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN := BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN + 1;
+      BUFS( ETATS( FILE.SLOT ).ID ).DATA( BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN ) := ITEM;
     end if;
 
   end	PUT_RAW;
@@ -550,27 +1356,46 @@ is					-------
 	-----------------
   begin
     if  ITEM'LENGTH = 0  then return; end if;
-    if  FILE.ID = -1  then
+    if  ETATS( FILE.SLOT ).ID = -1  then
       ASM_OP_2'( OPCODE => LA, LVL => 1, OFS => -16 );
       ASM_OP_0'( OPCODE => SYS_PUT_STR );
 
-    elsif  FILE.ID > MAX_BUF_ID  then									-- descripteur hors table : ancien chemin
-      ERR_CODE := WRITE_SYSTEM_CALL( FILE.ID, ITEM'LENGTH );
+    elsif  ETATS( FILE.SLOT ).ID > MAX_BUF_ID  then									-- descripteur hors table : ancien chemin
+      ERR_CODE := WRITE_SYSTEM_CALL( ETATS( FILE.SLOT ).ID, ITEM'LENGTH );
 
     else												-- fichier tamponne
-      if  ITEM'LENGTH > BUF_SIZE - BUFS( FILE.ID ).OUT_LEN  then					-- ne tient pas derriere ce qui attend
-        FLUSH_OUT( FILE.ID );
+      if  ITEM'LENGTH > BUF_SIZE - BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN  then					-- ne tient pas derriere ce qui attend
+        FLUSH_OUT( ETATS( FILE.SLOT ).ID );
       end if;
       if  ITEM'LENGTH > BUF_SIZE  then									-- ne tiendra jamais : ecriture directe
-        WRITE_RAW( FILE.ID, ITEM );
+        WRITE_RAW( ETATS( FILE.SLOT ).ID, ITEM );
       else
-        BUFS( FILE.ID ).DATA( BUFS( FILE.ID ).OUT_LEN + 1 .. BUFS( FILE.ID ).OUT_LEN + ITEM'LENGTH ) := ITEM;
-        BUFS( FILE.ID ).OUT_LEN := BUFS( FILE.ID ).OUT_LEN + ITEM'LENGTH;
+        BUFS( ETATS( FILE.SLOT ).ID ).DATA( BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN + 1 .. BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN + ITEM'LENGTH ) := ITEM;
+        BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN := BUFS( ETATS( FILE.SLOT ).ID ).OUT_LEN + ITEM'LENGTH;
       end if;
     end if;
 
   end	PUT_RAW;
 	-------
+
+
+			---------------
+  procedure		TERMINER_FICHIER	( FILE :in FILE_TYPE )				-- CLOSE, RESET d'un OUT_FILE
+  is			---------------
+  begin
+    -- LRM 14.3.1 : NEW_PAGE sauf si la page courante est deja
+    -- terminee, puis terminateur de fichier. Representation : le
+    -- terminateur de page qui precede immediatement la fin physique
+    -- n'est pas ecrit, la lecture le retablit (SUIVANT_LOGIQUE) ; seul
+    -- le terminateur de ligne l'est. Ainsi un texte se termine par LF,
+    -- comme sous Unix, et fasmg (qui refuse FF) lit les .FINC.
+    if  not PAGE_TERMINEE( FILE )
+      and then  ( ETATS( FILE.SLOT ).COL > 1  or else  ETATS( FILE.SLOT ).LINE = 1 )  then
+      PUT_RAW( FILE, ASCII.LF );
+    end if;
+
+  end	TERMINER_FICHIER;
+	---------------
 
 
 
@@ -581,9 +1406,9 @@ is					-------
   procedure		SET_LINE_LENGTH	( FILE :in FILE_TYPE; TO :in COUNT )
   is			---------------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
-    FILE.LINE_LENGTH := TO;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    ETATS( FILE.SLOT ).LINE_LENGTH := TO;
 
   end	SET_LINE_LENGTH;
 	---------------
@@ -603,9 +1428,9 @@ is					-------
   procedure		SET_PAGE_LENGTH	( FILE :in FILE_TYPE; TO :in COUNT )
   is			---------------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
-    FILE.PAGE_LENGTH := TO;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    ETATS( FILE.SLOT ).PAGE_LENGTH := TO;
   end	SET_PAGE_LENGTH;
 	---------------
 
@@ -624,9 +1449,9 @@ is					-------
   function		LINE_LENGTH	( FILE :in FILE_TYPE )		return COUNT
   is			-----------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
-    return FILE.LINE_LENGTH;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    return ETATS( FILE.SLOT ).LINE_LENGTH;
 
   end	LINE_LENGTH;
 	-----------
@@ -646,9 +1471,9 @@ is					-------
   function		PAGE_LENGTH	( FILE :in FILE_TYPE )		return COUNT
   is			-----------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
-    return FILE.PAGE_LENGTH;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    return ETATS( FILE.SLOT ).PAGE_LENGTH;
 
   end	PAGE_LENGTH;
 	-----------
@@ -672,20 +1497,21 @@ is					-------
 					  SPACING :in POSITIVE_COUNT := 1 )
   is			--------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
 
-    PUT_RAW( FILE, ASCII.CR );
-    FILE.COL := 1;											-- LRM 14.3.4(3) col := 1
-    for  N in 1 .. SPACING  loop
-      PUT_RAW( FILE, ASCII.LF );
+    for  N in 1 .. SPACING  loop									-- LRM 14.3.4 : SPACING fois
+      PUT_RAW( FILE, ASCII.LF );									-- terminateur de ligne : LF seul
+      ETATS( FILE.SLOT ).COL := 1;
+      if  ETATS( FILE.SLOT ).PAGE_LENGTH /= 0
+	and then  ETATS( FILE.SLOT ).LINE >= ETATS( FILE.SLOT ).PAGE_LENGTH  then		-- page bornee pleine : terminateur
+        PUT_RAW( FILE, ASCII.FF );									-- de page
+        ETATS( FILE.SLOT ).PAGE := ETATS( FILE.SLOT ).PAGE + 1;
+        ETATS( FILE.SLOT ).LINE := 1;
+      else
+        ETATS( FILE.SLOT ).LINE := ETATS( FILE.SLOT ).LINE + 1;
+      end if;
     end loop;
-    FILE.LINE := FILE.LINE + SPACING;
-    if  FILE.PAGE_LENGTH /= 0  and then  FILE.LINE > FILE.PAGE_LENGTH  then
-      PUT_RAW( FILE,ASCII.FF );
-      FILE.PAGE := FILE.PAGE + 1;
-      FILE.LINE := 1;
-    end if;
 
   end	NEW_LINE;
 	--------
@@ -707,27 +1533,19 @@ is					-------
   is			---------
 
     CH		: CHARACTER;
-    LINES_SKIPPED	: COUNT		:= 0;
 
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
-    if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;					-- LRM 14.3.4(9)
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
 
-    loop
-      exit when  FILE.AT_END_OF_FILE;
-      GET_RAW( FILE, CH );
-      exit when  FILE.AT_END_OF_FILE;
-      if  CH = ASCII.FF  then								-- terminateur de page rencontre
-        FILE.PAGE := FILE.PAGE + 1;
-        FILE.LINE := 1;
-        FILE.COL  := 1;
-      end if;
-      if  CH = ASCII.LF  then
-        LINES_SKIPPED := LINES_SKIPPED + 1;
-        FILE.LINE := FILE.LINE + 1;
-        FILE.COL := 1;
-        exit when  LINES_SKIPPED >= SPACING;
+    for  N in 1 .. SPACING  loop									-- LRM 14.3.4 : SPACING fois
+      loop											-- jusqu'au terminateur de ligne compris
+        if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;					-- LRM 14.3.4 : terminateur de fichier
+        GET_RAW( FILE, CH );
+        exit when  CH = ASCII.LF  or else  CH = ASCII.FF;
+      end loop;
+      if  CH = ASCII.LF  and then  CAR_A( FILE, 1 ) = ASCII.FF  then				-- suivi d'un terminateur de page :
+        GET_RAW( FILE, CH );									-- saute aussi (PAGE + 1, LINE := 1)
       end if;
     end loop;
 
@@ -748,26 +1566,12 @@ is					-------
 			-----------
   function		END_OF_LINE	( FILE :in FILE_TYPE)		return BOOLEAN
   is			-----------
-
-    CH	: CHARACTER;
-
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
-    if  FILE.AT_END_OF_FILE  then return TRUE; end if;
-    if  FILE.HAS_LOOK_AHEAD  then
-      return FILE.LOOK_AHEAD = ASCII.LF  or else  FILE.LOOK_AHEAD = ASCII.CR
-					or else  FILE.LOOK_AHEAD = ASCII.FF;
-    end if;
-    -- Tenter de lire un caractere
-    GET_RAW( FILE, CH );
-    if  FILE.AT_END_OF_FILE  then
-      return TRUE;
-    else
-      FILE.LOOK_AHEAD := CH;
-      FILE.HAS_LOOK_AHEAD := TRUE;
-      return CH = ASCII.LF  or else  CH = ASCII.CR  or else  CH = ASCII.FF;
-    end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
+    return  TERMINE_A( FILE, 1 )									-- LRM 14.3.4 : terminateur de ligne
+	or else  CAR_A( FILE, 1 ) = ASCII.LF								-- ou de fichier au prochain caractere
+	or else  CAR_A( FILE, 1 ) = ASCII.FF;
 
   end	END_OF_LINE;
 	-----------
@@ -787,14 +1591,16 @@ is					-------
   procedure		NEW_PAGE		( FILE :in FILE_TYPE )
   is			--------
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
-    if  FILE.COL /= 1  then
-      NEW_LINE( FILE );
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+
+    if  ETATS( FILE.SLOT ).COL > 1  or else  ETATS( FILE.SLOT ).LINE = 1  then			-- LRM 14.3.4 : ligne non terminee
+      PUT_RAW( FILE, ASCII.LF );									-- ou page vide : terminateur de ligne
     end if;
-    PUT_RAW( FILE, ASCII.FF );
-    FILE.PAGE := FILE.PAGE + 1;
-    FILE.LINE := 1;
+    PUT_RAW( FILE, ASCII.FF );										-- puis terminateur de page
+    ETATS( FILE.SLOT ).PAGE := ETATS( FILE.SLOT ).PAGE + 1;
+    ETATS( FILE.SLOT ).LINE := 1;
+    ETATS( FILE.SLOT ).COL  := 1;
 
   end	NEW_PAGE;
 	--------
@@ -817,22 +1623,13 @@ is					-------
     CH	: CHARACTER;
 
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
-    if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;					-- LRM 14.3.4(21)
-    loop
-      exit when  FILE.AT_END_OF_FILE;
-      GET_RAW( FILE, CH );
-      exit when  FILE.AT_END_OF_FILE;
-      if  CH = ASCII.LF  then
-        FILE.LINE := FILE.LINE + 1;
-        FILE.COL := 1;
-      end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
+    loop												-- LRM 14.3.4 : jusqu'au terminateur
+      if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;						-- de page compris ; END_ERROR sur le
+      GET_RAW( FILE, CH );										-- terminateur de fichier
       exit when  CH = ASCII.FF;
     end loop;
-    FILE.PAGE := FILE.PAGE + 1;
-    FILE.LINE := 1;
-    FILE.COL := 1;
 
   end	SKIP_PAGE;
 	---------
@@ -851,25 +1648,12 @@ is					-------
 			-----------
   function		END_OF_PAGE	( FILE :in FILE_TYPE )		return BOOLEAN
   is			-----------
-
-    CH	: CHARACTER;
-
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
-    if  FILE.AT_END_OF_FILE  then return TRUE; end if;
-    if  FILE.HAS_LOOK_AHEAD  then
-      return FILE.LOOK_AHEAD = ASCII.FF;
-    end if;
-    -- Tenter de lire un caractere
-    GET_RAW( FILE, CH );
-    if  FILE.AT_END_OF_FILE  then
-      return TRUE;
-    else
-      FILE.LOOK_AHEAD := CH;
-      FILE.HAS_LOOK_AHEAD := TRUE;
-      return CH = ASCII.FF;
-    end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
+    if  TERMINE_A( FILE, 1 )  or else  CAR_A( FILE, 1 ) = ASCII.FF  then return TRUE; end if;		-- LRM 14.3.4 : terminateur de ligne
+    return  CAR_A( FILE, 1 ) = ASCII.LF									-- suivi d'un terminateur de page, ou
+	and then  ( TERMINE_A( FILE, 2 )  or else  CAR_A( FILE, 2 ) = ASCII.FF );			-- terminateur de fichier
 
   end	END_OF_PAGE;
 	-----------
@@ -888,23 +1672,14 @@ is					-------
 			-----------
   function		END_OF_FILE	( FILE :in FILE_TYPE )		return BOOLEAN
   is			-----------
-
-    CH	: CHARACTER;
-
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
-    if  FILE.AT_END_OF_FILE  then return TRUE; end if;
-    if  FILE.HAS_LOOK_AHEAD  then return FALSE; end if;
-    -- Tenter de lire un caractere
-    GET_RAW( FILE, CH );
-    if  FILE.AT_END_OF_FILE  then
-      return TRUE;
-    else
-      FILE.LOOK_AHEAD := CH;
-      FILE.HAS_LOOK_AHEAD := TRUE;
-      return FALSE;
-    end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
+    if  TERMINE_A( FILE, 1 )  then return TRUE; end if;							-- LRM 14.3.4 : terminateur de ligne,
+    if  CAR_A( FILE, 1 ) = ASCII.FF  then return TERMINE_A( FILE, 2 ); end if;			-- de page, puis de fichier ; ou
+    return  CAR_A( FILE, 1 ) = ASCII.LF								-- terminateur de fichier
+	and then  ( TERMINE_A( FILE, 2 )
+		  or else  ( CAR_A( FILE, 2 ) = ASCII.FF  and then  TERMINE_A( FILE, 3 ) ) );
 
   end	END_OF_FILE;
 	-----------
@@ -923,29 +1698,38 @@ is					-------
 			-------
   procedure		SET_COL		( FILE :in FILE_TYPE; TO :in POSITIVE_COUNT )
   is			-------
-  begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
 
-    if  FILE.MODE /= IN_FILE  then
+    CH		: CHARACTER;
+
+  begin
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then
       -- Sortie, LRM 14.3.4(29-31) : espaces jusqu'a la colonne TO ;
       -- si TO est en arriere, terminateur de ligne d'abord.
-      if  FILE.LINE_LENGTH /= 0  and then  TO > FILE.LINE_LENGTH  then
+      if  ETATS( FILE.SLOT ).LINE_LENGTH /= 0  and then  TO > ETATS( FILE.SLOT ).LINE_LENGTH  then
         raise LAYOUT_ERROR;								-- LRM 14.3.4(31)
       end if;
-      if  TO < FILE.COL  then
+      if  TO < ETATS( FILE.SLOT ).COL  then
         NEW_LINE( FILE );
       end if;
-      while  FILE.COL < TO  loop
+      while  ETATS( FILE.SLOT ).COL < TO  loop
         PUT_RAW( FILE, ' ' );
-        FILE.COL := FILE.COL + 1;
+        ETATS( FILE.SLOT ).COL := ETATS( FILE.SLOT ).COL + 1;
       end loop;
-    else
-      -- Entree, LRM 14.3.4(32-33) : DIFFERE (restriction consignee).
-      -- Le positionnement par lecture (saut de caracteres et de
-      -- terminateurs jusqu'a la colonne TO, END_ERROR au terminateur
-      -- de fichier) n'est pas implante ; on conserve l'affectation
-      -- directe historique du compteur.
-      FILE.COL := TO;
+    elsif  ETATS( FILE.SLOT ).COL /= TO  then
+      -- Entree, LRM 14.3.4(32-33) : lit et jette caracteres et
+      -- terminateurs jusqu'a ce que le prochain caractere soit a la
+      -- colonne TO (les lignes trop courtes sont sautees) ; END_ERROR
+      -- sur le terminateur de fichier.
+      loop
+        exit when  ETATS( FILE.SLOT ).COL = TO
+	and then  not TERMINE_A( FILE, 1 )
+	and then  CAR_A( FILE, 1 ) /= ASCII.LF
+	and then  CAR_A( FILE, 1 ) /= ASCII.FF;
+        if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;
+        GET_RAW( FILE, CH );
+      end loop;
     end if;
 
   end	SET_COL;
@@ -965,25 +1749,35 @@ is					-------
 			--------
   procedure		SET_LINE		( FILE :in FILE_TYPE; TO :in POSITIVE_COUNT )
   is			--------
-  begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
 
-    if  FILE.MODE /= IN_FILE  then
+    CH		: CHARACTER;
+
+  begin
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then
       -- Sortie, LRM 14.3.4(36-38) : NEW_LINE jusqu'a la ligne TO ;
       -- si TO est en arriere, terminateur de page d'abord.
-      if  FILE.PAGE_LENGTH /= 0  and then  TO > FILE.PAGE_LENGTH  then
+      if  ETATS( FILE.SLOT ).PAGE_LENGTH /= 0  and then  TO > ETATS( FILE.SLOT ).PAGE_LENGTH  then
         raise LAYOUT_ERROR;								-- LRM 14.3.4(38)
       end if;
-      if  TO < FILE.LINE  then
+      if  TO < ETATS( FILE.SLOT ).LINE  then
         NEW_PAGE( FILE );
       end if;
-      while  FILE.LINE < TO  loop
+      while  ETATS( FILE.SLOT ).LINE < TO  loop
         NEW_LINE( FILE );
       end loop;
-    else
-      -- Entree, LRM 14.3.4(39-40) : DIFFERE (restriction consignee),
-      -- meme regime que SET_COL en entree.
-      FILE.LINE := TO;
+    elsif  ETATS( FILE.SLOT ).LINE /= TO  then
+      -- Entree, LRM 14.3.4(39-40) : lit et jette caracteres et
+      -- terminateurs jusqu'a la ligne TO ; END_ERROR sur le
+      -- terminateur de fichier.
+      loop											-- une ligne TO qui n'est qu'un LF suivi
+        exit when  ETATS( FILE.SLOT ).LINE = TO						-- de FF n'existe pas : on continue
+	and then  not TERMINE_A( FILE, 1 )
+	and then  CAR_A( FILE, 1 ) /= ASCII.FF;
+        if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;
+        GET_RAW( FILE, CH );
+      end loop;
     end if;
 
   end	SET_LINE;
@@ -1004,8 +1798,9 @@ is					-------
   function		COL		( FILE :in FILE_TYPE )		return POSITIVE_COUNT
   is			---
   begin
-    if  FILE.COL > COUNT'LAST  then raise LAYOUT_ERROR; end if;
-    return FILE.COL;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).COL > COUNT'LAST  then raise LAYOUT_ERROR; end if;
+    return ETATS( FILE.SLOT ).COL;
 
   end	COL;
 	---
@@ -1025,8 +1820,9 @@ is					-------
   function		LINE		( FILE :in FILE_TYPE )		return POSITIVE_COUNT
   is			----
   begin
-    if  FILE.LINE > COUNT'LAST  then raise LAYOUT_ERROR; end if;
-    return FILE.LINE;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).LINE > COUNT'LAST  then raise LAYOUT_ERROR; end if;
+    return ETATS( FILE.SLOT ).LINE;
 
   end	LINE;
 	----
@@ -1046,8 +1842,9 @@ is					-------
   function		PAGE		( FILE :in FILE_TYPE )		return POSITIVE_COUNT
   is			----
   begin
-    if  FILE.PAGE > COUNT'LAST  then raise LAYOUT_ERROR; end if;
-    return FILE.PAGE;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).PAGE > COUNT'LAST  then raise LAYOUT_ERROR; end if;
+    return ETATS( FILE.SLOT ).PAGE;
 
   end	PAGE;
 	----
@@ -1073,30 +1870,18 @@ is					-------
     CH	: CHARACTER;
 
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
 
     -- LRM 14.3.6(4-5) : saute les terminateurs de ligne et de page en
     -- tenant LINE/COL/PAGE a jour ; leve END_ERROR sur le terminateur
     -- de fichier. La lecture physique est deleguee a GET_RAW.
     loop
-      if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;
-      GET_RAW( FILE, CH );
-      if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;
-
-      if  CH = ASCII.LF  then
-        FILE.LINE := FILE.LINE + 1;
-        FILE.COL  := 1;
-      elsif  CH = ASCII.FF  then
-        FILE.PAGE := FILE.PAGE + 1;
-        FILE.LINE := 1;
-        FILE.COL  := 1;
-      elsif  CH /= ASCII.CR  then							-- CR : moitie muette du terminateur CR LF
-        ITEM := CH;
-        FILE.COL := FILE.COL + 1;
-        return;
-      end if;
+      if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;
+      GET_RAW( FILE, CH );									-- compteurs tenus par GET_RAW
+      exit when  CH /= ASCII.LF  and then  CH /= ASCII.FF;
     end loop;
+    ITEM := CH;
 
   end	GET;
 	----
@@ -1116,16 +1901,26 @@ is					-------
   procedure		PUT		( FILE :in FILE_TYPE; ITEM :in CHARACTER )
   is			---
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+
+    if  CAPTE_SLOT = FILE.SLOT  then									-- element en cours de capture
+      if  CAPTE_LEN >= MAX_CAPTE  then
+        CAPTE_SLOT := -2;
+        raise LAYOUT_ERROR;										-- plus long que toute ligne bornee admise
+      end if;
+      CAPTE_LEN := CAPTE_LEN + 1;
+      CAPTE( CAPTE_LEN ) := ITEM;
+      return;
+    end if;
 
     -- LRM 14.3.6(4) : coupure implicite si la longueur de ligne est
     -- bornee et que la colonne courante la depasse.
-    if  FILE.LINE_LENGTH /= 0  and then  FILE.COL > FILE.LINE_LENGTH  then
+    if  ETATS( FILE.SLOT ).LINE_LENGTH /= 0  and then  ETATS( FILE.SLOT ).COL > ETATS( FILE.SLOT ).LINE_LENGTH  then
       NEW_LINE( FILE );
     end if;
     PUT_RAW( FILE, ITEM );
-    FILE.COL := FILE.COL + 1;
+    ETATS( FILE.SLOT ).COL := ETATS( FILE.SLOT ).COL + 1;
 
   end	PUT;
 	----
@@ -1173,10 +1968,10 @@ is					-------
   procedure		PUT		( FILE :in FILE_TYPE; ITEM :in STRING )
   is			---
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= OUT_FILE  then raise MODE_ERROR; end if;
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= OUT_FILE  then raise MODE_ERROR; end if;
 
-    if  FILE.LINE_LENGTH /= 0  then
+    if  ETATS( FILE.SLOT ).LINE_LENGTH /= 0  then
       -- Ligne bornee : caractere par caractere pour beneficier des
       -- coupures implicites du PUT public (LRM 14.3.6(4)).
       for  I  in  ITEM'FIRST .. ITEM'LAST  loop
@@ -1185,7 +1980,7 @@ is					-------
     else
       -- Ligne non bornee : ecriture en bloc, comptabilite de colonne.
       PUT_RAW( FILE, ITEM );
-      FILE.COL := FILE.COL + COUNT( ITEM'LENGTH );
+      ETATS( FILE.SLOT ).COL := ETATS( FILE.SLOT ).COL + COUNT( ITEM'LENGTH );
     end if;
 
   end	PUT;
@@ -1211,40 +2006,34 @@ is					-------
 
     CH	: CHARACTER;
     POS	: NATURAL		:= ITEM'FIRST;
+    DERNIER	: INTEGER;										-- LAST est en mode out : non relu
 
   begin
-    if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-    if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
-    if  FILE.ID = -1  then										-- standard console input : utiliser SYS_GET_STR (mode canonique avec echo)
+    if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+    if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
+    if  ETATS( FILE.SLOT ).ID = -1  then										-- standard console input : utiliser SYS_GET_STR (mode canonique avec echo)
       ASM_OP_2'( OPCODE => La, LVL => 1, OFS => -24 );							-- push @LAST  (adresse du parametre out LAST)
       ASM_OP_2'( OPCODE => La, LVL => 1, OFS => -16 );							-- push @ITEM descripteur (adresse du parametre out ITEM = descripteur string)
       ASM_OP_0'( OPCODE => SYS_GET_STR );								-- lit une ligne stdin avec echo, stocke longueur dans LAST
     else
-      if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;						-- LRM 14.3.6(12)
-      LAST := ITEM'FIRST - 1;
+      DERNIER := ITEM'FIRST - 1;									-- chaine nulle : rien lu, pas d'END_ERROR
       loop
-        exit when  POS > ITEM'LAST;
-        exit when  FILE.AT_END_OF_FILE;
+        exit when  POS > ITEM'LAST;									-- chaine pleine : terminateur non lu
+        if  TERMINE_A( FILE, 1 )  then raise END_ERROR; end if;
+        if  CAR_A( FILE, 1 ) = ASCII.LF  then								-- fin de ligne : SKIP_LINE( 1 )
+	SKIP_LINE( FILE, 1 );
+	exit;
+        end if;
+        if  CAR_A( FILE, 1 ) = ASCII.FF  then								-- terminateur de page isole
+	GET_RAW( FILE, CH );
+	exit;
+        end if;
         GET_RAW( FILE, CH );
-        exit when  FILE.AT_END_OF_FILE;									-- fin de fichier = fin de ligne implicite
-        if  CH = ASCII.LF  then									-- terminateur de ligne consomme
-	FILE.LINE := FILE.LINE + 1;
-	FILE.COL  := 1;
-	exit;
-        end if;
-        if  CH = ASCII.FF  then									-- terminateur de page consomme
-	FILE.PAGE := FILE.PAGE + 1;
-	FILE.LINE := 1;
-	FILE.COL  := 1;
-	exit;
-        end if;
-        if  CH /= ASCII.CR  then
-	ITEM( POS ) := CH;
-	LAST := POS;
-	POS := POS + 1;
-	FILE.COL := FILE.COL + 1;
-        end if;
+        ITEM( POS ) := CH;
+        DERNIER := POS;
+        POS := POS + 1;
       end loop;
+      LAST := DERNIER;
     end if;
 
   end	GET_LINE;
@@ -1297,133 +2086,23 @@ is					-------
 					)
     is
 
-      CH			: CHARACTER;
-      VAL			: LONG_INTEGER	:= 0;	-- accumulation en 64 bits
-      NEG			: BOOLEAN		:= FALSE;
-      CHARS_READ		: NATURAL		:= 0;
-      DONE		: BOOLEAN		:= FALSE;
-      BASE		: LONG_INTEGER	:= 10;	-- base courante
-      IN_BASED		: BOOLEAN		:= FALSE;
-      HAVE_DIGIT	: BOOLEAN		:= FALSE;
-      DIG		: LONG_INTEGER;
+      TAMPON		: STRING( 1 .. MAX_LEXEME );
+      LONG		: NATURAL;
+      V			: NUM;
+      DERNIER		: POSITIVE;
 
     begin
-      if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-      if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
+      if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+      if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
 
-      if  WIDTH = 0  then
-        loop
-	exit when  FILE.AT_END_OF_FILE;
-	GET_RAW( FILE, CH );
-	exit when  FILE.AT_END_OF_FILE;
-	exit when  CH /= ' '  and then  CH /= ASCII.HT
-			and then  CH /= ASCII.LF
-			and then  CH /= ASCII.CR
-			and then  CH /= ASCII.FF;
-        end loop;
-      else
-        GET_RAW( FILE, CH );
-        CHARS_READ := 0;
-      end if;
-      if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;				-- LRM 14.3.7(?) fin de fichier avant l'item
-
-      -- Signe optionnel
-      if  not FILE.AT_END_OF_FILE  and then  CH = '-'  then
-        NEG := TRUE;
-        if  WIDTH > 0  then
-	CHARS_READ := CHARS_READ + 1;
-	if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	else  GET_RAW( FILE, CH );
-	end if;
-        else
-	GET_RAW( FILE, CH );
-        end if;
-      elsif  not FILE.AT_END_OF_FILE  and then  CH = '+'  then
-        if  WIDTH > 0  then
-	CHARS_READ := CHARS_READ + 1;
-	if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	else  GET_RAW( FILE, CH );
-	end if;
-        else
-	GET_RAW( FILE, CH );
-        end if;
-      end if;
-
-      loop
-        exit when  DONE  or else  FILE.AT_END_OF_FILE;
-        if  WIDTH > 0  and then  CHARS_READ >= WIDTH  then  exit;  end if;
-
-        if  CH >= '0'  and then  CH <= '9'  then
-	DIG := LONG_INTEGER( CHARACTER'POS( CH ) - CHARACTER'POS( '0' ) );
-	if  IN_BASED  and then  DIG >= BASE  then
-	  raise DATA_ERROR;								-- chiffre incompatible avec la base
-	end if;
-	VAL := BASE * VAL + DIG;		        -- base courante (10 ou base#)
-	HAVE_DIGIT := TRUE;
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-
-        elsif  ( CH = 'A'  or else  CH = 'B'  or else  CH = 'C'
-	    or else  CH = 'D'  or else  CH = 'E'  or else  CH = 'F'
-	    or else  CH = 'a'  or else  CH = 'b'  or else  CH = 'c'
-	    or else  CH = 'd'  or else  CH = 'e'  or else  CH = 'f' )
-	    and then  IN_BASED  then
-	if  CH >= 'a'  then
-	  DIG := LONG_INTEGER( CHARACTER'POS( CH ) - CHARACTER'POS( 'a' ) + 10 );
-	else
-	  DIG := LONG_INTEGER( CHARACTER'POS( CH ) - CHARACTER'POS( 'A' ) + 10 );
-	end if;
-	if  DIG >= BASE  then
-	  raise DATA_ERROR;								-- chiffre incompatible avec la base
-	end if;
-	VAL := BASE * VAL + DIG;
-	HAVE_DIGIT := TRUE;
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-
-        elsif  CH = '#'  and then  not IN_BASED  then
-	BASE     := VAL;			        -- VAL contient la base
-	VAL      := 0;
-	IN_BASED := TRUE;
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-
-        elsif  CH = '#'  and then  IN_BASED  then
-	if  WIDTH > 0  then  CHARS_READ := CHARS_READ + 1;  end if;
-	DONE := TRUE;
-
-        else
-	if  WIDTH = 0  then
-	  FILE.LOOK_AHEAD	  := CH;
-	  FILE.HAS_LOOK_AHEAD := TRUE;
-	end if;
-	DONE := TRUE;
-        end if;
-      end loop;
-
-      if  not HAVE_DIGIT  then raise DATA_ERROR; end if;					-- LRM 14.3.7 image invalide
-
-      if  NEG  then  ITEM := -NUM( VAL );
-      else	 ITEM := NUM(  VAL );
-      end if;
+      LIRE_LEXEME( FILE, WIDTH, LEX_ENTIER, TAMPON, LONG );						-- LRM 14.3.7 : lexeme du fichier,
+      begin												-- converti par le GET sur chaine
+        GET( TAMPON( 1 .. LONG ), V, DERNIER );
+      exception
+        when END_ERROR =>  raise DATA_ERROR;								-- champ blanc ou vide
+      end;
+      FIN_DE_CHAMP( TAMPON( 1 .. LONG ), DERNIER );
+      ITEM := V;											-- ITEM intact en cas d'erreur
 
     end	GET;
 	---
@@ -1457,6 +2136,10 @@ is					-------
       TLEN		: NATURAL;
 
     begin
+      if  ITEM < NUM'FIRST  or else  ITEM > NUM'LAST  then						-- LRM 6.4.1 : ITEM hors du sous-type NUM
+        raise CONSTRAINT_ERROR;									-- (controle que l'appel d'une instance omet)
+      end if;
+      DEBUT_ELEMENT( FILE );										-- LRM 14.3.5 : LAYOUT_ERROR, NEW_LINE
       -- Conversion en valeur absolue dans LONG_INTEGER :
       -- meme NUM'FIRST (ex: -2147483648) ne deborde pas en LONG_INTEGER.
       if  IS_NEGATIVE  then
@@ -1508,6 +2191,13 @@ is					-------
 
       if  BASE /= 10  then  PUT( FILE, '#' );  end if;
 
+
+      FIN_ELEMENT( FILE );
+
+    exception
+      when others =>												-- rien n'est ecrit
+        ABANDON_ELEMENT;
+        raise;
     end	PUT;
 	---
 
@@ -1532,95 +2222,17 @@ is					-------
 					)
     is			---
 
-      POS			: POSITIVE	:= FROM'FIRST;
-      VAL			: INTEGER		:= 0;
-      NEG			: BOOLEAN		:= FALSE;
-      DONE		: BOOLEAN		:= FALSE;
-      BASE		: INTEGER		:= 10;
-      IN_BASED		: BOOLEAN		:= FALSE;
-      CH			: CHARACTER;
-      HAVE_DIGIT	: BOOLEAN		:= FALSE;
-      DIG		: INTEGER;
+      DEBUT, FIN		: INTEGER;
+      VAL		: LONG_INTEGER;
 
     begin
-
-      -- Saut des separateurs initiaux (blancs et horizontaux)
-      -- LRM 14.3.7 : meme regle que GET fichier WIDTH=0,
-      -- mais seuls les blancs sont sautes (pas les LF --
-      -- un STRING ne contient pas de line terminators au sens TEXT_IO).
-      while  POS <= FROM'LAST  and then
-	   ( FROM( POS ) = ' '  or else  FROM( POS ) = ASCII.HT )  loop
-        POS := POS + 1;
-      end loop;
-
-      -- Signe optionnel
-      if  POS <= FROM'LAST  then
-        CH := FROM( POS );
-        if  CH = '-'  then
-	NEG := TRUE;
-	POS := POS + 1;
-        elsif  CH = '+'  then
-	POS := POS + 1;
-        end if;
+      ANALYSER( FROM, LEX_ENTIER, DEBUT, FIN );							-- END_ERROR, DATA_ERROR (syntaxe)
+      VAL := VALEUR_ENTIERE( FROM( DEBUT .. FIN ) );							-- DATA_ERROR (base, chiffre, valeur)
+      if  VAL < LONG_INTEGER( NUM'FIRST )  or else  VAL > LONG_INTEGER( NUM'LAST )  then
+        raise DATA_ERROR;										-- LRM 14.3.7 : hors du sous-type NUM
       end if;
-
-      -- Chiffres, based literals
-      loop
-        exit when  DONE  or else  POS > FROM'LAST;
-        CH := FROM( POS );
-
-        if  CH >= '0'  and then  CH <= '9'  then
-	DIG := INTEGER( CHARACTER'POS( CH ) - CHARACTER'POS( '0' ) );
-	if  IN_BASED  and then  DIG >= BASE  then
-	  raise DATA_ERROR;								-- chiffre incompatible avec la base
-	end if;
-	VAL := BASE * VAL + DIG;
-	HAVE_DIGIT := TRUE;
-	LAST := POS;
-	POS  := POS + 1;
-
-        elsif  ( CH = 'A'  or else  CH = 'B'  or else  CH = 'C'
-	    or else  CH = 'D'  or else  CH = 'E'  or else  CH = 'F'
-	    or else  CH = 'a'  or else  CH = 'b'  or else  CH = 'c'
-	    or else  CH = 'd'  or else  CH = 'e'  or else  CH = 'f' )
-	    and then  IN_BASED  then
-	if  CH >= 'a'  then
-	  DIG := INTEGER( CHARACTER'POS( CH ) - CHARACTER'POS( 'a' ) + 10 );
-	else
-	  DIG := INTEGER( CHARACTER'POS( CH ) - CHARACTER'POS( 'A' ) + 10 );
-	end if;
-	if  DIG >= BASE  then
-	  raise DATA_ERROR;								-- chiffre incompatible avec la base
-	end if;
-	VAL := BASE * VAL + DIG;
-	HAVE_DIGIT := TRUE;
-	LAST := POS;
-	POS  := POS + 1;
-
-        elsif  CH = '#'  and then  not IN_BASED  then
-	-- Premier '#' : VAL contient la base
-	BASE     := VAL;
-	VAL      := 0;
-	IN_BASED := TRUE;
-	LAST     := POS;
-	POS      := POS + 1;
-
-        elsif  CH = '#'  and then  IN_BASED  then
-	-- Second '#' : fin du based literal
-	LAST := POS;
-	DONE := TRUE;
-
-        else
-	-- Caractere hors-token : on s'arrete, LAST reste sur le precedent
-	DONE := TRUE;
-        end if;
-      end loop;
-
-      if  not HAVE_DIGIT  then raise DATA_ERROR; end if;					-- LRM 14.3.7(16) image invalide
-
-      if  NEG  then  ITEM := -NUM( VAL );
-      else	 ITEM :=  NUM( VAL );
-      end if;
+      ITEM := NUM( VAL );
+      LAST := FIN;
 
     end	GET;
 	----
@@ -1744,167 +2356,23 @@ is					-------
 					)
     is			---
 
-      CH		: CHARACTER;
-      VAL		: NUM		:= 0.0;
-      FRAC	: NUM		:= 0.1;
-      NEG		: BOOLEAN		:= FALSE;
-      IN_FRAC	: BOOLEAN		:= FALSE;
-      EXP_VAL	: INTEGER		:= 0;
-      EXP_NEG	: BOOLEAN		:= FALSE;
-      CHARS_READ	: NATURAL		:= 0;
-      DONE	: BOOLEAN		:= FALSE;
-      HAVE_DIGIT	: BOOLEAN		:= FALSE;
+      TAMPON		: STRING( 1 .. MAX_LEXEME );
+      LONG		: NATURAL;
+      V			: NUM;
+      DERNIER		: POSITIVE;
 
     begin
-      if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-      if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
+      if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+      if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
 
-      if  WIDTH = 0  then
-        loop
-	exit when  FILE.AT_END_OF_FILE;
-	GET_RAW( FILE, CH );
-	exit when  FILE.AT_END_OF_FILE;
-	exit when  CH /= ' '  and then  CH /= ASCII.HT
-			and then  CH /= ASCII.LF
-			and then  CH /= ASCII.CR
-			and then  CH /= ASCII.FF;
-        end loop;
-      else
-        GET_RAW( FILE, CH );
-        CHARS_READ := 0;
-      end if;
-      if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;				-- LRM 14.3.7(?) fin de fichier avant l'item
-
-      -- Signe optionnel
-      if  not FILE.AT_END_OF_FILE  and then  CH = '-'  then
-        NEG := TRUE;
-        if  WIDTH > 0  then
-	CHARS_READ := CHARS_READ + 1;
-	if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	else  GET_RAW( FILE, CH );
-	end if;
-        else
-	GET_RAW( FILE, CH );
-        end if;
-      elsif  not FILE.AT_END_OF_FILE  and then  CH = '+'  then
-        if  WIDTH > 0  then
-	CHARS_READ := CHARS_READ + 1;
-	if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	else  GET_RAW( FILE, CH );
-	end if;
-        else
-	GET_RAW( FILE, CH );
-        end if;
-      end if;
-
-      -- Mantisse et exposant
-      loop
-        exit when  DONE  or else  FILE.AT_END_OF_FILE;
-        if  WIDTH > 0  and then  CHARS_READ >= WIDTH  then  exit;  end if;
-
-        if  CH = '.'  then
-	IN_FRAC := TRUE;
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-
-        elsif  CH = 'E'  or else  CH = 'e'  then
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-	if  not DONE  and then  not FILE.AT_END_OF_FILE  then
-	  if  CH = '-'  then
-	    EXP_NEG := TRUE;
-	    if  WIDTH > 0  then
-	      CHARS_READ := CHARS_READ + 1;
-	      if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	      else  GET_RAW( FILE, CH );
-	      end if;
-	    else
-	      GET_RAW( FILE, CH );
-	    end if;
-	  elsif  CH = '+'  then
-	    if  WIDTH > 0  then
-	      CHARS_READ := CHARS_READ + 1;
-	      if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	      else  GET_RAW( FILE, CH );
-	      end if;
-	    else
-	      GET_RAW( FILE, CH );
-	    end if;
-	  end if;
-	end if;
-	-- Chiffres de l'exposant
-	loop
-	  exit when  DONE  or else  FILE.AT_END_OF_FILE;
-	  exit when  CH < '0'  or else  CH > '9';
-	  EXP_VAL := 10 * EXP_VAL
-		       + CHARACTER'POS( CH ) - CHARACTER'POS( '0' );
-	  if  WIDTH > 0  then
-	    CHARS_READ := CHARS_READ + 1;
-	    if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	    else  GET_RAW( FILE, CH );
-	    end if;
-	  else
-	    GET_RAW( FILE, CH );
-	  end if;
-	end loop;
-	if  WIDTH = 0  and then  not FILE.AT_END_OF_FILE
-		     and then  ( CH < '0'  or else  CH > '9' )  then
-	  FILE.LOOK_AHEAD	  := CH;
-	  FILE.HAS_LOOK_AHEAD := TRUE;
-	end if;
-	DONE := TRUE;
-
-        elsif  CH >= '0'  and then  CH <= '9'  then
-	if  IN_FRAC  then
-	  VAL  := VAL + FRAC
-		    * NUM( CHARACTER'POS( CH ) - CHARACTER'POS( '0' ) );
-	  FRAC := FRAC / 10.0;
-	else
-	  VAL  := 10.0 * VAL
-		    + NUM( CHARACTER'POS( CH ) - CHARACTER'POS( '0' ) );
-	end if;
-	HAVE_DIGIT := TRUE;
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-
-        else
-	if  WIDTH = 0  then
-	  FILE.LOOK_AHEAD	  := CH;
-	  FILE.HAS_LOOK_AHEAD := TRUE;
-	end if;
-	DONE := TRUE;
-        end if;
-      end loop;
-
-      if  not HAVE_DIGIT  then raise DATA_ERROR; end if;					-- LRM 14.3.8 image invalide
-
-      if  EXP_NEG  then
-        for  J in 1 .. EXP_VAL  loop  VAL := VAL / 10.0;  end loop;
-      else
-        for  J in 1 .. EXP_VAL  loop  VAL := VAL * 10.0;  end loop;
-      end if;
-
-      if  NEG  then  ITEM := -VAL;
-      else	 ITEM :=  VAL;
-      end if;
+      LIRE_LEXEME( FILE, WIDTH, LEX_REEL, TAMPON, LONG );						-- LRM 14.3.8 : lexeme du fichier,
+      begin												-- converti par le GET sur chaine
+        GET( TAMPON( 1 .. LONG ), V, DERNIER );
+      exception
+        when END_ERROR =>  raise DATA_ERROR;								-- champ blanc ou vide
+      end;
+      FIN_DE_CHAMP( TAMPON( 1 .. LONG ), DERNIER );
+      ITEM := V;											-- ITEM intact en cas d'erreur
 
     end	GET;
 	----
@@ -1929,6 +2397,8 @@ is					-------
 					)
     is			---
 
+      AFT_EFF		: FIELD		:= AFT + BOOLEAN'POS( AFT = 0 );		-- LRM 14.3.8 : un chiffre au moins apres le point
+
       VAL		: NUM		:= ITEM;
       IS_NEGATIVE	: BOOLEAN		:= ITEM < 0.0;
       E		: INTEGER		:= 0;
@@ -1936,6 +2406,7 @@ is					-------
       FORE_LEN	: NATURAL;
 
     begin
+      DEBUT_ELEMENT( FILE );										-- LRM 14.3.5 : LAYOUT_ERROR, NEW_LINE
       -- Traiter le signe
       if  IS_NEGATIVE  then
         VAL := -ITEM;
@@ -1960,7 +2431,7 @@ is					-------
       declare
         ROUNDING	: NUM	:= 0.5;
       begin
-        for  I in  1 .. AFT  loop
+        for  I in  1 .. AFT_EFF  loop
 	ROUNDING := ROUNDING / 10.0;
         end loop;
 
@@ -2004,7 +2475,7 @@ is					-------
       PUT( FILE, '.' );
 
       -- Chiffres apres le point
-      for  I in 1 .. AFT  loop
+      for  I in 1 .. AFT_EFF  loop
         DIGIT := INTEGER( VAL );
         if  NUM( DIGIT ) > VAL  then DIGIT := DIGIT - 1; end if;		-- floor
         if  DIGIT > 9  then DIGIT := 9; end if;
@@ -2022,20 +2493,16 @@ is					-------
         else
 	PUT( FILE, '+' );
         end if;
-        -- Ecrire l'exposant avec EXP chiffres (padding zero a gauche)
-        declare
-	EXP_STR	: STRING( 1 .. EXP );
-	POS	: NATURAL := EXP;
-	EVAL	: INTEGER := E;
-        begin
-	for  I in reverse 1 .. EXP  loop
-	  EXP_STR( I ) := CHARACTER'VAL( CHARACTER'POS( '0' ) + EVAL mod 10 );
-	  EVAL := EVAL / 10;
-	end loop;
-	PUT( FILE, EXP_STR );
-        end;
+        PUT( FILE, IMAGE_EXPOSANT( E, EXP ) );								-- LRM 14.3.8 : EXP compte le signe
       end if;
 
+
+      FIN_ELEMENT( FILE );
+
+    exception
+      when others =>												-- rien n'est ecrit
+        ABANDON_ELEMENT;
+        raise;
     end	PUT;
     ----
 
@@ -2055,7 +2522,7 @@ is					-------
 
 
 			---
-    procedure		GET		( FROM :in STRING; ITEM :out NUM; LAST :out POSITIVE )
+    procedure		CONVERTIR		( FROM :in STRING; ITEM :out NUM; LAST :out POSITIVE )	-- litteral reel exact
     is			---
       ------------------------------------------------------------------
       -- Conversion decimale correctement arrondie.
@@ -3167,6 +3634,28 @@ is					-------
         -- arriver.
         raise DATA_ERROR;
 
+    end	CONVERTIR;
+	---------
+
+
+			---
+    procedure		GET		( FROM :in STRING; ITEM :out NUM; LAST :out POSITIVE )		-- LRM 14.3.8
+    is			---
+
+      DEBUT, FIN		: INTEGER;
+      V			: NUM;
+      L			: POSITIVE;
+
+    begin
+      ANALYSER( FROM, LEX_REEL, DEBUT, FIN );							-- END_ERROR, DATA_ERROR (syntaxe)
+      CONVERTIR( FROM( DEBUT .. FIN ), V, L );							-- DATA_ERROR (base, chiffre)
+        if  L /= FIN  then raise DATA_ERROR; end if;
+      -- LRM 14.3.8 : DATA_ERROR si V est hors du sous-type NUM. NUM'FIRST et
+      -- NUM'LAST d'un formel reel ne sont pas compiles dans le corps generique
+      -- (ils rendent 0) : controle differe a la session des generiques.
+      ITEM := V;
+      LAST := FIN;
+
     end	GET;
 	---
 
@@ -3178,6 +3667,8 @@ is					-------
 					  EXP  :in INTEGER		:= DEFAULT_EXP
 					)
     is			---
+
+      AFT_EFF		: FIELD		:= AFT + BOOLEAN'POS( AFT = 0 );		-- LRM 14.3.8 : un chiffre au moins apres le point
 
       IMAGE		: STRING( 1 .. 80 );
       LEN			: NATURAL		:= 0;
@@ -3237,7 +3728,7 @@ is					-------
         F : LONG_FLOAT := FRACTION;
         D : INTEGER;
       begin
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	F := F * 10.0;
 	D := INTEGER( FLOOR_POS( F ) );
 
@@ -3278,7 +3769,7 @@ is					-------
       if  EXP <= 0  then
 
         -- Arrondi global avant extraction des chiffres.
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	ROUNDING := ROUNDING / 10.0;
         end loop;
 
@@ -3337,7 +3828,7 @@ is					-------
         -- Arrondir la mantisse a AFT chiffres.
         ROUNDING := 0.5;
 
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	ROUNDING := ROUNDING / 10.0;
         end loop;
 
@@ -3379,28 +3870,9 @@ is					-------
         end if;
 
         declare
-	EXP_STR	: STRING( 1 .. EXP );
-	EVAL		: INTEGER := E;
-	CHECK		: INTEGER := E;
+	EXP_STR	:constant STRING	:= IMAGE_EXPOSANT( E, EXP );				-- LRM 14.3.8 : EXP compte le signe
         begin
-	-- Verifier que l'exposant tient dans EXP chiffres.
-	for  K in 1 .. EXP  loop
-	  CHECK := CHECK / 10;
-	end loop;
-
-	if  CHECK /= 0  then
-	  BAD_LAYOUT := TRUE;
-	end if;
-
-	-- Image de l'exposant avec zeros de tete.
-	for  K in reverse 1 .. EXP  loop
-	  EXP_STR( K ) :=
-	    CHARACTER'VAL
-	      ( CHARACTER'POS( '0' ) + EVAL mod 10 );
-	  EVAL := EVAL / 10;
-	end loop;
-
-	for  K in 1 .. EXP  loop
+	for  K in EXP_STR'RANGE  loop
 	  EMIT( EXP_STR( K ) );
 	end loop;
         end;
@@ -3452,166 +3924,23 @@ is					-------
 					)
     is			---
 
-      CH		: CHARACTER;
-      VAL		: LONG_FLOAT	:= 0.0;
-      FRAC	: LONG_FLOAT	:= 0.1;
-      NEG		: BOOLEAN		:= FALSE;
-      IN_FRAC	: BOOLEAN		:= FALSE;
-      EXP_VAL	: INTEGER		:= 0;
-      EXP_NEG	: BOOLEAN		:= FALSE;
-      CHARS_READ	: NATURAL		:= 0;
-      DONE	: BOOLEAN		:= FALSE;
-      HAVE_DIGIT	: BOOLEAN		:= FALSE;
+      TAMPON		: STRING( 1 .. MAX_LEXEME );
+      LONG		: NATURAL;
+      V			: NUM;
+      DERNIER		: POSITIVE;
 
     begin
-      if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-      if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
+      if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+      if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
 
-      if  WIDTH = 0  then
-        loop
-	exit when  FILE.AT_END_OF_FILE;
-	GET_RAW( FILE, CH );
-	exit when  FILE.AT_END_OF_FILE;
-	exit when  CH /= ' '  and then  CH /= ASCII.HT
-			and then  CH /= ASCII.LF
-			and then  CH /= ASCII.CR
-			and then  CH /= ASCII.FF;
-        end loop;
-      else
-        GET_RAW( FILE, CH );
-        CHARS_READ := 0;
-      end if;
-      if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;				-- LRM 14.3.7(?) fin de fichier avant l'item
-
-      -- Signe optionnel
-      if  not FILE.AT_END_OF_FILE  and then  CH = '-'  then
-        NEG := TRUE;
-        if  WIDTH > 0  then
-	CHARS_READ := CHARS_READ + 1;
-	if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	else  GET_RAW( FILE, CH );
-	end if;
-        else
-	GET_RAW( FILE, CH );
-        end if;
-      elsif  not FILE.AT_END_OF_FILE  and then  CH = '+'  then
-        if  WIDTH > 0  then
-	CHARS_READ := CHARS_READ + 1;
-	if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	else  GET_RAW( FILE, CH );
-	end if;
-        else
-	GET_RAW( FILE, CH );
-        end if;
-      end if;
-
-      -- Mantisse et exposant
-      loop
-        exit when  DONE  or else  FILE.AT_END_OF_FILE;
-        if  WIDTH > 0  and then  CHARS_READ >= WIDTH  then  exit;  end if;
-
-        if  CH = '.'  then
-	IN_FRAC := TRUE;
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-
-        elsif  CH = 'E'  or else  CH = 'e'  then
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-	if  not DONE  and then  not FILE.AT_END_OF_FILE  then
-	  if  CH = '-'  then
-	    EXP_NEG := TRUE;
-	    if  WIDTH > 0  then
-	      CHARS_READ := CHARS_READ + 1;
-	      if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	      else  GET_RAW( FILE, CH );
-	      end if;
-	    else
-	      GET_RAW( FILE, CH );
-	    end if;
-	  elsif  CH = '+'  then
-	    if  WIDTH > 0  then
-	      CHARS_READ := CHARS_READ + 1;
-	      if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	      else  GET_RAW( FILE, CH );
-	      end if;
-	    else
-	      GET_RAW( FILE, CH );
-	    end if;
-	  end if;
-	end if;
-	loop
-	  exit when  DONE  or else  FILE.AT_END_OF_FILE;
-	  exit when  CH < '0'  or else  CH > '9';
-	  EXP_VAL := 10 * EXP_VAL
-		       + CHARACTER'POS( CH ) - CHARACTER'POS( '0' );
-	  if  WIDTH > 0  then
-	    CHARS_READ := CHARS_READ + 1;
-	    if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	    else  GET_RAW( FILE, CH );
-	    end if;
-	  else
-	    GET_RAW( FILE, CH );
-	  end if;
-	end loop;
-	if  WIDTH = 0  and then  not FILE.AT_END_OF_FILE
-		     and then  ( CH < '0'  or else  CH > '9' )  then
-	  FILE.LOOK_AHEAD	  := CH;
-	  FILE.HAS_LOOK_AHEAD := TRUE;
-	end if;
-	DONE := TRUE;
-
-        elsif  CH >= '0'  and then  CH <= '9'  then
-	if  IN_FRAC  then
-	  VAL  := VAL + FRAC
-		    * LONG_FLOAT( CHARACTER'POS( CH ) - CHARACTER'POS( '0' ) );
-	  FRAC := FRAC / 10.0;
-	else
-	  VAL  := 10.0 * VAL
-		    + LONG_FLOAT( CHARACTER'POS( CH ) - CHARACTER'POS( '0' ) );
-	end if;
-	HAVE_DIGIT := TRUE;
-	if  WIDTH > 0  then
-	  CHARS_READ := CHARS_READ + 1;
-	  if  CHARS_READ >= WIDTH  then  DONE := TRUE;
-	  else  GET_RAW( FILE, CH );
-	  end if;
-	else
-	  GET_RAW( FILE, CH );
-	end if;
-
-        else
-	if  WIDTH = 0  then
-	  FILE.LOOK_AHEAD	  := CH;
-	  FILE.HAS_LOOK_AHEAD := TRUE;
-	end if;
-	DONE := TRUE;
-        end if;
-      end loop;
-
-      if  not HAVE_DIGIT  then raise DATA_ERROR; end if;					-- LRM 14.3.8 image invalide
-
-      if  EXP_NEG  then
-        for  J in 1 .. EXP_VAL  loop  VAL := VAL / 10.0;  end loop;
-      else
-        for  J in 1 .. EXP_VAL  loop  VAL := VAL * 10.0;  end loop;
-      end if;
-
-      if  NEG  then  ITEM := NUM( -VAL );
-      else	 ITEM := NUM(  VAL );
-      end if;
+      LIRE_LEXEME( FILE, WIDTH, LEX_REEL, TAMPON, LONG );						-- LRM 14.3.8 : lexeme du fichier,
+      begin												-- converti par le GET sur chaine
+        GET( TAMPON( 1 .. LONG ), V, DERNIER );
+      exception
+        when END_ERROR =>  raise DATA_ERROR;								-- champ blanc ou vide
+      end;
+      FIN_DE_CHAMP( TAMPON( 1 .. LONG ), DERNIER );
+      ITEM := V;											-- ITEM intact en cas d'erreur
 
     end	GET;
 	---
@@ -3635,6 +3964,8 @@ is					-------
 					  EXP  :in FIELD		:= DEFAULT_EXP
 					)
     is			---
+
+      AFT_EFF		: FIELD		:= AFT + BOOLEAN'POS( AFT = 0 );		-- LRM 14.3.8 : un chiffre au moins apres le point
 
       VAL		: LONG_FLOAT	:= LONG_FLOAT( ITEM );
       IS_NEGATIVE	: BOOLEAN		:= LONG_FLOAT( ITEM ) < 0.0;
@@ -3673,7 +4004,7 @@ is					-------
         F : LONG_FLOAT := FRACTION;
         D : INTEGER;
       begin
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	F := F * 10.0;
 	D := INTEGER( FLOOR_POS( F ) );
 
@@ -3692,6 +4023,7 @@ is					-------
 
 
     begin
+      DEBUT_ELEMENT( FILE );										-- LRM 14.3.5 : LAYOUT_ERROR, NEW_LINE
       if  IS_NEGATIVE  then
         VAL := -VAL;
       end if;
@@ -3699,7 +4031,7 @@ is					-------
       if  EXP = 0  then
 
         -- Arrondir a AFT chiffres avant extraction.
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	ROUNDING := ROUNDING / 10.0;
         end loop;
 
@@ -3747,7 +4079,7 @@ is					-------
 
         PUT( FILE, '.' );
 
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	FRC_PART := FRC_PART * 10.0;
 	DIGIT := FLOOR_POS( FRC_PART );
 
@@ -3775,7 +4107,7 @@ is					-------
         -- Arrondir la mantisse a AFT chiffres.
         ROUNDING := 0.5;
 
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	ROUNDING := ROUNDING / 10.0;
         end loop;
 
@@ -3816,35 +4148,17 @@ is					-------
 	PUT( FILE, '+' );
         end if;
 
-        declare
-	EXP_STR	: STRING( 1 .. EXP );
-	EVAL		: INTEGER := E;
-	CHECK		: INTEGER := E;
-        begin
-	-- Verifier que l'exposant tient dans EXP chiffres.
-	for  K in 1 .. EXP  loop
-	  CHECK := CHECK / 10;
-	end loop;
-
-	if  CHECK /= 0  then
-	  BAD_LAYOUT := TRUE;
-	end if;
-
-	-- Image de l'exposant avec zeros de tete.
-	for  K in reverse 1 .. EXP  loop
-	  EXP_STR( K ) :=
-	    CHARACTER'VAL
-	      ( CHARACTER'POS( '0' ) + EVAL mod 10 );
-	  EVAL := EVAL / 10;
-	end loop;
-
-	for  K in 1 .. EXP  loop
-	  PUT( FILE, EXP_STR( K ) );
-	end loop;
-        end;
+        PUT( FILE, IMAGE_EXPOSANT( E, EXP ) );								-- LRM 14.3.8 : EXP compte le signe
 
        end if;
 
+
+      FIN_ELEMENT( FILE );
+
+    exception
+      when others =>												-- rien n'est ecrit
+        ABANDON_ELEMENT;
+        raise;
     end	PUT;
 	---
 
@@ -3870,141 +4184,20 @@ is					-------
 					)
     is			---
 
-      I			: INTEGER		:= FROM'FIRST;
-      VAL			: LONG_FLOAT	:= 0.0;
-      FRAC		: LONG_FLOAT	:= 0.1;
-      NEG			: BOOLEAN		:= FALSE;
-      IN_FRAC		: BOOLEAN		:= FALSE;
-      HAVE_DIGIT		: BOOLEAN		:= FALSE;
-      HAVE_FRAC_DIGIT	: BOOLEAN		:= FALSE;
-      EXP_SEEN		: BOOLEAN		:= FALSE;
-      EXP_VAL		: INTEGER		:= 0;
-      EXP_NEG		: BOOLEAN		:= FALSE;
-      HAVE_EXP_DIGIT	: BOOLEAN		:= FALSE;
-      BAD_IMAGE		: BOOLEAN		:= FALSE;
+      DEBUT, FIN		: INTEGER;
+      VAL		: LONG_FLOAT;
+      R			: LONG_FLOAT;
 
-begin
-
-  -- Ignorer les espaces initiaux.
-  while  I <= FROM'LAST
-    and then
-      ( FROM( I ) = ' '  or else  FROM( I ) = ASCII.HT )
-  loop
-    I := I + 1;
-  end loop;
-
-  -- Signe optionnel.
-  if  I <= FROM'LAST  and then  FROM( I ) = '-'  then
-    NEG := TRUE;
-    I := I + 1;
-
-  elsif  I <= FROM'LAST  and then  FROM( I ) = '+'  then
-    I := I + 1;
-  end if;
-
-  -- Mantisse decimale.
-  while  I <= FROM'LAST  loop
-
-    if  FROM( I ) >= '0'  and then  FROM( I ) <= '9'  then
-
-      HAVE_DIGIT := TRUE;
-
-      if  IN_FRAC  then
-        HAVE_FRAC_DIGIT := TRUE;
-
-        VAL :=
-	VAL
-	+ FRAC
-	* LONG_FLOAT
-	    ( CHARACTER'POS( FROM( I ) )
-	      - CHARACTER'POS( '0' ) );
-
-        FRAC := FRAC / 10.0;
-
-      else
-        VAL :=
-	10.0 * VAL
-	+ LONG_FLOAT
-	    ( CHARACTER'POS( FROM( I ) )
-	      - CHARACTER'POS( '0' ) );
-      end if;
-
-      I := I + 1;
-
-    elsif  FROM( I ) = '.'  and then  not IN_FRAC  then
-
-      IN_FRAC := TRUE;
-      I := I + 1;
-
-    elsif  ( FROM( I ) = 'E'  or else  FROM( I ) = 'e' )
-      and then  HAVE_DIGIT
-    then
-
-      EXP_SEEN := TRUE;
-      I := I + 1;
-
-      -- Signe optionnel de l'exposant.
-      if  I <= FROM'LAST  and then  FROM( I ) = '-'  then
-        EXP_NEG := TRUE;
-        I := I + 1;
-
-      elsif  I <= FROM'LAST  and then  FROM( I ) = '+'  then
-        I := I + 1;
-      end if;
-
-      -- Chiffres de l'exposant.
-      while  I <= FROM'LAST
-        and then  FROM( I ) >= '0'
-        and then  FROM( I ) <= '9'
-      loop
-        HAVE_EXP_DIGIT := TRUE;
-
-        EXP_VAL :=
-	10 * EXP_VAL
-	+ CHARACTER'POS( FROM( I ) )
-	- CHARACTER'POS( '0' );
-
-        I := I + 1;
-      end loop;
-
-      exit;
-
-    else
-      exit;
-    end if;
-
-  end loop;
-
-  -- Controle lexical minimal.
-  BAD_IMAGE :=
-    not HAVE_DIGIT
-    or else  ( IN_FRAC  and then  not HAVE_FRAC_DIGIT )
-    or else  ( EXP_SEEN  and then  not HAVE_EXP_DIGIT );
-
-  if  BAD_IMAGE  then
-    raise DATA_ERROR;									-- LRM 14.3.8(?) image invalide
-  end if;
-
-  -- Appliquer l'exposant decimal.
-  if  EXP_NEG  then
-    for  J in 1 .. EXP_VAL  loop
-      VAL := VAL / 10.0;
-    end loop;
-  else
-    for  J in 1 .. EXP_VAL  loop
-      VAL := VAL * 10.0;
-    end loop;
-  end if;
-
-  -- I designe le premier caractere non consomme.
-  LAST := POSITIVE( I - 1 );
-
-  -- Conversion unique LONG_FLOAT -> type fixed reel de l'instance.
-  if  NEG  then
-    ITEM := NUM( -VAL );
-  else
-    ITEM := NUM( VAL );
-  end if;
+    begin
+      ANALYSER( FROM, LEX_REEL, DEBUT, FIN );							-- END_ERROR, DATA_ERROR (syntaxe)
+      VAL := VALEUR_REELLE( FROM( DEBUT .. FIN ) );							-- DATA_ERROR (base, chiffre, valeur)
+      -- LRM 14.3.8 : DATA_ERROR si V est hors du sous-type NUM. NUM'FIRST et
+      -- NUM'LAST d'un formel reel ne sont pas compiles dans le corps generique
+      -- (ils rendent 0) : controle differe a la session des generiques.
+      R := VAL - LONG_FLOAT( NUM( VAL ) );								-- la conversion tronque (LRM 4.6 l'admet) ;
+											-- valeur du litteral : multiple de SMALL
+      ITEM := NUM( VAL + R );										-- le plus proche (VAL + R = X + 2R)
+      LAST := FIN;
 
     end	GET;
 	---
@@ -4017,6 +4210,8 @@ begin
 					  EXP  :in INTEGER		:= DEFAULT_EXP
 					)
     is			---
+
+      AFT_EFF		: FIELD		:= AFT + BOOLEAN'POS( AFT = 0 );		-- LRM 14.3.8 : un chiffre au moins apres le point
 
       IMAGE		: STRING( 1 .. 80 );
       LEN			: NATURAL		:= 0;
@@ -4076,7 +4271,7 @@ begin
         F : LONG_FLOAT := FRACTION;
         D : INTEGER;
       begin
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	F := F * 10.0;
 	D := INTEGER( FLOOR_POS( F ) );
 
@@ -4117,7 +4312,7 @@ begin
       if  EXP <= 0  then
 
         -- Arrondi global avant extraction des chiffres.
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	ROUNDING := ROUNDING / 10.0;
         end loop;
 
@@ -4176,7 +4371,7 @@ begin
         -- Arrondir la mantisse a AFT chiffres.
         ROUNDING := 0.5;
 
-        for  K in 1 .. AFT  loop
+        for  K in 1 .. AFT_EFF  loop
 	ROUNDING := ROUNDING / 10.0;
         end loop;
 
@@ -4218,28 +4413,9 @@ begin
         end if;
 
         declare
-	EXP_STR	: STRING( 1 .. EXP );
-	EVAL		: INTEGER := E;
-	CHECK		: INTEGER := E;
+	EXP_STR	:constant STRING	:= IMAGE_EXPOSANT( E, EXP );				-- LRM 14.3.8 : EXP compte le signe
         begin
-	-- Verifier que l'exposant tient dans EXP chiffres.
-	for  K in 1 .. EXP  loop
-	  CHECK := CHECK / 10;
-	end loop;
-
-	if  CHECK /= 0  then
-	  BAD_LAYOUT := TRUE;
-	end if;
-
-	-- Image de l'exposant avec zeros de tete.
-	for  K in reverse 1 .. EXP  loop
-	  EXP_STR( K ) :=
-	    CHARACTER'VAL
-	      ( CHARACTER'POS( '0' ) + EVAL mod 10 );
-	  EVAL := EVAL / 10;
-	end loop;
-
-	for  K in 1 .. EXP  loop
+	for  K in EXP_STR'RANGE  loop
 	  EMIT( EXP_STR( K ) );
 	end loop;
         end;
@@ -4306,6 +4482,10 @@ begin
 	---------------
 
     begin
+      DEBUT_ELEMENT( FILE );										-- LRM 14.3.5 : LAYOUT_ERROR, NEW_LINE
+      if  ENUM'POS( ITEM ) < ENUM'POS( ENUM'FIRST )  or else  ENUM'POS( ITEM ) > ENUM'POS( ENUM'LAST )  then
+        raise CONSTRAINT_ERROR;								-- LRM 6.4.1 : ITEM hors du sous-type ENUM (lot 29 ;
+      end if;										-- controle que l'appel d'une instance omet)
       declare
         IMAGES_STR		:constant STRING		:= GET_ENUM_IMAGES;
         POS_VAL		: INTEGER			:= ENUM'POS( ITEM );
@@ -4323,8 +4503,8 @@ begin
 	  IMG_START := I + 2;
 	  -- Ecrire les caracteres de l'image
 	  for  J in 0 .. LEN - 1  loop
-	    if  SET = LOWER_CASE  then
-	      declare
+	    if  SET = LOWER_CASE  and then  IMAGES_STR( IMG_START ) /= '''  then			-- LRM 14.3.9 : un litteral caractere
+	      declare										-- s'ecrit tel quel
 	        CH	: CHARACTER	:= IMAGES_STR( IMG_START + J );
 	      begin
 	        if  CH >= 'A'  and then  CH <= 'Z'  then
@@ -4344,12 +4524,20 @@ begin
 	      PUT( FILE, ' ' );
 	    end loop;
 	  end if;
+	  FIN_ELEMENT( FILE );
 	  return;
 	end if;
 	I := I + 2 + LEN;
         end loop;
       end;
 
+
+      FIN_ELEMENT( FILE );
+
+    exception
+      when others =>												-- rien n'est ecrit
+        ABANDON_ELEMENT;
+        raise;
     end	PUT;
 	---
 
@@ -4370,222 +4558,22 @@ begin
     procedure		GET		( FILE :in FILE_TYPE; ITEM :out ENUM)
     is			---
 
-      TOKEN	: STRING( 1 .. 80 );
-      TOK_LEN	: NATURAL		:= 0;
-      TOK_TOO_LONG  : BOOLEAN		:= FALSE;
+      TAMPON		: STRING( 1 .. MAX_LEXEME );
+      LONG		: NATURAL;
+      V			: ENUM;
+      DERNIER		: POSITIVE;
 
-      CH		: CHARACTER;
-      DONE	: BOOLEAN		:= FALSE;
-
-      I		: POSITIVE;
-      REP		: INTEGER;
-      IMG_LEN	: INTEGER;
-      IMG_START	: POSITIVE;
-      FOUND	: BOOLEAN		:= FALSE;
-      OK		: BOOLEAN;
-      HAS_QUOTE	: BOOLEAN;
-      IMG_CH	: CHARACTER;
-      TOK_CH	: CHARACTER;
-
-		---------------
-      function	GET_ENUM_IMAGES			return STRING
-      is		---------------
-      begin
-        ASM_OP_2'( OPCODE => La,   LVL => 1, OFS => -24 );							-- empiler @GFP_disp
-        ASM_OP_3'( OPCODE => LIVa, DISP => -8, OFS => 16 );							-- deref __u_ofs -> IMAGES
-        ASM_OP_2'( OPCODE => Sa,   LVL => 2, OFS => -8 );							-- stocker dans result_ofs
-
-      end GET_ENUM_IMAGES;
-	---------------
-
-
-		-----
-      function	UPPER		( CH : CHARACTER ) return CHARACTER
-      is		-----
-      begin
-        if  CH >= 'a'  and then  CH <= 'z'  then
-	return CHARACTER'VAL( CHARACTER'POS( CH ) - 32 );
-        else
-	return CH;
-        end if;
-
-      end UPPER;
-	-----
-
-		------------
-      function	IS_SEPARATOR	( CH : CHARACTER ) return BOOLEAN
-      is		------------
-      begin
-        return
-	CH = ' '
-	or else CH = ASCII.HT
-	or else CH = ASCII.LF
-	or else CH = ASCII.CR
-	or else CH = ASCII.FF;
-
-      end IS_SEPARATOR;
-	------------
-
-		-------------
-      function	IS_IDENT_CHAR	( CH : CHARACTER ) return BOOLEAN
-      is		-------------
-      begin
-        return
-	( CH >= 'A'  and then  CH <= 'Z' )
-	or else
-	( CH >= 'a'  and then  CH <= 'z' )
-	or else
-	( CH >= '0'  and then  CH <= '9' )
-	or else
-	CH = '_';
-
-      end IS_IDENT_CHAR;
-	-------------
-
-
-		----------
-      procedure	UNGET_CHAR	( CH :in CHARACTER )
-      is		----------
-      begin
-        FILE.LOOK_AHEAD     := CH;
-        FILE.HAS_LOOK_AHEAD := TRUE;
-
-      end UNGET_CHAR;
-	----------
     begin
-      declare
-        IMAGES_STR  : constant STRING	:= GET_ENUM_IMAGES;
+      if  ETATS( FILE.SLOT ).IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
+      if  ETATS( FILE.SLOT ).MODE /= IN_FILE  then raise MODE_ERROR; end if;
 
-      begin
-      if  FILE.IS_OPENED = FALSE  then raise STATUS_ERROR; end if;
-      if  FILE.MODE /= IN_FILE  then raise MODE_ERROR; end if;
-
-SKIP_BLANKS:
-        loop
-        exit when  FILE.AT_END_OF_FILE;
-	GET_RAW( FILE, CH );
-        exit when  FILE.AT_END_OF_FILE;
-        exit when not IS_SEPARATOR( CH );
-      end loop  SKIP_BLANKS;
-      if  FILE.AT_END_OF_FILE  then raise END_ERROR; end if;				-- fin de fichier avant l'item
-
-      ------------------------------------------------------------
-      -- 2. Lire l'image du literal enumere.
-      --
-      --	  Cas courant : identificateur Ada, donc lettres/chiffres/'_'.
-      --	  Cas CHARACTER : image de forme 'X', lue jusqu'au second
-      --	  apostrophe inclus.
-      --
-      --	  Le premier caractere lu qui n'appartient plus au token est
-      --	  remis en anticipation.
-      ------------------------------------------------------------
-
-      if  CH = '''  then
-
-        -- Literal caractere : recopier l'apostrophe initiale.
-        TOK_LEN := 1;
-        TOKEN( 1 ) := CH;
-
-        loop
-	GET_RAW( FILE, CH );
-
-	if  TOK_LEN < TOKEN'LAST  then
-	  TOK_LEN := TOK_LEN + 1;
-	  TOKEN( TOK_LEN ) := CH;
-	else
-	  TOK_TOO_LONG := TRUE;
-	end if;
-
-	exit when CH = ''';
-        end loop;
-
-      else											-- Identificateur enumere.
-        loop
-	if  IS_IDENT_CHAR( CH )  then
-
-	  if  TOK_LEN < TOKEN'LAST  then
-	    TOK_LEN := TOK_LEN + 1;
-	    TOKEN( TOK_LEN ) := CH;
-	  else
-	    TOK_TOO_LONG := TRUE;
-	  end if;
-
-	  GET_RAW( FILE, CH );
-
-	else
-	  UNGET_CHAR( CH );
-	  DONE := TRUE;
-	end if;
-
-	exit when DONE;
-        end loop;
-
-      end if;
-
-      ------------------------------------------------------------
-      -- 3. Chercher l'image correspondante dans IMAGES_STR.
-      --	  Les identificateurs sont compares sans tenir compte de
-      --	  la casse. Les images contenant une apostrophe sont
-      --	  comparees exactement, pour ne pas confondre 'a' et 'A'.
-      ------------------------------------------------------------
-
-      if  TOK_LEN = 0  or else  TOK_TOO_LONG  then
-        raise DATA_ERROR;								-- LRM 14.3.9(8)
-      end if;
-
-      I := IMAGES_STR'FIRST;
-
-      while  I <= IMAGES_STR'LAST  loop
-
-        REP       := CHARACTER'POS( IMAGES_STR( I ) );
-        IMG_LEN   := CHARACTER'POS( IMAGES_STR( I + 1 ) );
-        IMG_START := I + 2;
-
-        if  IMG_LEN = TOK_LEN  then
-
-	HAS_QUOTE := FALSE;
-
-	for  J in 0 .. IMG_LEN - 1  loop
-	  if  IMAGES_STR( IMG_START + J ) = '''  then
-	    HAS_QUOTE := TRUE;
-	  end if;
-	end loop;
-
-	OK := TRUE;
-
-	for  J in 0 .. IMG_LEN - 1  loop
-	  IMG_CH := IMAGES_STR( IMG_START + J );
-	  TOK_CH := TOKEN( J + 1 );
-
-	  if  HAS_QUOTE  then
-	    -- Images de caracteres : comparaison exacte.
-	    if  TOK_CH /= IMG_CH  then
-	      OK := FALSE;
-	    end if;
-	  else
-	    -- Identificateurs : insensibles a la casse.
-	    if  UPPER( TOK_CH ) /= UPPER( IMG_CH )  then
-	      OK := FALSE;
-	    end if;
-	  end if;
-	end loop;
-
-	if  OK  then
-	  ITEM := ENUM'VAL( REP );
-	  return;
-	end if;
-
-        end if;
-
-        I := I + 2 + IMG_LEN;
-      end loop;
-
-      ------------------------------------------------------------
-      -- 4. Aucune image trouvee.
-      ------------------------------------------------------------
-
-      raise DATA_ERROR;									-- LRM 14.3.9(8) image inconnue
+      LIRE_LEXEME( FILE, 0, LEX_ENUM, TAMPON, LONG );						-- LRM 14.3.9 : identificateur ou
+      begin												-- litteral caractere, reconnu par le
+        GET( TAMPON( 1 .. LONG ), V, DERNIER );							-- GET sur chaine
+      exception
+        when END_ERROR =>  raise DATA_ERROR;								-- aucun caractere ne commence un lexeme
       end;
+      ITEM := V;
 
     end	GET;
 	---
@@ -4608,16 +4596,11 @@ SKIP_BLANKS:
 					)
     is			---
 
-      I			: INTEGER		:= FROM'FIRST;
+      DEBUT, FIN		: INTEGER;
       P			: INTEGER;
       REP			: INTEGER;
       LEN			: INTEGER;
       IMG_START		: INTEGER;
-
-      MATCH_FOUND		: BOOLEAN		:= FALSE;
-      MATCH_REP		: INTEGER		:= 0;
-      MATCH_LEN		: INTEGER		:= 0;
-
       OK			: BOOLEAN;
 
 		---------------
@@ -4644,30 +4627,12 @@ SKIP_BLANKS:
       end UPPER;
 	-----
 
-		---------
-      function	SAME_CHAR		( LEFT, RIGHT : CHARACTER )	return BOOLEAN
-      is		---------
-      begin
-        return  UPPER( LEFT ) = UPPER( RIGHT );
-
-      end SAME_CHAR;
-	---------
-
     begin
+      ANALYSER( FROM, LEX_ENUM, DEBUT, FIN );							-- LRM 14.3.9 : END_ERROR, DATA_ERROR
       declare
         IMAGES_STR		: constant STRING	:= GET_ENUM_IMAGES;
 
       begin
-IGNORE_BLANKS:
-        while  I <= FROM'LAST  and then
-	( FROM( I ) = ' '
-	  or else FROM( I ) = ASCII.HT
-	  or else FROM( I ) = ASCII.LF
-	  or else FROM( I ) = ASCII.FF )
-        loop
-	I := I + 1;
-        end loop  IGNORE_BLANKS;
-
         P := IMAGES_STR'FIRST;
 
       -- IMAGES_STR contient des triplets :
@@ -4676,40 +4641,32 @@ IGNORE_BLANKS:
 
 	REP := CHARACTER'POS( IMAGES_STR( P ) );
 	LEN := CHARACTER'POS( IMAGES_STR( P + 1 ) );
-
 	IMG_START := P + 2;
 
-	if  I + LEN - 1 <= FROM'LAST  then
+	if  LEN = FIN - DEBUT + 1  then							-- le lexeme entier, pas un prefixe
 	  OK := TRUE;
-
 	  for  J in 0 .. LEN - 1  loop
-	    if  not SAME_CHAR( FROM( I + J ), IMAGES_STR( IMG_START + J ) )  then
+	    if  FROM( DEBUT ) = '''  then							-- litteral caractere : exact
+	      if  FROM( DEBUT + J ) /= IMAGES_STR( IMG_START + J )  then OK := FALSE; end if;
+	    elsif  UPPER( FROM( DEBUT + J ) ) /= UPPER( IMAGES_STR( IMG_START + J ) )  then	-- identificateur : sans casse
 	      OK := FALSE;
 	    end if;
 	  end loop;
 
 	  if  OK  then
-	  -- Retenir la plus longue image correspondante.
-	  -- C'est utile si deux images ont un prefixe commun.
-	    if  not MATCH_FOUND  or else  LEN > MATCH_LEN  then
-	      MATCH_FOUND := TRUE;
-	      MATCH_REP   := REP;
-	      MATCH_LEN   := LEN;
+	    if  REP < ENUM'POS( ENUM'FIRST )  or else  REP > ENUM'POS( ENUM'LAST )  then
+	      raise DATA_ERROR;								-- LRM 14.3.9(12) : hors du sous-type ENUM (lot 29)
 	    end if;
+	    ITEM := ENUM'VAL( REP );
+	    LAST := FIN;
+	    return;
 	  end if;
-
 	end if;
 
 	P := P + 2 + LEN;
         end loop;
 
-        if  MATCH_FOUND  then
-	ITEM := ENUM'VAL( MATCH_REP );
-	LAST := POSITIVE( I + MATCH_LEN - 1 );
-
-        else
-	raise DATA_ERROR;								-- LRM 14.3.9(12)
-        end if;
+        raise DATA_ERROR;								-- LRM 14.3.9(12) : image inconnue
       end;
 
     end	GET;
@@ -4735,6 +4692,9 @@ IGNORE_BLANKS:
 	---------------
 
     begin
+      if  ENUM'POS( ITEM ) < ENUM'POS( ENUM'FIRST )  or else  ENUM'POS( ITEM ) > ENUM'POS( ENUM'LAST )  then
+        raise CONSTRAINT_ERROR;								-- LRM 6.4.1 : ITEM hors du sous-type ENUM (lot 29)
+      end if;
       declare
         IMAGES_STR		: constant STRING		:= GET_ENUM_IMAGES;
         POS_VAL		: INTEGER			:= ENUM'POS( ITEM );
@@ -4806,33 +4766,35 @@ begin
   -- Initialisation EXPLICITE et complete des fichiers standard : la
   -- VARzone n'etant pas zeroee, aucun champ ne doit dependre des
   -- defauts de composants du record (dette consignee, ETAT_PILIERS).
-  STD_INPUT.ID		:= -1;								-- -1 = console
-  STD_INPUT.NAME_LEN	:= 0;
-  STD_INPUT.MODE		:= IN_FILE;
-  STD_INPUT.PAGE_LENGTH	:= 0;								-- LRM 14.3.3 : non borne
-  STD_INPUT.LINE_LENGTH	:= 0;
-  STD_INPUT.PAGE := 1;
-  STD_INPUT.LINE := 1;
-  STD_INPUT.COL  := 1;
-  STD_INPUT.IS_OPENED	:= TRUE;
-  STD_INPUT.IS_DEFAULT_IO	:= TRUE;
-  STD_INPUT.LOOK_AHEAD	:= ASCII.NUL;
-  STD_INPUT.HAS_LOOK_AHEAD	:= FALSE;
-  STD_INPUT.AT_END_OF_FILE	:= FALSE;
+  for  S in ETATS'RANGE  loop										-- tous fermes ; SLOT -1 le reste
+    ETATS( S ).ID		:= -1;
+    ETATS( S ).NAME_LEN	:= 0;
+    ETATS( S ).IS_OPENED	:= FALSE;
+    ETATS( S ).MODE		:= IN_FILE;
+    ETATS( S ).PAGE_LENGTH	:= 0;								-- LRM 14.3.3 : non borne
+    ETATS( S ).LINE_LENGTH	:= 0;
+    ETATS( S ).PAGE		:= 1;
+    ETATS( S ).LINE		:= 1;
+    ETATS( S ).COL		:= 1;
+    ETATS( S ).PREC_PAGE	:= 1;
+    ETATS( S ).PREC_LINE	:= 1;
+    ETATS( S ).PREC_COL	:= 1;
+    ETATS( S ).IS_DEFAULT_IO	:= FALSE;
+    ETATS( S ).NB_LOOK	:= 0;
+    ETATS( S ).DERNIER	:= ASCII.NUL;
+    ETATS( S ).FIN_PHYSIQUE	:= FALSE;
+    ETATS( S ).AT_END_OF_FILE	:= FALSE;
+    ETATS( S ).IS_TEMP	:= FALSE;
+  end loop;
+  PROCHAIN_SLOT := PREMIER_SLOT;
 
-  STD_OUTPUT.ID		:= -1;
-  STD_OUTPUT.NAME_LEN	:= 0;
-  STD_OUTPUT.MODE		:= OUT_FILE;
-  STD_OUTPUT.PAGE_LENGTH	:= 0;
-  STD_OUTPUT.LINE_LENGTH	:= 0;
-  STD_OUTPUT.PAGE := 1;
-  STD_OUTPUT.LINE := 1;
-  STD_OUTPUT.COL  := 1;
-  STD_OUTPUT.IS_OPENED	:= TRUE;
-  STD_OUTPUT.IS_DEFAULT_IO	:= TRUE;
-  STD_OUTPUT.LOOK_AHEAD	:= ASCII.NUL;
-  STD_OUTPUT.HAS_LOOK_AHEAD	:= FALSE;
-  STD_OUTPUT.AT_END_OF_FILE	:= FALSE;
+  ETATS( 0 ).IS_OPENED	:= TRUE;								-- entree standard : console
+  ETATS( 0 ).IS_DEFAULT_IO	:= TRUE;
+  ETATS( 1 ).IS_OPENED	:= TRUE;								-- sortie standard : console
+  ETATS( 1 ).MODE		:= OUT_FILE;
+  ETATS( 1 ).IS_DEFAULT_IO	:= TRUE;
+  STD_INPUT.SLOT		:= 0;
+  STD_OUTPUT.SLOT		:= 1;
 
   DEFAULT_INPUT		:= STD_INPUT;
   DEFAULT_OUTPUT		:= STD_OUTPUT;

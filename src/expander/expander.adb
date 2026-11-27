@@ -206,7 +206,10 @@ is
     DESC_FST_1			: constant		:= 8;
     DESC_LST_1			: constant		:= 12;
     DESC_OFS			: constant		:= 16;
-    DESC_TAILLE			: constant		:= 20;						--| taille d'un descripteur
+    DESC_TAILLE			: constant		:= 20;
+    DESC_REC_OFS			: constant		:= 0;						--| lot 31 : descripteur d'un composant RECORD
+    DESC_REC_TAILLE		: constant		:= 4;						--| dynamique : OFS | TAILLE (objet composant
+    DESC_REC			: constant		:= 8;						--| auto-relatif a objet + OFS)						--| taille d'un descripteur
     LIMITE_COMPOSANT		: constant		:= 64 * 1024 * 1024;				--| octets ; au-dela : STORAGE_ERROR (taille
 												--| max d'un discriminant NATURAL...)
 
@@ -216,6 +219,12 @@ is
     function  EST_COMPOSANT_REGULIER	( COMP_ID :TREE )			return BOOLEAN;			--| bornes non statiques elaborees au TYPE (marque)
     function  EST_COMPOSANT_DYNAMIQUE	( COMP_ID :TREE )			return BOOLEAN;			--| composant tableau contraint par un discriminant
     function  EST_RECORD_DYNAMIQUE	( REC_TYPE :TREE )		return BOOLEAN;			--| record (vue quelconque) a composant(s) dynamique(s)
+    function  BORNE_ELABOREE	( COMP_ID :TREE;  IS_LAST :BOOLEAN )	return BOOLEAN;		--| lot 34 : borne d'un composant dependant d'un
+												--| discriminant, SANS discriminant : evaluee au type
+    function  DISCR_ELABORE	( COMP_ID, EXP :TREE )		return BOOLEAN;			--| lot 34 : expression de contrainte d'un composant
+												--| record, SANS discriminant : evaluee au type
+    function  EST_COMPOSANT_RECORD_DYNAMIQUE ( COMP_ID :TREE )		return BOOLEAN;			--| lot 31 : composant de sous-type record dynamique CONTRAINT
+    procedure DESC_REC_VERS_OBJET	( COMP_ID :TREE );							--| lot 31 : pile : @descripteur -> @objet composant
     procedure DESC_VERS_DONNEES	( COMP_ID :TREE );							--| pile : @descripteur -> @donnees du composant
     function  EST_SELECTION_DYNAMIQUE	( NAME :TREE )			return BOOLEAN;			--| NAME = R.A, A composant dynamique
     function  A_DISCRIMINANTS_PAR_DEFAUT	( REC_TYPE :TREE )		return BOOLEAN;			--| discriminants avec valeur par defaut (LRM 3.7.1)
@@ -269,6 +278,7 @@ is
     procedure ELABORER_DISCRIMINANTS	( C :TREE );								--| 3.7.2 : evaluation unique + compatibilite, a l'elaboration
     procedure CODE_VALEUR_DISCRIMINANT	( C, ACCES, DISCR_ID, EXP :TREE );						--| valeur elaboree (ou expression statique)
     procedure CODE_AFFECTATION_EN_TETE	( DST_ALL, SRC_EXP :TREE );						--| Q1b : X.all := V, X acces a tableau non contraint
+    procedure CODE_COPIE_TABLEAU	( SRC_EXP, ARR :TREE;  DST_D, DST_I :STRING );				--| LRM 5.2.1 : controle des longueurs, glissement, copie
     procedure CODE_ARRAY_OPERAND	( E :TREE; ANON :STRING; CONTEXT_TYPE :TREE;
 				  CONTRAINTE_APPLICABLE :BOOLEAN := FALSE );					--| LRM 4.3.2 : CONTEXT_TYPE contraint fournit les bornes
     function  IS_GENERIC_FORMAL_TYPE	( TYPE_DEFN	:TREE )		return BOOLEAN;
@@ -356,14 +366,19 @@ is
 				  BORNER :BOOLEAN := FALSE );		--| option B : descripteurs et __TAILLE de l'objet
 												--| dont l'adresse est dans la variable OBJ_VAR
     procedure CODE_OBJET_DYNAMIQUE	( REC_TYPE :TREE; DSCRMT_EXP_S :SEQ_TYPE; SUR_LE_TAS :BOOLEAN;
-				  MUTABLE :BOOLEAN := FALSE );						--| option B : pile -> @objet neuf (discriminants de
+				  MUTABLE :BOOLEAN := FALSE;  INITIALISER :BOOLEAN := FALSE );						--| option B : pile -> @objet neuf (discriminants de
 												--| DSCRMT_EXP_S, descripteurs, bloc de __TAILLE
 												--| octets ; MUTABLE : bloc de taille MAXIMALE)
+    procedure CODE_POSER_COMPOSANTS_RECORDS ( REC_TYPE :TREE; OBJ_LVL :LEVEL_NUM; OBJ_VAR :STRING );	--| lot 31 : apres allocation, composants records
+												--| dynamiques poses en place (objet + OFS)
+    function  A_COMPOSANTS_RECORDS	( REC_TYPE :TREE )		return BOOLEAN;				--| lot 31 : record a composant record dynamique
     function  A_INIT_IMPLICITE	( REC_TYPE :TREE )		return BOOLEAN;				--| lot 25 : un composant recoit une valeur implicite
     procedure CODE_INIT_IMPLICITE	( REC_TYPE :TREE;  OBJ_VAR :STRING );				--| lot 25 : valeurs implicites des composants de l'objet
 												--| dont l'adresse est dans OBJ_VAR (discriminants poses)
     function  ELEMENT_TABLEAU	( T :TREE )		return TREE;				--| lot 27 : type des composants d'un tableau
     function  EST_TABLEAU_DYNAMIQUE	( T :TREE )		return BOOLEAN;				--| lot 27 : composants records dynamiques
+    function  CHAMP_A_VARIANTES	( T :TREE )		return BOOLEAN;				--| lot 34 : record a composant record a variantes
+    function  RECORD_A_VARIANTES	( T :TREE )		return BOOLEAN;				--| lot 34 : record (non represente) a partie variante
     procedure CODE_TAILLE_MAX	( REC_TYPE :TREE;  MAX_VAR :STRING );				--| lot 27 : taille maximale d'un objet non contraint (bornes ramenees)
     function  A_INIT_IMPLICITE_TYPE	( T :TREE )		return BOOLEAN;				--| lot 26 : record ou tableau contraint a valeurs implicites
     procedure CODE_INIT_IMPLICITE_TABLEAU ( ARR_TYPE :TREE;  DATA_VAR, LEN_VAR :STRING;

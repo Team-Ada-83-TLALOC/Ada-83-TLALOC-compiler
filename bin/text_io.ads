@@ -304,22 +304,9 @@ private
 
   subtype FILE_NAME_BUFFER	is STRING( 1 .. 256 );
 
-  type FILE_TYPE		is record
-			  ID		: INTEGER		:= -1;
-			  NAME		: FILE_NAME_BUFFER;
-			  NAME_LEN	: NATURAL;
-			  IS_OPENED	: BOOLEAN		:= FALSE;
-			  MODE		: FILE_MODE;
-			  PAGE_LENGTH	: COUNT		:= UNBOUNDED;	-- LRM 14.3.3 : 0 = non borne
-			  LINE_LENGTH	: COUNT		:= UNBOUNDED;
-			  PAGE,
-			  LINE,
-			  COL		: POSITIVE_COUNT	:= 1;
-			  IS_DEFAULT_IO	: BOOLEAN		:= FALSE;
-			  LOOK_AHEAD	: CHARACTER	:= ASCII.NUL;
-			  HAS_LOOK_AHEAD	: BOOLEAN		:= FALSE;
-			  AT_END_OF_FILE	: BOOLEAN		:= FALSE;
-			end record;
+  type FILE_TYPE		is record						-- LRM 14.2.1 : toutes les copies d'un FILE_TYPE
+			  SLOT		: INTEGER		:= -1;	-- (CURRENT_OUTPUT...) designent le meme fichier ;
+			end record;						-- l'etat est dans la table ETATS du corps
 
 	-------
  end	TEXT_IO;

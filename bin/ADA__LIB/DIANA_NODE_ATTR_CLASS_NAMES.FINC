@@ -431,17 +431,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	0
-	SB	0, FST
+	SD	0, FST
 	LI	11
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_BOOLEAN = '_CLASS_BOOLEAN'
 namespace _CLASS_BOOLEAN
@@ -449,17 +457,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	3
-	SB	0, FST
+	SD	0, FST
 	LI	4
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ALL_SOURCE = '_CLASS_ALL_SOURCE'
 namespace _CLASS_ALL_SOURCE
@@ -467,17 +483,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	12
-	SB	0, FST
+	SD	0, FST
 	LI	200
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_DEF_NAME = '_CLASS_DEF_NAME'
 namespace _CLASS_DEF_NAME
@@ -485,17 +509,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	12
-	SB	0, FST
+	SD	0, FST
 	LI	40
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SOURCE_NAME = '_CLASS_SOURCE_NAME'
 namespace _CLASS_SOURCE_NAME
@@ -503,17 +535,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	12
-	SB	0, FST
+	SD	0, FST
 	LI	36
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_OBJECT_NAME = '_CLASS_OBJECT_NAME'
 namespace _CLASS_OBJECT_NAME
@@ -521,17 +561,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	12
-	SB	0, FST
+	SD	0, FST
 	LI	22
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_INIT_OBJECT_NAME = '_CLASS_INIT_OBJECT_NAME'
 namespace _CLASS_INIT_OBJECT_NAME
@@ -539,17 +587,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	12
-	SB	0, FST
+	SD	0, FST
 	LI	19
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_VC_NAME = '_CLASS_VC_NAME'
 namespace _CLASS_VC_NAME
@@ -557,17 +613,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	12
-	SB	0, FST
+	SD	0, FST
 	LI	13
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_COMP_NAME = '_CLASS_COMP_NAME'
 namespace _CLASS_COMP_NAME
@@ -575,17 +639,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	15
-	SB	0, FST
+	SD	0, FST
 	LI	16
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_PARAM_NAME = '_CLASS_PARAM_NAME'
 namespace _CLASS_PARAM_NAME
@@ -593,17 +665,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	17
-	SB	0, FST
+	SD	0, FST
 	LI	19
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_PARAM_IO_O = '_CLASS_PARAM_IO_O'
 namespace _CLASS_PARAM_IO_O
@@ -611,17 +691,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	18
-	SB	0, FST
+	SD	0, FST
 	LI	19
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ENUM_LITERAL = '_CLASS_ENUM_LITERAL'
 namespace _CLASS_ENUM_LITERAL
@@ -629,17 +717,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	20
-	SB	0, FST
+	SD	0, FST
 	LI	21
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_TYPE_NAME = '_CLASS_TYPE_NAME'
 namespace _CLASS_TYPE_NAME
@@ -647,17 +743,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	23
-	SB	0, FST
+	SD	0, FST
 	LI	26
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_UNIT_NAME = '_CLASS_UNIT_NAME'
 namespace _CLASS_UNIT_NAME
@@ -665,17 +769,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	27
-	SB	0, FST
+	SD	0, FST
 	LI	32
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NON_TASK_NAME = '_CLASS_NON_TASK_NAME'
 namespace _CLASS_NON_TASK_NAME
@@ -683,17 +795,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	27
-	SB	0, FST
+	SD	0, FST
 	LI	31
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SUBPROG_PACK_NAME = '_CLASS_SUBPROG_PACK_NAME'
 namespace _CLASS_SUBPROG_PACK_NAME
@@ -701,17 +821,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	27
-	SB	0, FST
+	SD	0, FST
 	LI	30
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SUBPROG_NAME = '_CLASS_SUBPROG_NAME'
 namespace _CLASS_SUBPROG_NAME
@@ -719,17 +847,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	27
-	SB	0, FST
+	SD	0, FST
 	LI	29
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_LABEL_NAME = '_CLASS_LABEL_NAME'
 namespace _CLASS_LABEL_NAME
@@ -737,17 +873,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	33
-	SB	0, FST
+	SD	0, FST
 	LI	34
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_PREDEF_NAME = '_CLASS_PREDEF_NAME'
 namespace _CLASS_PREDEF_NAME
@@ -755,17 +899,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	37
-	SB	0, FST
+	SD	0, FST
 	LI	40
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ALL_DECL = '_CLASS_ALL_DECL'
 namespace _CLASS_ALL_DECL
@@ -773,17 +925,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	41
-	SB	0, FST
+	SD	0, FST
 	LI	68
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ITEM = '_CLASS_ITEM'
 namespace _CLASS_ITEM
@@ -791,17 +951,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	42
-	SB	0, FST
+	SD	0, FST
 	LI	67
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_DSCRMT_PARAM_DECL = '_CLASS_DSCRMT_PARAM_DECL'
 namespace _CLASS_DSCRMT_PARAM_DECL
@@ -809,17 +977,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	42
-	SB	0, FST
+	SD	0, FST
 	LI	45
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_PARAM = '_CLASS_PARAM'
 namespace _CLASS_PARAM
@@ -827,17 +1003,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	43
-	SB	0, FST
+	SD	0, FST
 	LI	45
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_DECL = '_CLASS_DECL'
 namespace _CLASS_DECL
@@ -845,17 +1029,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	46
-	SB	0, FST
+	SD	0, FST
 	LI	64
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ID_S_DECL = '_CLASS_ID_S_DECL'
 namespace _CLASS_ID_S_DECL
@@ -863,17 +1055,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	46
-	SB	0, FST
+	SD	0, FST
 	LI	50
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_EXP_DECL = '_CLASS_EXP_DECL'
 namespace _CLASS_EXP_DECL
@@ -881,17 +1081,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	46
-	SB	0, FST
+	SD	0, FST
 	LI	48
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_OBJECT_DECL = '_CLASS_OBJECT_DECL'
 namespace _CLASS_OBJECT_DECL
@@ -899,17 +1107,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	46
-	SB	0, FST
+	SD	0, FST
 	LI	47
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ID_DECL = '_CLASS_ID_DECL'
 namespace _CLASS_ID_DECL
@@ -917,17 +1133,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	51
-	SB	0, FST
+	SD	0, FST
 	LI	58
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_UNIT_DECL = '_CLASS_UNIT_DECL'
 namespace _CLASS_UNIT_DECL
@@ -935,17 +1159,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	54
-	SB	0, FST
+	SD	0, FST
 	LI	56
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NON_GENERIC_DECL = '_CLASS_NON_GENERIC_DECL'
 namespace _CLASS_NON_GENERIC_DECL
@@ -953,17 +1185,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	55
-	SB	0, FST
+	SD	0, FST
 	LI	56
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SIMPLE_RENAME_DECL = '_CLASS_SIMPLE_RENAME_DECL'
 namespace _CLASS_SIMPLE_RENAME_DECL
@@ -971,17 +1211,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	57
-	SB	0, FST
+	SD	0, FST
 	LI	58
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_REP = '_CLASS_REP'
 namespace _CLASS_REP
@@ -989,17 +1237,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	60
-	SB	0, FST
+	SD	0, FST
 	LI	62
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NAMED_REP = '_CLASS_NAMED_REP'
 namespace _CLASS_NAMED_REP
@@ -1007,17 +1263,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	60
-	SB	0, FST
+	SD	0, FST
 	LI	61
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_USE_PRAGMA = '_CLASS_USE_PRAGMA'
 namespace _CLASS_USE_PRAGMA
@@ -1025,17 +1289,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	63
-	SB	0, FST
+	SD	0, FST
 	LI	64
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SUBUNIT_BODY = '_CLASS_SUBUNIT_BODY'
 namespace _CLASS_SUBUNIT_BODY
@@ -1043,17 +1315,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	65
-	SB	0, FST
+	SD	0, FST
 	LI	67
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_TYPE_DEF = '_CLASS_TYPE_DEF'
 namespace _CLASS_TYPE_DEF
@@ -1061,17 +1341,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	69
-	SB	0, FST
+	SD	0, FST
 	LI	84
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_CONSTRAINED_DEF = '_CLASS_CONSTRAINED_DEF'
 namespace _CLASS_CONSTRAINED_DEF
@@ -1079,17 +1367,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	70
-	SB	0, FST
+	SD	0, FST
 	LI	73
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ARR_ACC_DER_DEF = '_CLASS_ARR_ACC_DER_DEF'
 namespace _CLASS_ARR_ACC_DER_DEF
@@ -1097,17 +1393,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	74
-	SB	0, FST
+	SD	0, FST
 	LI	77
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SEQUENCES = '_CLASS_SEQUENCES'
 namespace _CLASS_SEQUENCES
@@ -1115,17 +1419,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	85
-	SB	0, FST
+	SD	0, FST
 	LI	107
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_STM_ELEM = '_CLASS_STM_ELEM'
 namespace _CLASS_STM_ELEM
@@ -1133,17 +1445,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	108
-	SB	0, FST
+	SD	0, FST
 	LI	129
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_STM = '_CLASS_STM'
 namespace _CLASS_STM
@@ -1151,17 +1471,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	108
-	SB	0, FST
+	SD	0, FST
 	LI	128
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_STM_WITH_EXP = '_CLASS_STM_WITH_EXP'
 namespace _CLASS_STM_WITH_EXP
@@ -1169,17 +1497,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	111
-	SB	0, FST
+	SD	0, FST
 	LI	116
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_STM_WITH_EXP_NAME = '_CLASS_STM_WITH_EXP_NAME'
 namespace _CLASS_STM_WITH_EXP_NAME
@@ -1187,17 +1523,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	113
-	SB	0, FST
+	SD	0, FST
 	LI	115
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_STM_WITH_NAME = '_CLASS_STM_WITH_NAME'
 namespace _CLASS_STM_WITH_NAME
@@ -1205,17 +1549,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	117
-	SB	0, FST
+	SD	0, FST
 	LI	120
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_CALL_STM = '_CLASS_CALL_STM'
 namespace _CLASS_CALL_STM
@@ -1223,17 +1575,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	119
-	SB	0, FST
+	SD	0, FST
 	LI	120
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_BLOCK_LOOP = '_CLASS_BLOCK_LOOP'
 namespace _CLASS_BLOCK_LOOP
@@ -1241,17 +1601,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	122
-	SB	0, FST
+	SD	0, FST
 	LI	123
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ENTRY_STM = '_CLASS_ENTRY_STM'
 namespace _CLASS_ENTRY_STM
@@ -1259,17 +1627,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	124
-	SB	0, FST
+	SD	0, FST
 	LI	125
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_CLAUSES_STM = '_CLASS_CLAUSES_STM'
 namespace _CLASS_CLAUSES_STM
@@ -1277,17 +1653,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	126
-	SB	0, FST
+	SD	0, FST
 	LI	127
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_GENERAL_ASSOC = '_CLASS_GENERAL_ASSOC'
 namespace _CLASS_GENERAL_ASSOC
@@ -1295,17 +1679,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	130
-	SB	0, FST
+	SD	0, FST
 	LI	153
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NAMED_ASSOC = '_CLASS_NAMED_ASSOC'
 namespace _CLASS_NAMED_ASSOC
@@ -1313,17 +1705,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	130
-	SB	0, FST
+	SD	0, FST
 	LI	131
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_EXP = '_CLASS_EXP'
 namespace _CLASS_EXP
@@ -1331,17 +1731,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	132
-	SB	0, FST
+	SD	0, FST
 	LI	153
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NAME = '_CLASS_NAME'
 namespace _CLASS_NAME
@@ -1349,17 +1757,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	132
-	SB	0, FST
+	SD	0, FST
 	LI	141
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_DESIGNATOR = '_CLASS_DESIGNATOR'
 namespace _CLASS_DESIGNATOR
@@ -1367,17 +1783,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	132
-	SB	0, FST
+	SD	0, FST
 	LI	135
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_USED_OBJECT = '_CLASS_USED_OBJECT'
 namespace _CLASS_USED_OBJECT
@@ -1385,17 +1809,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	132
-	SB	0, FST
+	SD	0, FST
 	LI	133
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_USED_NAME = '_CLASS_USED_NAME'
 namespace _CLASS_USED_NAME
@@ -1403,17 +1835,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	134
-	SB	0, FST
+	SD	0, FST
 	LI	135
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NAME_EXP = '_CLASS_NAME_EXP'
 namespace _CLASS_NAME_EXP
@@ -1421,17 +1861,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	136
-	SB	0, FST
+	SD	0, FST
 	LI	141
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NAME_VAL = '_CLASS_NAME_VAL'
 namespace _CLASS_NAME_VAL
@@ -1439,17 +1887,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	136
-	SB	0, FST
+	SD	0, FST
 	LI	138
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_EXP_EXP = '_CLASS_EXP_EXP'
 namespace _CLASS_EXP_EXP
@@ -1457,17 +1913,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	142
-	SB	0, FST
+	SD	0, FST
 	LI	153
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_EXP_VAL = '_CLASS_EXP_VAL'
 namespace _CLASS_EXP_VAL
@@ -1475,17 +1939,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	142
-	SB	0, FST
+	SD	0, FST
 	LI	149
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_EXP_VAL_EXP = '_CLASS_EXP_VAL_EXP'
 namespace _CLASS_EXP_VAL_EXP
@@ -1493,17 +1965,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	145
-	SB	0, FST
+	SD	0, FST
 	LI	149
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_MEMBERSHIP = '_CLASS_MEMBERSHIP'
 namespace _CLASS_MEMBERSHIP
@@ -1511,17 +1991,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	145
-	SB	0, FST
+	SD	0, FST
 	LI	146
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_QUAL_CONV = '_CLASS_QUAL_CONV'
 namespace _CLASS_QUAL_CONV
@@ -1529,17 +2017,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	147
-	SB	0, FST
+	SD	0, FST
 	LI	148
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_AGG_EXP = '_CLASS_AGG_EXP'
 namespace _CLASS_AGG_EXP
@@ -1547,17 +2043,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	150
-	SB	0, FST
+	SD	0, FST
 	LI	151
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_CONSTRAINT = '_CLASS_CONSTRAINT'
 namespace _CLASS_CONSTRAINT
@@ -1565,17 +2069,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	154
-	SB	0, FST
+	SD	0, FST
 	LI	160
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_DISCRETE_RANGE = '_CLASS_DISCRETE_RANGE'
 namespace _CLASS_DISCRETE_RANGE
@@ -1583,17 +2095,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	154
-	SB	0, FST
+	SD	0, FST
 	LI	156
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_RANGE = '_CLASS_RANGE'
 namespace _CLASS_RANGE
@@ -1601,17 +2121,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	154
-	SB	0, FST
+	SD	0, FST
 	LI	155
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_REAL_CONSTRAINT = '_CLASS_REAL_CONSTRAINT'
 namespace _CLASS_REAL_CONSTRAINT
@@ -1619,17 +2147,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	157
-	SB	0, FST
+	SD	0, FST
 	LI	158
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_CHOICE = '_CLASS_CHOICE'
 namespace _CLASS_CHOICE
@@ -1637,17 +2173,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	161
-	SB	0, FST
+	SD	0, FST
 	LI	163
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_HEADER = '_CLASS_HEADER'
 namespace _CLASS_HEADER
@@ -1655,17 +2199,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	164
-	SB	0, FST
+	SD	0, FST
 	LI	167
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SUBP_ENTRY_HEADER = '_CLASS_SUBP_ENTRY_HEADER'
 namespace _CLASS_SUBP_ENTRY_HEADER
@@ -1673,17 +2225,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	164
-	SB	0, FST
+	SD	0, FST
 	LI	166
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_UNIT_DESC = '_CLASS_UNIT_DESC'
 namespace _CLASS_UNIT_DESC
@@ -1691,17 +2251,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	168
-	SB	0, FST
+	SD	0, FST
 	LI	176
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_UNIT_KIND = '_CLASS_UNIT_KIND'
 namespace _CLASS_UNIT_KIND
@@ -1709,17 +2277,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	168
-	SB	0, FST
+	SD	0, FST
 	LI	172
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_RENAME_INSTANT = '_CLASS_RENAME_INSTANT'
 namespace _CLASS_RENAME_INSTANT
@@ -1727,17 +2303,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	168
-	SB	0, FST
+	SD	0, FST
 	LI	169
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_GENERIC_PARAM = '_CLASS_GENERIC_PARAM'
 namespace _CLASS_GENERIC_PARAM
@@ -1745,17 +2329,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	170
-	SB	0, FST
+	SD	0, FST
 	LI	172
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_BODY = '_CLASS_BODY'
 namespace _CLASS_BODY
@@ -1763,17 +2355,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	173
-	SB	0, FST
+	SD	0, FST
 	LI	174
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_TEST_CLAUSE_ELEM = '_CLASS_TEST_CLAUSE_ELEM'
 namespace _CLASS_TEST_CLAUSE_ELEM
@@ -1781,17 +2381,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	177
-	SB	0, FST
+	SD	0, FST
 	LI	179
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_TEST_CLAUSE = '_CLASS_TEST_CLAUSE'
 namespace _CLASS_TEST_CLAUSE
@@ -1799,17 +2407,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	177
-	SB	0, FST
+	SD	0, FST
 	LI	178
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_MEMBERSHIP_OP = '_CLASS_MEMBERSHIP_OP'
 namespace _CLASS_MEMBERSHIP_OP
@@ -1817,17 +2433,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	180
-	SB	0, FST
+	SD	0, FST
 	LI	181
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SHORT_CIRCUIT_OP = '_CLASS_SHORT_CIRCUIT_OP'
 namespace _CLASS_SHORT_CIRCUIT_OP
@@ -1835,17 +2459,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	182
-	SB	0, FST
+	SD	0, FST
 	LI	183
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ITERATION = '_CLASS_ITERATION'
 namespace _CLASS_ITERATION
@@ -1853,17 +2485,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	184
-	SB	0, FST
+	SD	0, FST
 	LI	186
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_FOR_REV = '_CLASS_FOR_REV'
 namespace _CLASS_FOR_REV
@@ -1871,17 +2511,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	184
-	SB	0, FST
+	SD	0, FST
 	LI	185
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ALTERNATIVE_ELEM = '_CLASS_ALTERNATIVE_ELEM'
 namespace _CLASS_ALTERNATIVE_ELEM
@@ -1889,17 +2537,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	187
-	SB	0, FST
+	SD	0, FST
 	LI	188
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_COMP_REP_ELEM = '_CLASS_COMP_REP_ELEM'
 namespace _CLASS_COMP_REP_ELEM
@@ -1907,17 +2563,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	189
-	SB	0, FST
+	SD	0, FST
 	LI	190
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_CONTEXT_ELEM = '_CLASS_CONTEXT_ELEM'
 namespace _CLASS_CONTEXT_ELEM
@@ -1925,17 +2589,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	191
-	SB	0, FST
+	SD	0, FST
 	LI	192
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_VARIANT_ELEM = '_CLASS_VARIANT_ELEM'
 namespace _CLASS_VARIANT_ELEM
@@ -1943,17 +2615,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	193
-	SB	0, FST
+	SD	0, FST
 	LI	194
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_ALIGNMENT_CLAUSE = '_CLASS_ALIGNMENT_CLAUSE'
 namespace _CLASS_ALIGNMENT_CLAUSE
@@ -1961,17 +2641,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	195
-	SB	0, FST
+	SD	0, FST
 	LI	195
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_VARIANT_PART = '_CLASS_VARIANT_PART'
 namespace _CLASS_VARIANT_PART
@@ -1979,17 +2667,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	196
-	SB	0, FST
+	SD	0, FST
 	LI	196
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_TYPE_SPEC = '_CLASS_TYPE_SPEC'
 namespace _CLASS_TYPE_SPEC
@@ -1997,17 +2693,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	201
-	SB	0, FST
+	SD	0, FST
 	LI	217
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_DERIVABLE_SPEC = '_CLASS_DERIVABLE_SPEC'
 namespace _CLASS_DERIVABLE_SPEC
@@ -2015,17 +2719,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	201
-	SB	0, FST
+	SD	0, FST
 	LI	213
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_FULL_TYPE_SPEC = '_CLASS_FULL_TYPE_SPEC'
 namespace _CLASS_FULL_TYPE_SPEC
@@ -2033,17 +2745,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	201
-	SB	0, FST
+	SD	0, FST
 	LI	211
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NON_TASK = '_CLASS_NON_TASK'
 namespace _CLASS_NON_TASK
@@ -2051,17 +2771,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	202
-	SB	0, FST
+	SD	0, FST
 	LI	211
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_SCALAR = '_CLASS_SCALAR'
 namespace _CLASS_SCALAR
@@ -2069,17 +2797,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	202
-	SB	0, FST
+	SD	0, FST
 	LI	205
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_REAL = '_CLASS_REAL'
 namespace _CLASS_REAL
@@ -2087,17 +2823,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	204
-	SB	0, FST
+	SD	0, FST
 	LI	205
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_UNCONSTRAINED = '_CLASS_UNCONSTRAINED'
 namespace _CLASS_UNCONSTRAINED
@@ -2105,17 +2849,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	206
-	SB	0, FST
+	SD	0, FST
 	LI	208
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_UNCONSTRAINED_COMPOSITE = '_CLASS_UNCONSTRAINED_COMPOSITE'
 namespace _CLASS_UNCONSTRAINED_COMPOSITE
@@ -2123,17 +2875,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	206
-	SB	0, FST
+	SD	0, FST
 	LI	207
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_CONSTRAINED = '_CLASS_CONSTRAINED'
 namespace _CLASS_CONSTRAINED
@@ -2141,17 +2901,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	209
-	SB	0, FST
+	SD	0, FST
 	LI	211
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_PRIVATE_SPEC = '_CLASS_PRIVATE_SPEC'
 namespace _CLASS_PRIVATE_SPEC
@@ -2159,17 +2927,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	212
-	SB	0, FST
+	SD	0, FST
 	LI	213
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_NON_DIANA = '_CLASS_NON_DIANA'
 namespace _CLASS_NON_DIANA
@@ -2177,17 +2953,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	218
-	SB	0, FST
+	SD	0, FST
 	LI	230
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 _CLASS_UNSPECIFIED_TYPE = '_CLASS_UNSPECIFIED_TYPE'
 namespace _CLASS_UNSPECIFIED_TYPE
@@ -2195,17 +2979,25 @@ VAR use__info, Q
 VAR SIZ__, D
 	LVA	0, SIZ__
 	SA	0, use__info
-VAR FST, B
-VAR LST, B
+VAR FST, D
+VAR LST, D
 	LI	8
 	SD	0, SIZ__
 	LI	223
-	SB	0, FST
+	SD	0, FST
 	LI	228
-	SB	0, LST
+	SD	0, LST
+VAR IMAGES__d, Q
+VAR IMAGES__i, Q
 VAR PARENT__u, Q
 	LA 0	, STANDARD.DIANA_NODE_ATTR_CLASS_NAMES._NODE_NAME.use__info
 	SA	0, PARENT__u
+	LA	0, PARENT__u
+	LA  ,  16
+	SA	0, IMAGES__d
+	LA	0, PARENT__u
+	LA  ,  24
+	SA	0, IMAGES__i
 end namespace
 ; EXC_LBL	L1
 end namespace

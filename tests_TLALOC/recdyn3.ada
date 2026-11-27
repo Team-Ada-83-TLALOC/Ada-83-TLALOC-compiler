@@ -1,0 +1,23 @@
+WITH REPORT; USE REPORT;
+PROCEDURE RECDYN3 IS
+     SUBTYPE SM IS INTEGER RANGE 0 .. 10;
+     TYPE CONS (D : SM) IS RECORD S : STRING (1 .. D); END RECORD;
+     TYPE ENC (L : SM) IS RECORD A : INTEGER := 1; B : CONS (L); END RECORD;
+     TYPE TE IS ARRAY (1 .. 3) OF ENC (2);
+     T : TE;
+     X : ENC (2);
+     PROCEDURE P (C : IN OUT CONS) IS BEGIN C.S (1) := 'P'; END P;
+BEGIN
+     TEST ("RECDYN3", "TABLEAU, IN OUT, 'CONSTRAINED");
+     T (2).B.S := "UV";
+     IF T (2).B.S /= "UV" OR T (3).B.D /= 2 OR T (1).A /= 1 THEN FAILED ("T"); END IF;
+     X := T (2);
+     IF X.B.S /= "UV" THEN FAILED ("X := T (2)"); END IF;
+     P (X.B);
+     IF X.B.S /= "PV" THEN FAILED ("IN OUT"); END IF;
+     IF NOT X.B'CONSTRAINED THEN FAILED ("'CONSTRAINED"); END IF;
+     IF T (2).B = X.B THEN FAILED ("EGALITE DE COMPOSANTS"); END IF;
+     T (2) := X;
+     IF T (2) /= X OR T (2).B.S /= "PV" THEN FAILED ("T (2) := X"); END IF;
+     RESULT;
+END RECDYN3;

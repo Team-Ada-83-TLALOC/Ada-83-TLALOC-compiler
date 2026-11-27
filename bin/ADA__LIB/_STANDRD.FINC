@@ -1013,6 +1013,12 @@ VAR EXC_CTX0__dat, STANDARD._EXCEPTION_CONTEXT.size
 
  hexa_show ' disp ', EXC_CTX0_disp
 
+
+
+
+
+
+
 if defined WIDTH_L3_
 PRO	WIDTH_L3
  hexa_show 'WIDTH_L3 ', $
@@ -1027,43 +1033,43 @@ begin:
 	LD  1,	-BIT_SIZE_ofs
 	LI	8
 	CLE
-	BF	L7
+	BF	L12
 	LI	4
 	SQ  1,	-result__ofs
 	BRA ret_lbl
-	BRA	L6
-L7:
+	BRA	L11
+L12:
 	LD  1,	-BIT_SIZE_ofs
 	LI	16
 	CLE
-	BF	L8
+	BF	L13
 	LI	6
 	SQ  1,	-result__ofs
 	BRA ret_lbl
-	BRA	L6
-L8:
+	BRA	L11
+L13:
 	LD  1,	-BIT_SIZE_ofs
 	LI	32
 	CLE
-	BF	L9
+	BF	L14
 	LI	11
 	SQ  1,	-result__ofs
 	BRA ret_lbl
-	BRA	L6
-L9:
+	BRA	L11
+L14:
 	LD  1,	-BIT_SIZE_ofs
 	LI	64
 	CLE
-	BF	L10
+	BF	L15
 	LI	21
 	SQ  1,	-result__ofs
 	BRA ret_lbl
-	BRA	L6
-L10:
+	BRA	L11
+L15:
 	LI	40
 	SQ  1,	-result__ofs
 	BRA ret_lbl
-L6:
+L11:
 ret_lbl:
 	UNLINKR 1
 	RTD	prm_siz-8
@@ -1071,9 +1077,9 @@ excep:
 endPRO
 end if
 
-if defined INTEGER_IMAGE_L11_
-PRO	INTEGER_IMAGE_L11
- hexa_show 'INTEGER_IMAGE_L11 ', $
+if defined INTEGER_IMAGE_L4_
+PRO	INTEGER_IMAGE_L4
+ hexa_show 'INTEGER_IMAGE_L4 ', $
 PRMS
 	PRM ITEM_ofs
 	PRM result__ofs
@@ -1096,36 +1102,36 @@ VAR N_disp, Q
 
 begin:
 	LI	1
-	SD  1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
+	SD  1,	STANDARD.INTEGER_IMAGE_L4.LEN_disp
 
 	LQ 2,	N_disp
 	LI	0
 	CEQ
-	BF	L17
+	BF	L21
 	LI	2
-	SD  1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
-	BRA	L16
-L17:
+	SD  1,	STANDARD.INTEGER_IMAGE_L4.LEN_disp
+	BRA	L20
+L21:
 
 	LQ 2,	N_disp
 	LI	0
 	CGT
-	BF	L19
+	BF	L23
 	LQ 2,	N_disp
 	NEG
 	SQ  2,	N_disp
-	BRA	L18
-L19:
-L18:
+	BRA	L22
+L23:
+L22:
 LOOP__2:
 	LQ 2,	N_disp
 	LI	0
 	CNE
-	BF	L20
-	LD 1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
+	BF	L24
+	LD 1,	STANDARD.INTEGER_IMAGE_L4.LEN_disp
 	LI	1
 	ADD
-	SD  1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
+	SD  1,	STANDARD.INTEGER_IMAGE_L4.LEN_disp
 	LQ 2,	N_disp
 	LI	10
 	DUP
@@ -1135,8 +1141,8 @@ LOOP__2:
 	DIV
 	SQ  2,	N_disp
 	BRA	LOOP__2
+L24:
 L20:
-L16:
 	UNLINKR 2
 endPRO
 namespace	BLOCK__1
@@ -1156,7 +1162,7 @@ VAR _LST_1, D
 	LD	2, _COMP_SIZ
 	LI	1
 	SD	2, _FST_1
-	LD 1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
+	LD 1,	STANDARD.INTEGER_IMAGE_L4.LEN_disp
 	SD	2, _LST_1
 	LD	2, _LST_1
 	LD	2, _FST_1
@@ -1187,7 +1193,7 @@ VAR BUF__u, Q
  hexa_show ' disp ', BUF_disp
  hexa_show 'var elab POS ', $
 VAR POS_disp, D
-	LD 1,	STANDARD.INTEGER_IMAGE_L11.LEN_disp
+	LD 1,	STANDARD.INTEGER_IMAGE_L4.LEN_disp
 	SD  2,	POS_disp
 
  hexa_show ' disp ', POS_disp
@@ -1207,20 +1213,20 @@ begin:
 	LQ 2,	N_disp
 	LI	0
 	CEQ
-	BF	L24
-	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
+	BF	L28
+	LA	 2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
 	MUL
@@ -1231,24 +1237,24 @@ begin:
 	LI	1
 	SUB
 	SD  2,	POS_disp
-	BRA	L23
-L24:
+	BRA	L27
+L28:
 
 	LQ 2,	N_disp
 	LI	0
 	CGT
-	BF	L26
+	BF	L30
 	LQ 2,	N_disp
 	NEG
 	SQ  2,	N_disp
-	BRA	L25
-L26:
-L25:
+	BRA	L29
+L30:
+L29:
 LOOP__3:
 	LQ 2,	N_disp
 	LI	0
 	CNE
-	BF	L27
+	BF	L31
 	LQ 2,	N_disp
 	LI	10
 	DUP
@@ -1258,19 +1264,19 @@ LOOP__3:
 	REMI
 	NEG
 	SD  2,	DIG_disp
-	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
+	LA	 2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
 	MUL
@@ -1292,67 +1298,67 @@ LOOP__3:
 	DIV
 	SQ  2,	N_disp
 	BRA	LOOP__3
+L31:
 L27:
-L23:
 
 	LQ  1,	-ITEM_ofs
 	LI	0
 	CLT
-	BF	L29
-	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
+	BF	L33
+	LA	 2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
 	MUL
 	ADD
 	LI	45
 	SB
-	BRA	L28
-L29:
-	LA	 2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF_disp
+	BRA	L32
+L33:
+	LA	 2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF_disp
 	LD 2,	POS_disp
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	CLT
 	BT	STANDARD.ce_raise_
 	DUP
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.LST_1
 	CGT
 	BT	STANDARD.ce_raise_
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.FST_1
 	SUB
-	LID	2, STANDARD.INTEGER_IMAGE_L11.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
+	LID	2, STANDARD.INTEGER_IMAGE_L4.BLOCK__1.BUF__u, STANDARD._STRING.COMP_SIZ
 	LI	3
 	SAR
 	MUL
 	ADD
 	LI	32
 	SB
-L28:
+L32:
 	LVA 2,	BUF_disp
-VAR	RET_INFO_L30, Q
+VAR	RET_INFO_L34, Q
 	DUP
 	LA  ,  0
 	SIQ   1, -result__ofs,  0
 	DUP
 	LA  ,  8
-	SA   2, RET_INFO_L30
+	SA   2, RET_INFO_L34
 	DROP
 	LA   1, -result__ofs
 	LA  ,  8
 	LI	16
-	LA   2, RET_INFO_L30
+	LA   2, RET_INFO_L34
 	BLKMOV
 	UNLINK 2
 	BRA ret_lbl
@@ -1365,9 +1371,9 @@ excep:
 endPRO
 end if
 
-if defined ENUM_IMAGE_L31_
-PRO	ENUM_IMAGE_L31
- hexa_show 'ENUM_IMAGE_L31 ', $
+if defined ENUM_IMAGE_L5_
+PRO	ENUM_IMAGE_L5
+ hexa_show 'ENUM_IMAGE_L5 ', $
 PRMS
 	PRM IMAGES_ofs
 	PRM REP_ofs
@@ -1406,7 +1412,7 @@ LOOP__4:
 	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
-	BF	L34
+	BF	L37
 	LVA	1, -IMAGES_ofs
 	LIA	, , 0
 	LD 1,	I_disp
@@ -1469,7 +1475,7 @@ LOOP__4:
 	LD 1,	ITEM_REP_disp
 	LD  1,	-REP_ofs
 	CEQ
-	BF	L36
+	BF	L39
 namespace	BLOCK__5
 ELB 2
  hexa_show 'var elab IMG ', $
@@ -1487,7 +1493,7 @@ VAR _LST_1, D
 	LD	2, _COMP_SIZ
 	LI	1
 	SD	2, _FST_1
-	LD 1,	STANDARD.ENUM_IMAGE_L31.LEN_disp
+	LD 1,	STANDARD.ENUM_IMAGE_L5.LEN_disp
 	SD	2, _LST_1
 	LD	2, _LST_1
 	LD	2, _FST_1
@@ -1514,13 +1520,11 @@ VAR IMG__u, Q
 	DIV
 	CO_VAR
 	SA	2, IMG_disp
-	LA	2, IMG_disp
-	LD	2, _IMG__type.SIZ__
-	LI	8
-	DIV
+VAR __CTSL40, Q
+VAR __CTIL40, Q
 	LVA	1, -IMAGES_ofs
 	LIA	, , 0
-	LD 1,	STANDARD.ENUM_IMAGE_L31.I_disp
+	LD 1,	STANDARD.ENUM_IMAGE_L5.I_disp
 	LI	2
 	ADD
 	LVA	1, -IMAGES_ofs
@@ -1530,26 +1534,26 @@ VAR IMG__u, Q
 	LI	1
 	MUL
 	ADD
-namespace ANON_151_39
-VAR ANON_151_39_disp, Q
-VAR ANON_151_39__u, Q
+namespace ANON_163_39
+VAR ANON_163_39_disp, Q
+VAR ANON_163_39__u, Q
 VAR SIZ__, D
 VAR COMP_SIZ, D
 VAR _FST_1, D
 VAR _LST_1, D
-	SA	2, ANON_151_39_disp
+	SA	2, ANON_163_39_disp
 	LVA	2, SIZ__
-	SA	2, ANON_151_39__u
+	SA	2, ANON_163_39__u
 	LI	8
 	SD	2, COMP_SIZ
-	LD 1,	STANDARD.ENUM_IMAGE_L31.I_disp
+	LD 1,	STANDARD.ENUM_IMAGE_L5.I_disp
 	LI	2
 	ADD
 	SD	2, _FST_1
-	LD 1,	STANDARD.ENUM_IMAGE_L31.I_disp
+	LD 1,	STANDARD.ENUM_IMAGE_L5.I_disp
 	LI	1
 	ADD
-	LD 1,	STANDARD.ENUM_IMAGE_L31.LEN_disp
+	LD 1,	STANDARD.ENUM_IMAGE_L5.LEN_disp
 	ADD
 	SD	2, _LST_1
 	LD	2, _LST_1
@@ -1560,35 +1564,82 @@ VAR _LST_1, D
 	LI	8
 	MUL
 	SD	2, SIZ__
-	LVA	2, ANON_151_39_disp
+	LVA	2, ANON_163_39_disp
 end namespace
-	LA
+	DUP
+	LA	-1, 0
+	SA	2, __CTSL40
+	LA	-1, 8
+	SA	2, __CTIL40
+	LA  2, __CTIL40
+	LD	, 12
+	LA  2, __CTIL40
+	LD	, 8
+	SUB
+	INC
+	CLAMP0
+	LI	0
+	CEQ
+	LA  2, IMG__u
+	LD	, 12
+	LA  2, IMG__u
+	LD	, 8
+	SUB
+	INC
+	CLAMP0
+	LI	0
+	CEQ
+	ET
+	BT	__CTVL40
+	LA  2, __CTIL40
+	LD	, 12
+	LA  2, __CTIL40
+	LD	, 8
+	SUB
+	INC
+	CLAMP0
+	LA  2, IMG__u
+	LD	, 12
+	LA  2, IMG__u
+	LD	, 8
+	SUB
+	INC
+	CLAMP0
+	CNE
+	BT	STANDARD.ce_raise_
+__CTVL40:
+	LA	2, IMG_disp
+	LA	2, IMG__u
+	LD	, 0
+	LI	3
+	SAR
+	LA	2, __CTSL40
 	BLKMOV
 
  hexa_show ' disp ', IMG_disp
 
 begin:
 	LVA 2,	IMG_disp
-VAR	RET_INFO_L39, Q
+VAR	RET_INFO_L43, Q
 	DUP
 	LA  ,  0
 	SIQ   1, -result__ofs,  0
 	DUP
 	LA  ,  8
-	SA   2, RET_INFO_L39
+	SA   2, RET_INFO_L43
 	DROP
 	LA   1, -result__ofs
 	LA  ,  8
 	LI	16
-	LA   2, RET_INFO_L39
+	LA   2, RET_INFO_L43
 	BLKMOV
 	UNLINK 2
 	BRA ret_lbl
 	UNLINKR 2
 endPRO
-	BRA	L35
-L36:
-L35:
+	BRA	L38
+L39:
+L38:
 	LD 1,	I_disp
 	LI	2
 	ADD
@@ -1604,7 +1655,7 @@ L35:
 	BT	STANDARD.ce_raise_
 	SD  1,	I_disp
 	BRA	LOOP__4
-L34:
+L37:
 	LCA	STANDARD.PROGRAM_ERROR__exc.data_ptr
 	SA	0, STANDARD.EXCEPTIONS_CURRENT_disp
 	BRA	STANDARD.exc_raise_
@@ -1615,9 +1666,9 @@ excep:
 endPRO
 end if
 
-if defined INTEGER_VALUE_L40_
-PRO	INTEGER_VALUE_L40
- hexa_show 'INTEGER_VALUE_L40 ', $
+if defined INTEGER_VALUE_L6_
+PRO	INTEGER_VALUE_L6
+ hexa_show 'INTEGER_VALUE_L6 ', $
 PRMS
 	PRM S_ofs
 	PRM result__ofs
@@ -1658,7 +1709,7 @@ LOOP__6:
 	LD	, _STRING.LST_1
 	CLE
 	DUP
-	BF	L44
+	BF	L47
 	DROP
 	LVA	1, -S_ofs
 	LIA	, , 0
@@ -1689,125 +1740,15 @@ LOOP__6:
 	ULB
 	LI	32
 	CEQ
-L44:
-	BF	L43
+L47:
+	BF	L46
 	LD 1,	I_disp
 	LI	1
 	ADD
 	SD  1,	I_disp
 	BRA	LOOP__6
-L43:
-
-	LD 1,	I_disp
-	LVA	1, -S_ofs
-	LIA	, , 8
-	LD	, _STRING.LST_1
-	CLE
-	DUP
-	BF	L47
-	DROP
-	LVA	1, -S_ofs
-	LIA	, , 0
-	LD 1,	I_disp
-	DUP
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.FST_1
-	CLT
-	BT	STANDARD.ce_raise_
-	DUP
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.LST_1
-	CGT
-	BT	STANDARD.ce_raise_
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.FST_1
-	SUB
-	LVA	1, -S_ofs
-	LIA	, , 8
-	LD	, STANDARD._STRING.COMP_SIZ
-	LI	3
-	SAR
-	MUL
-	ADD
-	ULB
-	LI	45
-	CEQ
-	DUP
-	BT	L48
-	DROP
-	LVA	1, -S_ofs
-	LIA	, , 0
-	LD 1,	I_disp
-	DUP
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.FST_1
-	CLT
-	BT	STANDARD.ce_raise_
-	DUP
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.LST_1
-	CGT
-	BT	STANDARD.ce_raise_
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.FST_1
-	SUB
-	LVA	1, -S_ofs
-	LIA	, , 8
-	LD	, STANDARD._STRING.COMP_SIZ
-	LI	3
-	SAR
-	MUL
-	ADD
-	ULB
-	LI	43
-	CEQ
-L48:
-L47:
-	BF	L46
-	LVA	1, -S_ofs
-	LIA	, , 0
-	LD 1,	I_disp
-	DUP
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.FST_1
-	CLT
-	BT	STANDARD.ce_raise_
-	DUP
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.LST_1
-	CGT
-	BT	STANDARD.ce_raise_
-	LVA	1, -S_ofs
-	LIA	, 0,  8
-	LD	, STANDARD._STRING.FST_1
-	SUB
-	LVA	1, -S_ofs
-	LIA	, , 8
-	LD	, STANDARD._STRING.COMP_SIZ
-	LI	3
-	SAR
-	MUL
-	ADD
-	ULB
-	LI	45
-	CEQ
-	SB  1,	NEGATIVE_disp
-	LD 1,	I_disp
-	LI	1
-	ADD
-	SD  1,	I_disp
-	BRA	L45
 L46:
-L45:
-LOOP__7:
+
 	LD 1,	I_disp
 	LVA	1, -S_ofs
 	LIA	, , 8
@@ -1843,10 +1784,120 @@ LOOP__7:
 	MUL
 	ADD
 	ULB
+	LI	45
+	CEQ
+	DUP
+	BT	L51
+	DROP
+	LVA	1, -S_ofs
+	LIA	, , 0
+	LD 1,	I_disp
+	DUP
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.FST_1
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.LST_1
+	CGT
+	BT	STANDARD.ce_raise_
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.FST_1
+	SUB
+	LVA	1, -S_ofs
+	LIA	, , 8
+	LD	, STANDARD._STRING.COMP_SIZ
+	LI	3
+	SAR
+	MUL
+	ADD
+	ULB
+	LI	43
+	CEQ
+L51:
+L50:
+	BF	L49
+	LVA	1, -S_ofs
+	LIA	, , 0
+	LD 1,	I_disp
+	DUP
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.FST_1
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.LST_1
+	CGT
+	BT	STANDARD.ce_raise_
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.FST_1
+	SUB
+	LVA	1, -S_ofs
+	LIA	, , 8
+	LD	, STANDARD._STRING.COMP_SIZ
+	LI	3
+	SAR
+	MUL
+	ADD
+	ULB
+	LI	45
+	CEQ
+	SB  1,	NEGATIVE_disp
+	LD 1,	I_disp
+	LI	1
+	ADD
+	SD  1,	I_disp
+	BRA	L48
+L49:
+L48:
+LOOP__7:
+	LD 1,	I_disp
+	LVA	1, -S_ofs
+	LIA	, , 8
+	LD	, _STRING.LST_1
+	CLE
+	DUP
+	BF	L53
+	DROP
+	LVA	1, -S_ofs
+	LIA	, , 0
+	LD 1,	I_disp
+	DUP
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.FST_1
+	CLT
+	BT	STANDARD.ce_raise_
+	DUP
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.LST_1
+	CGT
+	BT	STANDARD.ce_raise_
+	LVA	1, -S_ofs
+	LIA	, 0,  8
+	LD	, STANDARD._STRING.FST_1
+	SUB
+	LVA	1, -S_ofs
+	LIA	, , 8
+	LD	, STANDARD._STRING.COMP_SIZ
+	LI	3
+	SAR
+	MUL
+	ADD
+	ULB
 	LI	48
 	CGE
 	DUP
-	BF	L52
+	BF	L55
 	DROP
 	LVA	1, -S_ofs
 	LIA	, , 0
@@ -1877,9 +1928,9 @@ LOOP__7:
 	ULB
 	LI	57
 	CLE
-L52:
+L55:
 	DUP
-	BT	L51
+	BT	L54
 	DROP
 	LVA	1, -S_ofs
 	LIA	, , 0
@@ -1911,13 +1962,13 @@ L52:
 	LI	95
 	CEQ
 	DUP
-	BF	L53
+	BF	L56
 	DROP
 	ULB 1,	SOME_DIGIT_disp
+L56:
+L54:
 L53:
-L51:
-L50:
-	BF	L49
+	BF	L52
 
 	LVA	1, -S_ofs
 	LIA	, , 0
@@ -1948,7 +1999,7 @@ L50:
 	ULB
 	LI	95
 	CNE
-	BF	L55
+	BF	L58
 	LQ 1,	N_disp
 	LI	10
 	MUL
@@ -1985,15 +2036,15 @@ L50:
 	SQ  1,	N_disp
 	LI	1
 	SB  1,	SOME_DIGIT_disp
-	BRA	L54
-L55:
-L54:
+	BRA	L57
+L58:
+L57:
 	LD 1,	I_disp
 	LI	1
 	ADD
 	SD  1,	I_disp
 	BRA	LOOP__7
-L49:
+L52:
 LOOP__8:
 	LD 1,	I_disp
 	LVA	1, -S_ofs
@@ -2001,7 +2052,7 @@ LOOP__8:
 	LD	, _STRING.LST_1
 	CLE
 	DUP
-	BF	L57
+	BF	L60
 	DROP
 	LVA	1, -S_ofs
 	LIA	, , 0
@@ -2032,47 +2083,47 @@ LOOP__8:
 	ULB
 	LI	32
 	CEQ
-L57:
-	BF	L56
+L60:
+	BF	L59
 	LD 1,	I_disp
 	LI	1
 	ADD
 	SD  1,	I_disp
 	BRA	LOOP__8
-L56:
+L59:
 
 	ULB 1,	SOME_DIGIT_disp
 	LI	1
 	OUX
 	DUP
-	BT	L60
+	BT	L63
 	DROP
 	LD 1,	I_disp
 	LVA	1, -S_ofs
 	LIA	, , 8
 	LD	, _STRING.LST_1
 	CLE
-L60:
-	BF	L59
+L63:
+	BF	L62
 	LCA	STANDARD.CONSTRAINT_ERROR__exc.data_ptr
 	SA	0, STANDARD.EXCEPTIONS_CURRENT_disp
 	BRA	STANDARD.exc_raise_
-	BRA	L58
-L59:
-L58:
+	BRA	L61
+L62:
+L61:
 
 	ULB 1,	NEGATIVE_disp
-	BF	L62
+	BF	L65
 	LQ 1,	N_disp
 	SQ  1,	-result__ofs
 	BRA ret_lbl
-	BRA	L61
-L62:
+	BRA	L64
+L65:
 	LQ 1,	N_disp
 	NEG
 	SQ  1,	-result__ofs
 	BRA ret_lbl
-L61:
+L64:
 ret_lbl:
 	UNLINKR 1
 	RTD	prm_siz-8
@@ -2080,9 +2131,9 @@ excep:
 endPRO
 end if
 
-if defined INTEGER_POW_L63_
-PRO	INTEGER_POW_L63
- hexa_show 'INTEGER_POW_L63 ', $
+if defined INTEGER_POW_L7_
+PRO	INTEGER_POW_L7
+ hexa_show 'INTEGER_POW_L7 ', $
 PRMS
 	PRM X_ofs
 	PRM N_ofs
@@ -2113,18 +2164,18 @@ begin:
 	LQ 1,	E_disp
 	LI	0
 	CLT
-	BF	L67
+	BF	L69
 	LCA	STANDARD.CONSTRAINT_ERROR__exc.data_ptr
 	SA	0, STANDARD.EXCEPTIONS_CURRENT_disp
 	BRA	STANDARD.exc_raise_
-	BRA	L66
-L67:
-L66:
+	BRA	L68
+L69:
+L68:
 LOOP__9:
 	LQ 1,	E_disp
 	LI	0
 	CGT
-	BF	L68
+	BF	L70
 	LQ 1,	R_disp
 	LQ 1,	B_disp
 	MUL
@@ -2134,12 +2185,169 @@ LOOP__9:
 	SUB
 	SQ  1,	E_disp
 	BRA	LOOP__9
-L68:
+L70:
 	LQ 1,	R_disp
 	SQ  1,	-result__ofs
 	BRA ret_lbl
 ret_lbl:
 	UNLINKR 1
+	RTD	prm_siz-8
+excep:
+endPRO
+end if
+
+if defined CONCAT_STRING_L8_
+PRO	CONCAT_STRING_L8
+ hexa_show 'CONCAT_STRING_L8 ', $
+PRMS
+	PRM L_ofs
+	PRM R_ofs
+	PRM result__ofs
+endPRMS
+ELB 1
+ hexa_show 'var elab RES ', $
+_RES__type = '_RES__type'
+namespace _RES__type
+VAR use__info, Q
+VAR SIZ__, D
+	LVA	1, SIZ__
+	SA	1, use__info
+VAR _COMP_SIZ, D
+VAR _FST_1, D
+VAR _LST_1, D
+	LI	8
+	SD	1, _COMP_SIZ
+	LD	1, _COMP_SIZ
+	LI	1
+	SD	1, _FST_1
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.LST_1
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.FST_1
+	SUB
+	INC
+	CLAMP0
+	LVA	1, -R_ofs
+	LIA	, , 8
+	LD	, _STRING.LST_1
+	LVA	1, -R_ofs
+	LIA	, , 8
+	LD	, _STRING.FST_1
+	SUB
+	INC
+	CLAMP0
+	ADD
+	SD	1, _LST_1
+	LD	1, _LST_1
+	LD	1, _FST_1
+	SUB
+	INC
+	CLAMP0
+	MUL
+	SD	1, SIZ__
+  virtual at 4
+COMP_SIZ = $
+	rd 1 
+FST_1 = $
+	rd 1 
+LST_1 = $
+	rd 1 
+  end virtual
+end namespace
+VAR RES_disp, Q
+VAR RES__u, Q
+	LA 1, _RES__type.use__info
+	SA	1, RES__u
+	LD	1, _RES__type.SIZ__
+	LI	8
+	DIV
+	CO_VAR
+	SA	1, RES_disp
+
+ hexa_show ' disp ', RES_disp
+
+begin:
+	LA 1, STANDARD.CONCAT_STRING_L8.RES_disp
+	LI	1
+	LID 1, STANDARD.CONCAT_STRING_L8.RES__u, STANDARD._STRING.FST_1
+	SUB
+	LI	1
+	MUL
+	ADD
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.LST_1
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.FST_1
+	SUB
+	INC
+	CLAMP0
+	LI	1
+	SUB
+	INC
+	CLAMP0
+	LI	1
+	MUL
+	LA  1,	-L_ofs
+	LA
+	BLKMOV
+	LA 1, STANDARD.CONCAT_STRING_L8.RES_disp
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.LST_1
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.FST_1
+	SUB
+	INC
+	CLAMP0
+	LI	1
+	ADD
+	LID 1, STANDARD.CONCAT_STRING_L8.RES__u, STANDARD._STRING.FST_1
+	SUB
+	LI	1
+	MUL
+	ADD
+	LID	1, STANDARD.CONCAT_STRING_L8.RES__u, STANDARD._STRING.LST_1
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.LST_1
+	LVA	1, -L_ofs
+	LIA	, , 8
+	LD	, _STRING.FST_1
+	SUB
+	INC
+	CLAMP0
+	LI	1
+	ADD
+	SUB
+	INC
+	CLAMP0
+	LI	1
+	MUL
+	LA  1,	-R_ofs
+	LA
+	BLKMOV
+	LVA 1,	RES_disp
+VAR	RET_INFO_L73, Q
+	DUP
+	LA  ,  0
+	SIQ   1, -result__ofs,  0
+	DUP
+	LA  ,  8
+	SA   1, RET_INFO_L73
+	DROP
+	LA   1, -result__ofs
+	LA  ,  8
+	LI	16
+	LA   1, RET_INFO_L73
+	BLKMOV
+	BRA ret_lbl
+ret_lbl:
+	UNLINK 1
 	RTD	prm_siz-8
 excep:
 endPRO

@@ -30,8 +30,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x ./ENUM_TEST
-printf 'rouge\n' | ./ENUM_TEST
+chmod u+x ./ENUM_TEST.x86exe
+printf 'rouge\n' | ./ENUM_TEST.x86exe
 cd ..
 
 
@@ -53,8 +53,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x DIRECT_IO_TEST
-./DIRECT_IO_TEST
+chmod u+x DIRECT_IO_TEST.x86exe
+./DIRECT_IO_TEST.x86exe
 cd ..
 
 
@@ -76,8 +76,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x SEQ_IO_TEST
-./SEQ_IO_TEST
+chmod u+x SEQ_IO_TEST.x86exe
+./SEQ_IO_TEST.x86exe
 cd ..
 
 
@@ -99,8 +99,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x TEST_CALENDAR
-./TEST_CALENDAR
+chmod u+x TEST_CALENDAR.x86exe
+./TEST_CALENDAR.x86exe
 cd ..
 
 
@@ -122,8 +122,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x FLOAT_TEST
-./FLOAT_TEST
+chmod u+x FLOAT_TEST.x86exe
+./FLOAT_TEST.x86exe
 cd ..
 
 
@@ -145,8 +145,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x FLOAT_FIXED_IO_TEST
-./FLOAT_FIXED_IO_TEST
+chmod u+x FLOAT_FIXED_IO_TEST.x86exe
+./FLOAT_FIXED_IO_TEST.x86exe
 cd ..
 
 
@@ -167,8 +167,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x ARRAY_TEST1
-./ARRAY_TEST1
+chmod u+x ARRAY_TEST1.x86exe
+./ARRAY_TEST1.x86exe
 cd ..
 
 
@@ -190,8 +190,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x ARRAY_TEST2
-./ARRAY_TEST2
+chmod u+x ARRAY_TEST2.x86exe
+./ARRAY_TEST2.x86exe
 cd ..
 
 
@@ -213,8 +213,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x ARRAY_TEST3
-./ARRAY_TEST3
+chmod u+x ARRAY_TEST3.x86exe
+./ARRAY_TEST3.x86exe
 cd ..
 
 
@@ -240,8 +240,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x REC_ARR_TEST
-./REC_ARR_TEST
+chmod u+x REC_ARR_TEST.x86exe
+./REC_ARR_TEST.x86exe
 cd ..
 
 
@@ -263,8 +263,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x GOTO_TEST
-./GOTO_TEST
+chmod u+x GOTO_TEST.x86exe
+./GOTO_TEST.x86exe
 cd ..
 
 
@@ -286,8 +286,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x CONV_DER1
-./CONV_DER1
+chmod u+x CONV_DER1.x86exe
+./CONV_DER1.x86exe
 cd ..
 
 
@@ -309,8 +309,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x CASE_ST1
-./CASE_ST1
+chmod u+x CASE_ST1.x86exe
+./CASE_ST1.x86exe
 cd ..
 
 
@@ -332,8 +332,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x ARRINI1
-./ARRINI1
+chmod u+x ARRINI1.x86exe
+./ARRINI1.x86exe
 cd ..
 
 
@@ -355,8 +355,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x SLICE1
-./SLICE1
+chmod u+x SLICE1.x86exe
+./SLICE1.x86exe
 cd ..
 
 
@@ -378,8 +378,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x INSTF1
-./INSTF1
+chmod u+x INSTF1.x86exe
+./INSTF1.x86exe
 cd ..
 
 
@@ -401,8 +401,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x ADDR_OV1
-./ADDR_OV1
+chmod u+x ADDR_OV1.x86exe
+./ADDR_OV1.x86exe
 cd ..
 
 
@@ -424,8 +424,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x SLCONV1
-./SLCONV1
+chmod u+x SLCONV1.x86exe
+./SLCONV1.x86exe
 cd ..
 
 
@@ -447,8 +447,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x LITAFF1
-./LITAFF1
+chmod u+x LITAFF1.x86exe
+./LITAFF1.x86exe
 cd ..
 
 
@@ -470,8 +470,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x RETPKG1
-./RETPKG1
+chmod u+x RETPKG1.x86exe
+./RETPKG1.x86exe
 cd ..
 
 
@@ -493,8 +493,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x AGGSTR_TEST
-./AGGSTR_TEST
+chmod u+x AGGSTR_TEST.x86exe
+./AGGSTR_TEST.x86exe
 cd ..
 
 
@@ -516,8 +516,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x OPDEF_TEST
-./OPDEF_TEST
+chmod u+x OPDEF_TEST.x86exe
+./OPDEF_TEST.x86exe
 cd ..
 
 
@@ -539,8 +539,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x PACKV_TEST
-./PACKV_TEST
+chmod u+x PACKV_TEST.x86exe
+./PACKV_TEST.x86exe
 cd ..
 
 
@@ -562,8 +562,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x OPB_TEST
-./OPB_TEST
+chmod u+x OPB_TEST.x86exe
+./OPB_TEST.x86exe
 cd ..
 
 
@@ -585,8 +585,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x GOTO_SELARG_TEST
-./GOTO_SELARG_TEST
+chmod u+x GOTO_SELARG_TEST.x86exe
+./GOTO_SELARG_TEST.x86exe
 cd ..
 
 
@@ -608,8 +608,8 @@ else
   cd ./ADA__LIB
 fi
 
-chmod u+x INDARG_TEST
-./INDARG_TEST
+chmod u+x INDARG_TEST.x86exe
+./INDARG_TEST.x86exe
 cd ..
 
 echo "          --------------"

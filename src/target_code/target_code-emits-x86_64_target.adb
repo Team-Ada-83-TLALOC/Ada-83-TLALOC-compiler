@@ -132,8 +132,10 @@ is					-------------
     B( 16#48# ); B( 16#8B# ); B( 16#36# );								--| mov rsi, [rsi]
     B( 16#48# ); B( 16#8D# ); B( 16#7D# ); B( 16#08# );							--| lea rdi, [rbp+8]
     B( 16#FC# );											--| cld
-    B( 16#AC# ); B( 16#AA# );										--| lodsb ; stosb
-    B( 16#E2# ); B( 16#FC# );										--| loop
+    B( 16#E3# ); B( 16#04# );										--| jrcxz +4 : chaine vide (rcx = 0), sinon
+    B( 16#AC# ); B( 16#AA# );										--| lodsb ; stosb		loop copierait 2**64
+    B( 16#E2# ); B( 16#FC# );										--| loop			octets
+
     B( 16#C6# ); B( 16#07# ); B( 16#00# );								--| mov byte [rdi], 0
     B( 16#48# ); B( 16#8D# ); B( 16#7D# ); B( 16#08# );							--| lea rdi, [rbp+8]
   end	E_COPY_STRING_NUL;
@@ -643,14 +645,14 @@ is					-------------
     elsif  M = "SYS_PUT_STR"  then return  31;								--| POP_RSI (8) + 23
     elsif  M = "SYS_GET_CHAR"  then return  91;
     elsif  M = "SYS_GET_STR"  then return  41;
-    elsif  M = "SYS_FILE_CREATE"  then return  58;
-    elsif  M = "SYS_FILE_OPEN"  then return  54;
+    elsif  M = "SYS_FILE_CREATE"  then return  60;							--| + jrcxz (chaine vide) dans E_COPY_STRING_NUL
+    elsif  M = "SYS_FILE_OPEN"  then return  56;
     elsif  M = "SYS_FILE_SET_POS"  then return  28;
     elsif  M = "SYS_FILE_GET_POS"  then return  23;							--| lseek(SEEK_CUR, 0) - resultat sur [rbp]
     elsif  M = "SYS_FILE_GET_SIZE"  then return  51;							--| lseek END puis SET (position preservee)
     elsif  M = "SYS_FILE_WRITE"  or else  M = "SYS_FILE_READ"  then return  33;
     elsif  M = "SYS_FILE_CLOSE"  then return  17;
-    elsif  M = "SYS_FILE_DELETE"  then return  50;
+    elsif  M = "SYS_FILE_DELETE"  then return  52;
     elsif  M = "SYS_EXIT"  then
       if  IR.N_OPS( E ) >= 1  and then  IR.OP_TAG( E, 1 ) = IR.INT_OP  and then  IR.OP_INT( E, 1 ) /= 0  then
         return  10;
